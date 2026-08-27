@@ -1,0 +1,38 @@
+[
+    {
+        "id": 1,
+        "name": "Scientific Calculator FX-570EX",
+        "category": "electronics",
+        "price": 65.00,
+        "stock": 5,
+        "rating": 4.8,
+        "image": "https://via.placeholder.com/200"
+    },
+    {
+        "id": 2,
+        "name": "Basic Python & Data Structures Book",
+        "category": "books",
+        "price": 25.00,
+        "stock": 2,
+        "rating": 5.0,
+        "image": "https://via.placeholder.com/200"
+    },
+    {
+        "id": 3,
+        "name": "Rechargeable LED Desk Lamp",
+        "category": "accessories",
+        "price": 18.00,
+        "stock": 10,
+        "rating": 4.5,
+        "image": "https://via.placeholder.com/200"
+    },
+    {
+        "id": 4,
+        "name": "Campus Hoodie (Size L)",
+        "category": "fashion",
+        "price": 45.00,
+        "stock": 4,
+        "rating": 4.7,
+        "image": "https://via.placeholder.com/200"
+    }
+]
