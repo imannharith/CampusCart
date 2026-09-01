@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CampusCart Admin Dashboard</title>
+
+    <link rel="stylesheet" href="admin.css">
+</head>
+
+<body>
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+
+        <h2>Campus<span>Cart</span></h2>
+        <p class="admin-label">ADMIN PANEL</p>
+
+        <nav>
+            <!-- Dashboard page -->
+            <a href="dashboard.html" class="active">Dashboard</a>
+
+            <!-- Go to Listings page -->
+            <a href="listings.html">Listings</a>
+
+            <a href="#">Users</a>
+            <a href="#">Reports</a>
+        </nav>
+
+        <div class="sidebar-bottom">
+            <a href="#">Settings</a>
+            <a href="#">Logout</a>
+        </div>
+
+    </aside>
+
+
+    <!-- MAIN CONTENT -->
+    <main class="main">
+
+        <!-- HEADER -->
+        <header>
+
+            <div>
+                <p class="small-title">ADMINISTRATION</p>
+
+                <h1>Dashboard</h1>
+
+                <p class="subtitle">
+                    Monitor and manage the CampusCart marketplace.
+                </p>
+            </div>
+
+            <div class="admin-user">
+
+                <div class="avatar">A</div>
+
+                <div>
+                    <strong>Administrator</strong>
+                    <small>CampusCart Admin</small>
+                </div>
+
+            </div>
+
+        </header>
+
+
+        <!-- STATISTICS -->
+        <section class="stats">
+
+            <div class="card">
+                <span class="icon blue">U</span>
+
+                <div>
+                    <p>Total Users</p>
+                    <h2>125</h2>
+                    <small>+12% this month</small>
+                </div>
+            </div>
+
+
+            <div class="card">
+                <span class="icon purple">P</span>
+
+                <div>
+                    <p>Total Products</p>
+                    <h2>348</h2>
+                    <small>+8% this month</small>
+                </div>
+            </div>
+
+
+            <div class="card">
+                <span class="icon orange">!</span>
+
+                <div>
+                    <p>Pending</p>
+                    <h2>24</h2>
+                    <small>Needs review</small>
+                </div>
+            </div>
+
+
+            <div class="card">
+                <span class="icon red">R</span>
+
+                <div>
+                    <p>Reports</p>
+                    <h2>8</h2>
+                    <small>Needs attention</small>
+                </div>
+            </div>
+
+        </section>
+
+
+        <!-- CONTENT GRID -->
+        <section class="content-grid">
+
+            <!-- ACTIVITY -->
+            <div class="panel">
+
+                <div class="panel-title">
+
+                    <div>
+                        <h3>Marketplace Activity</h3>
+                        <p>Listings submitted this week</p>
+                    </div>
+
+                    <span class="period">7 Days</span>
+
+                </div>
+
+
+                <div class="chart">
+
+                    <div class="bar" style="height:45%">
+                        <span>Mon</span>
+                    </div>
+
+                    <div class="bar" style="height:65%">
+                        <span>Tue</span>
+                    </div>
+
+                    <div class="bar" style="height:55%">
+                        <span>Wed</span>
+                    </div>
+
+                    <div class="bar" style="height:80%">
+                        <span>Thu</span>
+                    </div>
+
+                    <div class="bar" style="height:70%">
+                        <span>Fri</span>
+                    </div>
+
+                    <div class="bar" style="height:90%">
+                        <span>Sat</span>
+                    </div>
+
+                    <div class="bar" style="height:75%">
+                        <span>Sun</span>
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- QUICK ACTIONS -->
+            <div class="panel">
+
+                <div class="panel-title">
+
+                    <div>
+                        <h3>Quick Actions</h3>
+                        <p>Manage your marketplace</p>
+                    </div>
+
+                </div>
+
+
+                <!-- GO TO LISTINGS -->
+                <a href="listings.html" class="action">
+
+                    <div>
+                        <strong>Manage Listings</strong>
+                        <small>Review student products</small>
+                    </div>
+
+                    <span>→</span>
+
+                </a>
+
+
+                <a href="#" class="action">
+
+                    <div>
+                        <strong>Manage Users</strong>
+                        <small>View registered students</small>
+                    </div>
+
+                    <span>→</span>
+
+                </a>
+
+
+                <a href="#" class="action">
+
+                    <div>
+                        <strong>Review Reports</strong>
+                        <small>8 reports waiting</small>
+                    </div>
+
+                    <span>→</span>
+
+                </a>
+
+            </div>
+
+        </section>
+
+
+        <!-- RECENT PRODUCTS -->
+        <section class="panel">
+
+            <div class="panel-title">
+
+                <div>
+                    <h3>Recent Listings</h3>
+                    <p>Latest marketplace products</p>
+                </div>
+
+
+                <!-- GO TO LISTINGS -->
+                <a href="listings.html" class="view-all">
+                    View All →
+                </a>
+
+            </div>
+
+
+            <table>
+
+                <thead>
+
+                    <tr>
+                        <th>Product</th>
+                        <th>Seller</th>
+                        <th>Category</th>
+                        <th>Price</th>
+                        <th>Status</th>
+                    </tr>
+
+                </thead>
+
+
+                <tbody>
+
+                    <tr>
+                        <td>
+                            <strong>Scientific Calculator</strong>
+                        </td>
+
+                        <td>Ahmad</td>
+                        <td>Electronics</td>
+                        <td>RM 25</td>
+
+                        <td>
+                            <span class="status approved">
+                                Approved
+                            </span>
+                        </td>
+                    </tr>
+
+
+                    <tr>
+                        <td>
+                            <strong>Engineering Textbook</strong>
+                        </td>
+
+                        <td>Daniel</td>
+                        <td>Books</td>
+                        <td>RM 40</td>
+
+                        <td>
+                            <span class="status pending">
+                                Pending
+                            </span>
+                        </td>
+                    </tr>
+
+
+                    <tr>
+                        <td>
+                            <strong>Desk Lamp</strong>
+                        </td>
+
+                        <td>Sarah</td>
+                        <td>Furniture</td>
+                        <td>RM 20</td>
+
+                        <td>
+                            <span class="status reported">
+                                Reported
+                            </span>
+                        </td>
+                    </tr>
+
+                </tbody>
+
+            </table>
+
+        </section>
+
+    </main>
+
+</body>
+</html>

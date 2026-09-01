@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CampusCart | Listings</title>
+    <link rel="stylesheet" href="admin.css">
+</head>
+
+<body>
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+
+    <h2>Campus<span>Cart</span></h2>
+    <p class="admin-label">ADMIN PANEL</p>
+
+    <nav>
+        <a href="dashboard.html">Dashboard</a>
+        <a href="listings.html" class="active">Listings</a>
+        <a href="#">Users</a>
+        <a href="#">Reports</a>
+    </nav>
+
+    <div class="sidebar-bottom">
+        <a href="#">Settings</a>
+        <a href="#">Logout</a>
+    </div>
+
+</aside>
+
+
+<!-- MAIN CONTENT -->
+<main class="main">
+
+    <!-- HEADER -->
+    <header>
+
+        <div>
+            <p class="small-title">MARKETPLACE</p>
+            <h1>Product Listings</h1>
+            <p class="subtitle">
+                Review and manage student products.
+            </p>
+        </div>
+
+        <div class="admin-user">
+
+            <div class="avatar">A</div>
+
+            <div>
+                <strong>Administrator</strong>
+                <small>CampusCart Admin</small>
+            </div>
+
+        </div>
+
+    </header>
+
+
+    <!-- STATISTICS -->
+    <section class="stats">
+
+        <div class="card">
+            <span class="icon blue">P</span>
+
+            <div>
+                <p>Total Listings</p>
+                <h2>348</h2>
+                <small>All products</small>
+            </div>
+        </div>
+
+
+        <div class="card">
+            <span class="icon orange">!</span>
+
+            <div>
+                <p>Pending</p>
+                <h2>24</h2>
+                <small>Need review</small>
+            </div>
+        </div>
+
+
+        <div class="card">
+            <span class="icon purple">✓</span>
+
+            <div>
+                <p>Approved</p>
+                <h2>316</h2>
+                <small>Active products</small>
+            </div>
+        </div>
+
+
+        <div class="card">
+            <span class="icon red">R</span>
+
+            <div>
+                <p>Reported</p>
+                <h2>8</h2>
+                <small>Need attention</small>
+            </div>
+        </div>
+
+    </section>
+
+
+    <!-- SEARCH AND FILTER -->
+    <section class="panel">
+
+        <div class="panel-title">
+
+            <div>
+                <h3>Find Listings</h3>
+                <p>Search or filter marketplace listings.</p>
+            </div>
+
+        </div>
+
+
+        <div class="filters">
+
+            <input
+                type="text"
+                placeholder="Search product..."
+            >
+
+            <select>
+                <option>All Categories</option>
+                <option>Electronics</option>
+                <option>Books</option>
+                <option>Furniture</option>
+            </select>
+
+            <select>
+                <option>All Status</option>
+                <option>Approved</option>
+                <option>Pending</option>
+                <option>Reported</option>
+            </select>
+
+            <button>Search</button>
+
+        </div>
+
+    </section>
+
+
+    <!-- LISTINGS TABLE -->
+    <section class="panel">
+
+        <div class="panel-title">
+
+            <div>
+                <h3>Marketplace Listings</h3>
+                <p>Recently submitted products.</p>
+            </div>
+
+            <a href="dashboard.html" class="view-all">
+                ← Dashboard
+            </a>
+
+        </div>
+
+
+        <div class="table-container">
+
+            <table>
+
+                <thead>
+
+                    <tr>
+                        <th>Product</th>
+                        <th>Seller</th>
+                        <th>Category</th>
+                        <th>Price</th>
+                        <th>Status</th>
+                        <th>Action</th>
+                    </tr>
+
+                </thead>
+
+
+                <tbody>
+
+                    <tr>
+                        <td>
+                            <strong>Scientific Calculator</strong>
+                        </td>
+
+                        <td>Ahmad</td>
+                        <td>Electronics</td>
+                        <td>RM 25</td>
+
+                        <td>
+                            <span class="status approved">
+                                Approved
+                            </span>
+                        </td>
+
+                        <td>
+                            <button class="view-btn">
+                                View
+                            </button>
+                        </td>
+                    </tr>
+
+
+                    <tr>
+                        <td>
+                            <strong>Engineering Textbook</strong>
+                        </td>
+
+                        <td>Daniel</td>
+                        <td>Books</td>
+                        <td>RM 40</td>
+
+                        <td>
+                            <span class="status pending">
+                                Pending
+                            </span>
+                        </td>
+
+                        <td>
+                            <button class="approve-btn">
+                                Approve
+                            </button>
+
+                            <button class="reject-btn">
+                                Reject
+                            </button>
+                        </td>
+                    </tr>
+
+
+                    <tr>
+                        <td>
+                            <strong>Desk Lamp</strong>
+                        </td>
+
+                        <td>Sarah</td>
+                        <td>Furniture</td>
+                        <td>RM 20</td>
+
+                        <td>
+                            <span class="status reported">
+                                Reported
+                            </span>
+                        </td>
+
+                        <td>
+                            <button class="view-btn">
+                                Review
+                            </button>
+                        </td>
+                    </tr>
+
+
+                    <tr>
+                        <td>
+                            <strong>Gaming Mouse</strong>
+                        </td>
+
+                        <td>Amir</td>
+                        <td>Electronics</td>
+                        <td>RM 60</td>
+
+                        <td>
+                            <span class="status pending">
+                                Pending
+                            </span>
+                        </td>
+
+                        <td>
+                            <button class="approve-btn">
+                                Approve
+                            </button>
+
+                            <button class="reject-btn">
+                                Reject
+                            </button>
+                        </td>
+                    </tr>
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+    </section>
+
+</main>
+
+</body>
+</html>

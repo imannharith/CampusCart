@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>CampusCart - Manage Users</title>
+
+    <link rel="stylesheet" href="../../iman/static/style.css">
+    <link rel="stylesheet" href="admin.css">
+</head>
+
+<body>
+
+<div class="admin-layout">
+
+    <!-- SIDEBAR -->
+
+    <aside class="admin-sidebar">
+
+        <div class="admin-logo">
+            Campus<span>Cart</span>
+            <small>ADMIN PANEL</small>
+        </div>
+
+        <nav class="sidebar-menu">
+
+            <a href="dashboard.html" class="sidebar-link">
+                <span>📊</span>
+                Dashboard
+            </a>
+
+            <a href="listings.html" class="sidebar-link">
+                <span>📦</span>
+                Listings
+            </a>
+
+            <a href="users.html" class="sidebar-link active">
+                <span>👥</span>
+                Users
+            </a>
+
+            <a href="#" class="sidebar-link">
+                <span>⚠️</span>
+                Reports
+                <span class="notification-count">8</span>
+            </a>
+
+        </nav>
+
+        <div class="sidebar-bottom">
+
+            <a href="#" class="sidebar-link">
+                <span>⚙️</span>
+                Settings
+            </a>
+
+            <a href="#" class="sidebar-link">
+                <span>🚪</span>
+                Logout
+            </a>
+
+        </div>
+
+    </aside>
+
+
+    <!-- MAIN CONTENT -->
+
+    <main class="admin-main">
+
+        <div class="admin-topbar">
+
+            <div>
+
+                <h1>Manage Users</h1>
+
+                <p>
+                    View and manage CampusCart users.
+                </p>
+
+            </div>
+
+            <div class="admin-profile">
+
+                <div>
+                    <strong>Administrator</strong>
+                    <small>CampusCart Admin</small>
+                </div>
+
+                <div class="profile-icon">
+                    A
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- USER STATISTICS -->
+
+        <div class="dashboard-stats">
+
+            <div class="stat-card users">
+
+                <div class="stat-icon">
+                    👥
+                </div>
+
+                <div class="stat-content">
+
+                    <span>Total Users</span>
+
+                    <strong>125</strong>
+
+                    <small class="positive">
+                        Registered students
+                    </small>
+
+                </div>
+
+            </div>
+
+
+            <div class="stat-card listings">
+
+                <div class="stat-icon">
+                    ✓
+                </div>
+
+                <div class="stat-content">
+
+                    <span>Active Users</span>
+
+                    <strong>118</strong>
+
+                    <small class="positive">
+                        Currently active
+                    </small>
+
+                </div>
+
+            </div>
+
+
+            <div class="stat-card pending">
+
+                <div class="stat-icon">
+                    ⏳
+                </div>
+
+                <div class="stat-content">
+
+                    <span>New Users</span>
+
+                    <strong>12</strong>
+
+                    <small class="warning-text">
+                        This week
+                    </small>
+
+                </div>
+
+            </div>
+
+
+            <div class="stat-card reports">
+
+                <div class="stat-icon">
+                    🚫
+                </div>
+
+                <div class="stat-content">
+
+                    <span>Blocked Users</span>
+
+                    <strong>7</strong>
+
+                    <small class="danger-text">
+                        Restricted accounts
+                    </small>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- SEARCH -->
+
+        <div class="dashboard-panel">
+
+            <div class="panel-header">
+
+                <div>
+
+                    <h2>User Management</h2>
+
+                    <p>
+                        Search and manage registered users
+                    </p>
+
+                </div>
+
+            </div>
+
+
+            <div class="listing-filters">
+
+                <div class="filter-input">
+
+                    <label>Search User</label>
+
+                    <input
+                        type="text"
+                        placeholder="Search name or email..."
+                    >
+
+                </div>
+
+
+                <div class="filter-input">
+
+                    <label>Status</label>
+
+                    <select>
+
+                        <option>All Users</option>
+                        <option>Active</option>
+                        <option>Blocked</option>
+
+                    </select>
+
+                </div>
+
+
+                <button class="btn-apply-filter">
+                    Search
+                </button>
+
+            </div>
+
+        </div>
+
+
+        <!-- USER TABLE -->
+
+        <div class="dashboard-panel listings-panel">
+
+            <div class="panel-header">
+
+                <div>
+
+                    <h2>Registered Users</h2>
+
+                    <p>
+                        CampusCart student accounts
+                    </p>
+
+                </div>
+
+            </div>
+
+
+            <div class="table-wrapper">
+
+                <table class="admin-table">
+
+                    <thead>
+
+                        <tr>
+
+                            <th>User</th>
+                            <th>Email</th>
+                            <th>Listings</th>
+                            <th>Joined</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+
+                        </tr>
+
+                    </thead>
+
+
+                    <tbody>
+
+                        <tr>
+
+                            <td>
+                                <strong>Ahmad</strong>
+                            </td>
+
+                            <td>
+                                ahmad@student.edu
+                            </td>
+
+                            <td>
+                                8
+                            </td>
+
+                            <td>
+                                Aug 20, 2026
+                            </td>
+
+                            <td>
+                                <span class="status status-approved">
+                                    Active
+                                </span>
+                            </td>
+
+                            <td>
+                                <button class="action-btn view-btn">
+                                    View
+                                </button>
+
+                                <button class="action-btn reject-btn">
+                                    Block
+                                </button>
+                            </td>
+
+                        </tr>
+
+
+                        <tr>
+
+                            <td>
+                                <strong>Daniel</strong>
+                            </td>
+
+                            <td>
+                                daniel@student.edu
+                            </td>
+
+                            <td>
+                                5
+                            </td>
+
+                            <td>
+                                Aug 18, 2026
+                            </td>
+
+                            <td>
+                                <span class="status status-approved">
+                                    Active
+                                </span>
+                            </td>
+
+                            <td>
+                                <button class="action-btn view-btn">
+                                    View
+                                </button>
+
+                                <button class="action-btn reject-btn">
+                                    Block
+                                </button>
+                            </td>
+
+                        </tr>
+
+
+                        <tr>
+
+                            <td>
+                                <strong>Sarah</strong>
+                            </td>
+
+                            <td>
+                                sarah@student.edu
+                            </td>
+
+                            <td>
+                                11
+                            </td>
+
+                            <td>
+                                Aug 15, 2026
+                            </td>
+
+                            <td>
+                                <span class="status status-reported">
+                                    Blocked
+                                </span>
+                            </td>
+
+                            <td>
+                                <button class="action-btn view-btn">
+                                    View
+                                </button>
+
+                                <button class="action-btn approve-btn">
+                                    Unblock
+                                </button>
+                            </td>
+
+                        </tr>
+
+
+                        <tr>
+
+                            <td>
+                                <strong>Jason</strong>
+                            </td>
+
+                            <td>
+                                jason@student.edu
+                            </td>
+
+                            <td>
+                                3
+                            </td>
+
+                            <td>
+                                Aug 10, 2026
+                            </td>
+
+                            <td>
+                                <span class="status status-approved">
+                                    Active
+                                </span>
+                            </td>
+
+                            <td>
+                                <button class="action-btn view-btn">
+                                    View
+                                </button>
+
+                                <button class="action-btn reject-btn">
+                                    Block
+                                </button>
+                            </td>
+
+                        </tr>
+
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        </div>
+
+    </main>
+
+</div>
+
+</body>
+
+</html>
