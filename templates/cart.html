@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0">
+
+    <title>Shopping Cart - CampusCart</title>
+
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='shopping.css') }}">
+
+</head>
+
+<body>
+
+<div class="container">
+
+    <h1>🛒 Shopping Cart</h1>
+
+
+    {% if cart %}
+
+        {% for product_id, item in cart.items() %}
+
+        <div class="cart-item">
+
+            <div class="product-info">
+
+                <h2>{{ item.name }}</h2>
+
+                <p>
+                    Price:
+                    RM {{ "%.2f"|format(item.price) }}
+                </p>
+
+                <p>
+                    Quantity:
+                    {{ item.quantity }}
+                </p>
+
+                <p>
+                    Item Total:
+                    RM {{ "%.2f"|format(
+                        item.price * item.quantity
+                    ) }}
+                </p>
+
+            </div>
+
+
+            <div class="quantity-buttons">
+
+                <a href="/decrease/{{ product_id }}"
+                   class="button">
+                    −
+                </a>
+
+                <span>
+                    {{ item.quantity }}
+                </span>
+
+                <a href="/increase/{{ product_id }}"
+                   class="button">
+                    +
+                </a>
+
+            </div>
+
+
+            <a href="/remove/{{ product_id }}"
+               class="remove-button">
+
+                Remove
+
+            </a>
+
+        </div>
+
+        {% endfor %}
+
+
+        <div class="cart-summary">
+
+            <h2>
+                Subtotal:
+                RM {{ "%.2f"|format(subtotal) }}
+            </h2>
+
+            <a href="/"
+               class="button">
+
+                Continue Shopping
+
+            </a>
+
+        </div>
+
+
+    {% else %}
+
+        <div class="empty-cart">
+
+            <h2>Your cart is empty</h2>
+
+            <p>
+                Add products to your shopping cart.
+            </p>
+
+            <a href="/" class="button">
+                Continue Shopping
+            </a>
+
+        </div>
+
+    {% endif %}
+
+</div>
+
+</body>
+
+</html>
