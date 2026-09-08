@@ -1,7 +1,7 @@
 import json
 import os
 
-# Path to the JSON data file
+#  Path to the JSON data file
 DATA_FILE = os.path.join('data', 'products.json')
 
 def load_all_products():
