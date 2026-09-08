@@ -1,9 +1,9 @@
 from flask import Flask, render_template, redirect, url_for
 
 app = Flask(
-    __name__,
-    static_folder="iman/static",
-    static_url_path="/static"
+    __name__
+   # static_folder="iman/static",
+   # static_url_path="/static"
 )
 
 
@@ -40,30 +40,31 @@ cart = {}
 
 @app.route("/")
 def home():
-    return """
-    <h1>CampusCart</h1>
+    return render_template ('homepage.html')
+    # return """
+    # <h1>CampusCart</h1>
 
-    <p>Member 2 Shopping Cart</p>
+    # <p>Member 2 Shopping Cart</p>
 
-    <a href="/test-add/1">
-        Add T-Shirt to Cart
-    </a>
-    <br><br>
+    # <a href="/test-add/1">
+    #     Add T-Shirt to Cart
+    # </a>
+    # <br><br>
 
-    <a href="/test-add/2">
-        Add Hoodie to Cart
-    </a>
-    <br><br>
+    # <a href="/test-add/2">
+    #     Add Hoodie to Cart
+    # </a>
+    # <br><br>
 
-    <a href="/test-add/3">
-        Add Notebook to Cart
-    </a>
-    <br><br>
+    # <a href="/test-add/3">
+    #     Add Notebook to Cart
+    # </a>
+    # <br><br>
 
-    <a href="/cart">
-        View Cart
-    </a>
-    """
+    # <a href="/cart">
+    #     View Cart
+    # </a>
+    # """
 
 
 # -------------------------
