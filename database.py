@@ -7,7 +7,10 @@ connection = sqlite3.connect(DATABASE)
 cursor = connection.cursor()
 
 
-# Shopping cart table
+# -------------------------
+# SHOPPING CART TABLE
+# -------------------------
+
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS cart (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -18,7 +21,10 @@ CREATE TABLE IF NOT EXISTS cart (
 """)
 
 
-# Orders table
+# -------------------------
+# ORDERS TABLE
+# -------------------------
+
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS orders (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -32,7 +38,10 @@ CREATE TABLE IF NOT EXISTS orders (
 """)
 
 
-# Products inside an order
+# -------------------------
+# PRODUCTS INSIDE AN ORDER
+# -------------------------
+
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS order_items (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -43,6 +52,11 @@ CREATE TABLE IF NOT EXISTS order_items (
 )
 """)
 
+
+# -------------------------
+# DISCOUNT CODES TABLE
+# -------------------------
+
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS discount_codes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -51,6 +65,28 @@ CREATE TABLE IF NOT EXISTS discount_codes (
     active INTEGER NOT NULL DEFAULT 1
 )
 """)
+
+
+# -------------------------
+# PRODUCTS TABLE
+# -------------------------
+
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS products (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    seller TEXT NOT NULL,
+    category TEXT NOT NULL,
+    price REAL NOT NULL,
+    stock INTEGER NOT NULL,
+    status TEXT NOT NULL DEFAULT 'Pending'
+)
+""")
+
+
+# -------------------------
+# SAVE CHANGES
+# -------------------------
 
 connection.commit()
 
