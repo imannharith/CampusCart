@@ -1,13 +1,12 @@
 from flask import Flask, render_template, redirect, url_for
 
-app = Flask(
-    __name__
-   # static_folder="iman/static",
-   # static_url_path="/static"
-)
+app = Flask(__name__)
 
 
-# Temporary products for testing
+# -------------------------
+# TEMPORARY PRODUCTS
+# -------------------------
+
 products = [
     {
         "id": 1,
@@ -30,7 +29,10 @@ products = [
 ]
 
 
-# Temporary shopping cart
+# -------------------------
+# TEMPORARY SHOPPING CART
+# -------------------------
+
 cart = {}
 
 
@@ -40,31 +42,25 @@ cart = {}
 
 @app.route("/")
 def home():
-    return render_template ('homepage.html')
-    # return """
-    # <h1>CampusCart</h1>
+    return render_template("homepage.html")
 
-    # <p>Member 2 Shopping Cart</p>
 
-    # <a href="/test-add/1">
-    #     Add T-Shirt to Cart
-    # </a>
-    # <br><br>
+# -------------------------
+# ADMIN DASHBOARD
+# -------------------------
 
-    # <a href="/test-add/2">
-    #     Add Hoodie to Cart
-    # </a>
-    # <br><br>
+@app.route("/dashboard")
+def dashboard():
+    return render_template("dashboard.html")
 
-    # <a href="/test-add/3">
-    #     Add Notebook to Cart
-    # </a>
-    # <br><br>
 
-    # <a href="/cart">
-    #     View Cart
-    # </a>
-    # """
+# -------------------------
+# ADMIN LISTINGS
+# -------------------------
+
+@app.route("/listings")
+def listings():
+    return render_template("listings.html")
 
 
 # -------------------------
@@ -102,7 +98,6 @@ def add_to_cart(product_id):
 
         # Check stock
         if cart[product_id]["quantity"] < product["stock"]:
-
             cart[product_id]["quantity"] += 1
 
     else:
@@ -160,7 +155,6 @@ def increase_quantity(product_id):
 
         # Don't allow quantity above stock
         if cart[product_id]["quantity"] < product["stock"]:
-
             cart[product_id]["quantity"] += 1
 
     return redirect(url_for("view_cart"))
@@ -179,7 +173,6 @@ def decrease_quantity(product_id):
 
         # Remove when quantity reaches zero
         if cart[product_id]["quantity"] <= 0:
-
             del cart[product_id]
 
     return redirect(url_for("view_cart"))
@@ -193,7 +186,6 @@ def decrease_quantity(product_id):
 def remove_from_cart(product_id):
 
     if product_id in cart:
-
         del cart[product_id]
 
     return redirect(url_for("view_cart"))
