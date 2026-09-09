@@ -7,8 +7,7 @@
 
     <title>CampusCart - Manage Users</title>
 
-    <link rel="stylesheet" href="../../iman/static/style.css">
-    <link rel="stylesheet" href="admin.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='admin.css') }}">
 </head>
 
 <body>
@@ -26,25 +25,24 @@
 
         <nav class="sidebar-menu">
 
-            <a href="dashboard.html" class="sidebar-link">
+            <a href="{{ url_for('dashboard') }}" class="sidebar-link">
                 <span>📊</span>
                 Dashboard
             </a>
 
-            <a href="listings.html" class="sidebar-link">
+            <a href="{{ url_for('listings') }}" class="sidebar-link">
                 <span>📦</span>
                 Listings
             </a>
 
-            <a href="users.html" class="sidebar-link active">
+            <a href="{{ url_for('users') }}" class="sidebar-link active">
                 <span>👥</span>
                 Users
             </a>
 
-            <a href="#" class="sidebar-link">
+            <a href="{{ url_for('reports') }}" class="sidebar-link">
                 <span>⚠️</span>
                 Reports
-                <span class="notification-count">8</span>
             </a>
 
         </nav>

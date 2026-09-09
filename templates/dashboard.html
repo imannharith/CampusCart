@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CampusCart Admin Dashboard</title>
 
-    <link rel="stylesheet" href="static/admin.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='admin.css') }}">
 </head>
 
 <body>
@@ -18,13 +18,13 @@
 
         <nav>
             <!-- Dashboard page -->
-            <a href="dashboard.html" class="active">Dashboard</a>
+            <a href="{{ url_for('dashboard') }}" class="active">Dashboard</a>
 
             <!-- Go to Listings page -->
-            <a href="listings.html">Listings</a>
+            <a href="{{ url_for('listings') }}">Listings</a>
 
-            <a href="#">Users</a>
-            <a href="#">Reports</a>
+            <a href="{{ url_for('users') }}">Users</a>
+            <a href="{{ url_for('reports') }}">Reports</a>
         </nav>
 
         <div class="sidebar-bottom">
@@ -181,7 +181,7 @@
 
 
                 <!-- GO TO LISTINGS -->
-                <a href="listings.html" class="action">
+                <a href="{{ url_for('listings') }}" class="action">
 
                     <div>
                         <strong>Manage Listings</strong>
@@ -193,7 +193,7 @@
                 </a>
 
 
-                <a href="#" class="action">
+                <a href="{{ url_for('users') }}" class="action">
 
                     <div>
                         <strong>Manage Users</strong>
@@ -205,11 +205,11 @@
                 </a>
 
 
-                <a href="#" class="action">
+                <a href="{{ url_for('reports') }}" class="action">
 
                     <div>
-                        <strong>Review Reports</strong>
-                        <small>8 reports waiting</small>
+                        <strong>Order Reports</strong>
+                        <small>View orders &amp; sales</small>
                     </div>
 
                     <span>→</span>
@@ -233,7 +233,7 @@
 
 
                 <!-- GO TO LISTINGS -->
-                <a href="listings.html" class="view-all">
+                <a href="{{ url_for('listings') }}" class="view-all">
                     View All →
                 </a>
 
@@ -257,55 +257,27 @@
 
                 <tbody>
 
+                    {% for product in recent_products %}
                     <tr>
                         <td>
-                            <strong>Scientific Calculator</strong>
+                            <strong>{{ product.name }}</strong>
                         </td>
 
-                        <td>Ahmad</td>
-                        <td>Electronics</td>
-                        <td>RM 25</td>
+                        <td>{{ product.seller }}</td>
+                        <td>{{ product.category }}</td>
+                        <td>RM {{ "%.2f"|format(product.price) }}</td>
 
                         <td>
-                            <span class="status approved">
-                                Approved
+                            <span class="status {{ product.status|lower }}">
+                                {{ product.status }}
                             </span>
                         </td>
                     </tr>
-
-
+                    {% else %}
                     <tr>
-                        <td>
-                            <strong>Engineering Textbook</strong>
-                        </td>
-
-                        <td>Daniel</td>
-                        <td>Books</td>
-                        <td>RM 40</td>
-
-                        <td>
-                            <span class="status pending">
-                                Pending
-                            </span>
-                        </td>
+                        <td colspan="5">No products yet.</td>
                     </tr>
-
-
-                    <tr>
-                        <td>
-                            <strong>Desk Lamp</strong>
-                        </td>
-
-                        <td>Sarah</td>
-                        <td>Furniture</td>
-                        <td>RM 20</td>
-
-                        <td>
-                            <span class="status reported">
-                                Reported
-                            </span>
-                        </td>
-                    </tr>
+                    {% endfor %}
 
                 </tbody>
 

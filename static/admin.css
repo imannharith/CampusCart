@@ -429,6 +429,134 @@ td strong {
 }
 
 
+/* ===== ADD / EDIT PRODUCT FORM ===== */
+
+.form-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr) auto;
+    gap: 12px;
+    align-items: center;
+}
+
+.form-grid input {
+    padding: 11px;
+    border: 1px solid #dce3e8;
+    border-radius: 7px;
+    outline: none;
+    font-size: 12px;
+}
+
+.form-grid input:focus {
+    border-color: #2496d4;
+}
+
+.filters-button,
+.form-grid button {
+    padding: 11px 20px;
+    border: none;
+    border-radius: 7px;
+    background: #2496d4;
+    color: white;
+    font-weight: bold;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+.filters-button:hover,
+.form-grid button:hover {
+    background: #1985bf;
+}
+
+.cancel-link {
+    color: #8a969f;
+    text-decoration: none;
+    font-size: 12px;
+    font-weight: bold;
+    align-self: center;
+}
+
+
+/* ===== STOCK CONTROLS ===== */
+
+.stock-cell {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.stock-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 5px;
+    background: #f0f4f7;
+    color: #263238;
+    text-decoration: none;
+    font-weight: bold;
+    font-size: 13px;
+}
+
+.stock-btn:hover {
+    background: #e3e9ed;
+}
+
+
+/* ===== CATEGORY TAGS ===== */
+
+.category-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.category-tag {
+    background: #f0f4f7;
+    color: #263238;
+    padding: 6px 12px;
+    border-radius: 15px;
+    font-size: 11px;
+    font-weight: bold;
+}
+
+
+/* ===== ACTION CELL SPACING ===== */
+
+.action-cell {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.action-cell a {
+    text-decoration: none;
+}
+
+
+/* ===== EXTRA STATUSES (orders) ===== */
+
+.shipped {
+    background: #e8f5fc;
+    color: #2496d4;
+}
+
+.delivered {
+    background: #e8f7ef;
+    color: #27ae60;
+}
+
+.cancelled {
+    background: #fdeaea;
+    color: #e74c3c;
+}
+
+.rejected {
+    background: #fdeaea;
+    color: #e74c3c;
+}
+
+
 /* ===== MOBILE ===== */
 
 @media (max-width: 900px) {
@@ -442,6 +570,10 @@ td strong {
     }
 
     .filters {
+        grid-template-columns: 1fr;
+    }
+
+    .form-grid {
         grid-template-columns: 1fr;
     }
 }

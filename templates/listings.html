@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CampusCart | Listings</title>
-    <link rel="stylesheet" href="admin.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='admin.css') }}">
 </head>
 
 <body>
@@ -16,10 +16,10 @@
     <p class="admin-label">ADMIN PANEL</p>
 
     <nav>
-        <a href="dashboard.html">Dashboard</a>
-        <a href="listings.html" class="active">Listings</a>
-        <a href="#">Users</a>
-        <a href="#">Reports</a>
+        <a href="{{ url_for('dashboard') }}">Dashboard</a>
+        <a href="{{ url_for('listings') }}" class="active">Listings</a>
+        <a href="{{ url_for('users') }}">Users</a>
+        <a href="{{ url_for('reports') }}">Reports</a>
     </nav>
 
     <div class="sidebar-bottom">
@@ -66,7 +66,7 @@
 
             <div>
                 <p>Total Listings</p>
-                <h2>348</h2>
+                <h2>{{ listing_stats.total }}</h2>
                 <small>All products</small>
             </div>
         </div>
@@ -77,18 +77,18 @@
 
             <div>
                 <p>Pending</p>
-                <h2>24</h2>
+                <h2>{{ listing_stats.pending }}</h2>
                 <small>Need review</small>
             </div>
         </div>
 
 
         <div class="card">
-            <span class="icon purple">✓</span>
+            <span class="icon purple">&#10003;</span>
 
             <div>
                 <p>Approved</p>
-                <h2>316</h2>
+                <h2>{{ listing_stats.approved }}</h2>
                 <small>Active products</small>
             </div>
         </div>
@@ -99,10 +99,57 @@
 
             <div>
                 <p>Reported</p>
-                <h2>8</h2>
+                <h2>{{ listing_stats.reported }}</h2>
                 <small>Need attention</small>
             </div>
         </div>
+
+    </section>
+
+
+    <!-- ADD / EDIT PRODUCT -->
+    <section class="panel">
+
+        <div class="panel-title">
+            <div>
+                {% if edit_product %}
+                    <h3>Edit Product</h3>
+                    <p>Update "{{ edit_product.name }}".</p>
+                {% else %}
+                    <h3>Add New Product</h3>
+                    <p>Manually add a product to the marketplace.</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <form
+            method="POST"
+            action="{% if edit_product %}{{ url_for('edit_product', product_id=edit_product.id) }}{% else %}{{ url_for('add_product') }}{% endif %}"
+            class="form-grid"
+        >
+            <input type="text" name="name" placeholder="Product name" required
+                   value="{{ edit_product.name if edit_product else '' }}">
+
+            <input type="text" name="seller" placeholder="Seller name" required
+                   value="{{ edit_product.seller if edit_product else '' }}">
+
+            <input type="text" name="category" placeholder="Category" required
+                   value="{{ edit_product.category if edit_product else '' }}">
+
+            <input type="number" step="0.01" name="price" placeholder="Price (RM)" required
+                   value="{{ edit_product.price if edit_product else '' }}">
+
+            <input type="number" name="stock" placeholder="Stock" required
+                   value="{{ edit_product.stock if edit_product else '' }}">
+
+            <button type="submit" class="filters-button">
+                {% if edit_product %}Save Changes{% else %}Add Product{% endif %}
+            </button>
+
+            {% if edit_product %}
+            <a href="{{ url_for('listings') }}" class="cancel-link">Cancel</a>
+            {% endif %}
+        </form>
 
     </section>
 
@@ -120,30 +167,32 @@
         </div>
 
 
-        <div class="filters">
+        <form method="GET" action="{{ url_for('listings') }}" class="filters">
 
             <input
                 type="text"
+                name="search"
                 placeholder="Search product..."
+                value="{{ search }}"
             >
 
-            <select>
-                <option>All Categories</option>
-                <option>Electronics</option>
-                <option>Books</option>
-                <option>Furniture</option>
+            <select name="category">
+                <option value="all" {% if selected_category == 'all' %}selected{% endif %}>All Categories</option>
+                {% for cat in categories %}
+                <option value="{{ cat }}" {% if selected_category == cat %}selected{% endif %}>{{ cat }}</option>
+                {% endfor %}
             </select>
 
-            <select>
-                <option>All Status</option>
-                <option>Approved</option>
-                <option>Pending</option>
-                <option>Reported</option>
+            <select name="status">
+                <option value="all" {% if selected_status == 'all' %}selected{% endif %}>All Status</option>
+                <option value="Approved" {% if selected_status == 'Approved' %}selected{% endif %}>Approved</option>
+                <option value="Pending" {% if selected_status == 'Pending' %}selected{% endif %}>Pending</option>
+                <option value="Reported" {% if selected_status == 'Reported' %}selected{% endif %}>Reported</option>
             </select>
 
-            <button>Search</button>
+            <button type="submit">Search</button>
 
-        </div>
+        </form>
 
     </section>
 
@@ -155,10 +204,10 @@
 
             <div>
                 <h3>Marketplace Listings</h3>
-                <p>Recently submitted products.</p>
+                <p>{{ products|length }} product(s) found.</p>
             </div>
 
-            <a href="dashboard.html" class="view-all">
+            <a href="{{ url_for('dashboard') }}" class="view-all">
                 ← Dashboard
             </a>
 
@@ -176,6 +225,7 @@
                         <th>Seller</th>
                         <th>Category</th>
                         <th>Price</th>
+                        <th>Stock</th>
                         <th>Status</th>
                         <th>Action</th>
                     </tr>
@@ -185,109 +235,197 @@
 
                 <tbody>
 
+                    {% for product in products %}
                     <tr>
                         <td>
-                            <strong>Scientific Calculator</strong>
+                            <strong>{{ product.name }}</strong>
                         </td>
 
-                        <td>Ahmad</td>
-                        <td>Electronics</td>
-                        <td>RM 25</td>
+                        <td>{{ product.seller }}</td>
+                        <td>{{ product.category }}</td>
+                        <td>RM {{ "%.2f"|format(product.price) }}</td>
 
                         <td>
-                            <span class="status approved">
-                                Approved
+                            <div class="stock-cell">
+                                <a href="{{ url_for('adjust_product_stock', product_id=product.id, action='decrease') }}" class="stock-btn">−</a>
+                                <span>{{ product.stock }}</span>
+                                <a href="{{ url_for('adjust_product_stock', product_id=product.id, action='increase') }}" class="stock-btn">+</a>
+                            </div>
+                        </td>
+
+                        <td>
+                            <span class="status {{ product.status|lower }}">
+                                {{ product.status }}
                             </span>
                         </td>
 
-                        <td>
-                            <button class="view-btn">
-                                View
-                            </button>
-                        </td>
-                    </tr>
+                        <td class="action-cell">
+                            <a href="{{ url_for('listings', edit=product.id) }}" class="view-btn">
+                                Edit
+                            </a>
 
-
-                    <tr>
-                        <td>
-                            <strong>Engineering Textbook</strong>
-                        </td>
-
-                        <td>Daniel</td>
-                        <td>Books</td>
-                        <td>RM 40</td>
-
-                        <td>
-                            <span class="status pending">
-                                Pending
-                            </span>
-                        </td>
-
-                        <td>
-                            <button class="approve-btn">
+                            {% if product.status != 'Approved' %}
+                            <a href="{{ url_for('change_product_status', product_id=product.id, status='Approved') }}" class="approve-btn">
                                 Approve
-                            </button>
+                            </a>
+                            {% endif %}
 
-                            <button class="reject-btn">
+                            {% if product.status != 'Rejected' %}
+                            <a href="{{ url_for('change_product_status', product_id=product.id, status='Rejected') }}" class="reject-btn">
                                 Reject
-                            </button>
+                            </a>
+                            {% endif %}
+
+                            <a href="{{ url_for('delete_product', product_id=product.id) }}" class="reject-btn"
+                               onclick="return confirm('Delete this product?');">
+                                Delete
+                            </a>
                         </td>
                     </tr>
-
-
+                    {% else %}
                     <tr>
-                        <td>
-                            <strong>Desk Lamp</strong>
-                        </td>
-
-                        <td>Sarah</td>
-                        <td>Furniture</td>
-                        <td>RM 20</td>
-
-                        <td>
-                            <span class="status reported">
-                                Reported
-                            </span>
-                        </td>
-
-                        <td>
-                            <button class="view-btn">
-                                Review
-                            </button>
-                        </td>
+                        <td colspan="7">No products match your filters.</td>
                     </tr>
-
-
-                    <tr>
-                        <td>
-                            <strong>Gaming Mouse</strong>
-                        </td>
-
-                        <td>Amir</td>
-                        <td>Electronics</td>
-                        <td>RM 60</td>
-
-                        <td>
-                            <span class="status pending">
-                                Pending
-                            </span>
-                        </td>
-
-                        <td>
-                            <button class="approve-btn">
-                                Approve
-                            </button>
-
-                            <button class="reject-btn">
-                                Reject
-                            </button>
-                        </td>
-                    </tr>
+                    {% endfor %}
 
                 </tbody>
 
             </table>
 
+        </div>
+
+    </section>
+
+
+    <!-- CATEGORIES -->
+    <section class="panel">
+
+        <div class="panel-title">
+            <div>
+                <h3>Categories</h3>
+                <p>Categories currently in use across all products.</p>
+            </div>
+        </div>
+
+        <div class="category-tags">
+            {% for cat in categories %}
+            <span class="category-tag">{{ cat }}</span>
+            {% else %}
+            <span>No categories yet.</span>
+            {% endfor %}
+        </div>
+
+        <form method="POST" action="{{ url_for('rename_category') }}" class="filters" style="margin-top: 16px;">
+            <select name="old_name">
+                {% for cat in categories %}
+                <option value="{{ cat }}">{{ cat }}</option>
+                {% endfor %}
+            </select>
+
+            <input type="text" name="new_name" placeholder="New category name" required>
+
+            <button type="submit">Rename</button>
+        </form>
+
+    </section>
+
+
+    <!-- DISCOUNT CODES -->
+    <section class="panel">
+
+        <div class="panel-title">
+            <div>
+                <h3>Discount Codes</h3>
+                <p>Create and manage promotional codes.</p>
+            </div>
+        </div>
+
+        <form method="POST" action="{{ url_for('add_discount') }}" class="filters">
+            <input type="text" name="code" placeholder="CODE (e.g. SAVE10)" required>
+            <input type="number" step="0.01" name="discount_percent" placeholder="Discount %" required>
+            <button type="submit">Add Code</button>
+        </form>
+
+        <div class="table-container" style="margin-top: 16px;">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Code</th>
+                        <th>Discount</th>
+                        <th>Status</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for d in discount_codes %}
+                    <tr>
+                        <td><strong>{{ d.code }}</strong></td>
+                        <td>{{ d.discount_percent }}%</td>
+                        <td>
+                            <span class="status {{ 'approved' if d.active else 'reported' }}">
+                                {{ 'Active' if d.active else 'Inactive' }}
+                            </span>
+                        </td>
+                        <td class="action-cell">
+                            <a href="{{ url_for('toggle_discount', discount_id=d.id) }}" class="view-btn">
+                                {{ 'Deactivate' if d.active else 'Activate' }}
+                            </a>
+                            <a href="{{ url_for('delete_discount', discount_id=d.id) }}" class="reject-btn"
+                               onclick="return confirm('Delete this code?');">
+                                Delete
+                            </a>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="4">No discount codes yet.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+    </section>
+
+
+    <!-- REVIEWS -->
+    <section class="panel">
+
+        <div class="panel-title">
+            <div>
+                <h3>Product Reviews</h3>
+                <p>Moderate student reviews.</p>
+            </div>
+        </div>
+
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Product</th>
+                        <th>Reviewer</th>
+                        <th>Rating</th>
+                        <th>Comment</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in reviews %}
+                    <tr>
+                        <td><strong>{{ r.product_name or 'Deleted product' }}</strong></td>
+                        <td>{{ r.reviewer }}</td>
+                        <td>{{ r.rating }} / 5</td>
+                        <td>{{ r.comment }}</td>
+                        <td class="action-cell">
+                            <a href="{{ url_for('delete_review', review_id=r.id) }}" class="reject-btn"
+                               onclick="return confirm('Delete this review?');">
+                                Delete
+                            </a>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="5">No reviews yet.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
 
     </section>

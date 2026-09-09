@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CampusCart | Orders &amp; Reports</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='admin.css') }}">
+</head>
+
+<body>
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+
+    <h2>Campus<span>Cart</span></h2>
+    <p class="admin-label">ADMIN PANEL</p>
+
+    <nav>
+        <a href="{{ url_for('dashboard') }}">Dashboard</a>
+        <a href="{{ url_for('listings') }}">Listings</a>
+        <a href="{{ url_for('users') }}">Users</a>
+        <a href="{{ url_for('reports') }}" class="active">Reports</a>
+    </nav>
+
+    <div class="sidebar-bottom">
+        <a href="#">Settings</a>
+        <a href="#">Logout</a>
+    </div>
+
+</aside>
+
+
+<!-- MAIN CONTENT -->
+<main class="main">
+
+    <!-- HEADER -->
+    <header>
+
+        <div>
+            <p class="small-title">MARKETPLACE</p>
+            <h1>Orders &amp; Sales Reports</h1>
+            <p class="subtitle">
+                Track orders and monitor overall sales performance.
+            </p>
+        </div>
+
+        <div class="admin-user">
+
+            <div class="avatar">A</div>
+
+            <div>
+                <strong>Administrator</strong>
+                <small>CampusCart Admin</small>
+            </div>
+
+        </div>
+
+    </header>
+
+
+    <!-- SALES SUMMARY -->
+    <section class="stats">
+
+        <div class="card">
+            <span class="icon blue">O</span>
+            <div>
+                <p>Total Orders</p>
+                <h2>{{ sales.total_orders }}</h2>
+                <small>All time</small>
+            </div>
+        </div>
+
+        <div class="card">
+            <span class="icon purple">$</span>
+            <div>
+                <p>Total Revenue</p>
+                <h2>RM {{ "%.2f"|format(sales.total_revenue) }}</h2>
+                <small>Excludes cancelled orders</small>
+            </div>
+        </div>
+
+        <div class="card">
+            <span class="icon orange">%</span>
+            <div>
+                <p>Discounts Given</p>
+                <h2>RM {{ "%.2f"|format(sales.total_discount_given) }}</h2>
+                <small>Total across all orders</small>
+            </div>
+        </div>
+
+        <div class="card">
+            <span class="icon red">A</span>
+            <div>
+                <p>Avg. Order Value</p>
+                <h2>RM {{ "%.2f"|format(sales.average_order_value) }}</h2>
+                <small>Per order</small>
+            </div>
+        </div>
+
+    </section>
+
+
+    <!-- TOP SELLING PRODUCTS -->
+    <section class="panel">
+
+        <div class="panel-title">
+            <div>
+                <h3>Top Selling Products</h3>
+                <p>Ranked by units sold.</p>
+            </div>
+        </div>
+
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Product</th>
+                        <th>Units Sold</th>
+                        <th>Revenue</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for p in top_products %}
+                    <tr>
+                        <td><strong>{{ p.name }}</strong></td>
+                        <td>{{ p.units_sold }}</td>
+                        <td>RM {{ "%.2f"|format(p.revenue) }}</td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="3">No sales yet.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+    </section>
+
+
+    <!-- FILTER ORDERS -->
+    <section class="panel">
+
+        <div class="panel-title">
+            <div>
+                <h3>Filter Orders</h3>
+                <p>Filter by fulfillment status.</p>
+            </div>
+        </div>
+
+        <form method="GET" action="{{ url_for('reports') }}" class="filters" style="grid-template-columns: 1fr auto;">
+            <select name="status">
+                <option value="all" {% if selected_status == 'all' %}selected{% endif %}>All Status</option>
+                <option value="Pending" {% if selected_status == 'Pending' %}selected{% endif %}>Pending</option>
+                <option value="Shipped" {% if selected_status == 'Shipped' %}selected{% endif %}>Shipped</option>
+                <option value="Delivered" {% if selected_status == 'Delivered' %}selected{% endif %}>Delivered</option>
+                <option value="Cancelled" {% if selected_status == 'Cancelled' %}selected{% endif %}>Cancelled</option>
+            </select>
+            <button type="submit">Filter</button>
+        </form>
+
+    </section>
+
+
+    <!-- ORDERS TABLE -->
+    <section class="panel">
+
+        <div class="panel-title">
+            <div>
+                <h3>Orders</h3>
+                <p>{{ orders|length }} order(s) found.</p>
+            </div>
+        </div>
+
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Order #</th>
+                        <th>Items</th>
+                        <th>Subtotal</th>
+                        <th>Discount</th>
+                        <th>Total</th>
+                        <th>Date</th>
+                        <th>Status</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for order in orders %}
+                    <tr>
+                        <td><strong>#{{ order.id }}</strong></td>
+                        <td>
+                            {% for item in order.line_items %}
+                                {{ item.product_name or 'Deleted product' }} &times;{{ item.quantity }}{% if not loop.last %}, {% endif %}
+                            {% else %}
+                                —
+                            {% endfor %}
+                        </td>
+                        <td>RM {{ "%.2f"|format(order.subtotal) }}</td>
+                        <td>RM {{ "%.2f"|format(order.discount) }}</td>
+                        <td>RM {{ "%.2f"|format(order.total) }}</td>
+                        <td>{{ order.order_date }}</td>
+                        <td>
+                            <span class="status {{ order.status|lower }}">
+                                {{ order.status }}
+                            </span>
+                        </td>
+                        <td class="action-cell">
+                            <a href="{{ url_for('update_order_status', order_id=order.id, status='Shipped') }}" class="view-btn">Ship</a>
+                            <a href="{{ url_for('update_order_status', order_id=order.id, status='Delivered') }}" class="approve-btn">Deliver</a>
+                            <a href="{{ url_for('update_order_status', order_id=order.id, status='Cancelled') }}" class="reject-btn">Cancel</a>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="8">No orders match this filter.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+    </section>
+
+</main>
+
+</body>
+</html>
