@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>All Products - CampusCart</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+    <!-- Navigation Bar -->
+    <header class="navbar">
+        <div class="logo">
+            <a href="/" style="text-decoration: none; color: inherit;">Campus<span>Cart</span></a>
+        </div>
+        <div class="nav-links">
+            <a href="/">Home</a>
+            <a href="/products" class="active">Products</a>
+            <a href="/login">Login</a>
+            <a href="/register" class="btn-register">Register</a>
+            <a href="/cart" class="cart-icon">🛒 Cart</a>
+        </div>
+    </header>
+
+    <!-- Main Listing Layout -->
+    <main class="container listing-container">
+        
+        <!-- Filter Sidebar dengan Form Flask -->
+        <aside class="sidebar">
+            <h3>Filter & Search</h3>
+            
+            <form action="/products" method="GET">
+                <div class="filter-group">
+                    <label for="search">Search Keywords</label>
+                    <input type="text" id="search" name="search" placeholder="Search product name...">
+                </div>
+
+                <div class="filter-group">
+                    <label for="category">Category</label>
+                    <select id="category" name="category">
+                        <option value="all">All Categories</option>
+                        <option value="books">Books & Notes</option>
+                        <option value="electronics">Electronics & Gadgets</option>
+                        <option value="fashion">Apparel & Fashion</option>
+                        <option value="accessories">Room & Study Accessories</option>
+                    </select>
+                </div>
+
+                <div class="filter-group">
+                    <label for="sort">Sort By Price</label>
+                    <select id="sort" name="sort">
+                        <option value="default">Default</option>
+                        <option value="low-high">Price: Low to High</option>
+                        <option value="high-low">Price: High to Low</option>
+                    </select>
+                </div>
+
+                <button type="submit" class="btn-apply-filter">Apply Filter</button>
+            </form>
+        </aside>
+
+        <!-- Product Grid Area Dinamik -->
+        <section class="listing-content">
+            <h2>Product Catalog</h2>
+            <div class="product-grid">
+                
+                {% if products %}
+                    {% for product in products %}
+                    <div class="product-card">
+                        <img src="{{ product.image }}" alt="{{ product.name }}">
+                        <div class="product-info">
+                            <span class="category-tag">{{ product.category | capitalize }}</span>
+                            <h3>{{ product.name }}</h3>
+                            <p class="price">RM {{ "%.2f"|format(product.price) }}</p>
+                            <p class="stock">Stock: {{ product.stock }} units</p>
+                            <p class="rating">⭐ {{ product.rating }} / 5.0</p>
+                            <a href="/add-to-cart/{{ product.id }}" class="btn-view-details">Add to Cart</a>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <p>No products found matching your filter.</p>
+                {% endif %}
+
+            </div>
+        </section>
+
+    </main>
+
+</body>
+</html>

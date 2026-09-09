@@ -4,33 +4,38 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CampusCart - Student Marketplace</title>
-    <link rel="stylesheet" href="static/style.css">
+    <!-- FIX 1: Pautan CSS Menggunakan url_for Flask -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
 
     <!-- Navigation Bar -->
     <header class="navbar">
-        <div class="logo"><a href="homepage.html" style="text-decoration: none; color: inherit;">Campus<span>Cart</span></a></div>
+        <!-- FIX 2: Pautan Logo ke Route '/' -->
+        <div class="logo">
+            <a href="/" style="text-decoration: none; color: inherit;">Campus<span>Cart</span></a>
+        </div>
         
         <!-- Search Bar & Filter -->
-        <div class="search-container">
-            <input type="text" placeholder="Search campus items, books, gadgets...">
-            <select class="category-select">
+        <form action="/products" method="GET" class="search-container">
+            <input type="text" name="search" placeholder="Search campus items, books, gadgets...">
+            <select name="category" class="category-select">
                 <option value="all">All Categories</option>
                 <option value="books">Books & Notes</option>
                 <option value="electronics">Gadgets / Electronics</option>
                 <option value="fashion">Apparel & Fashion</option>
-                <option value="food">Food & Snacks</option>
+                <option value="accessories">Accessories</option>
             </select>
             <button type="submit">Search</button>
-        </div>
+        </form>
 
+        <!-- FIX 3: Navigasi Menggunakan URL Route Flask (Bukan .html) -->
         <div class="nav-links">
-            <a href="homepage.html" class="active">Home</a>
-            <a href="products.html">Products</a>
-            <a href="login.html">Login</a>
-            <a href="register.html" class="btn-register">Register</a>
-            <a href="cart.html" class="cart-icon">🛒 Cart</a>
+            <a href="/" class="active">Home</a>
+            <a href="/products">Products</a>
+            <a href="/login">Login</a>
+            <a href="/register" class="btn-register">Register</a>
+            <a href="/cart" class="cart-icon">🛒 Cart</a>
         </div>
     </header>
 
@@ -40,50 +45,32 @@
         <p>The dedicated platform for university students to get study gear and essentials on a budget.</p>
     </section>
 
-    <!-- Main Content / Product Section -->
+    <!-- Main Content / Dynamic Product Section -->
     <main class="container">
         <h2>Latest Products</h2>
         
         <div class="product-grid">
             
-            <!-- Product Card 1 -->
-            <div class="product-card">
-                <img src="https://via.placeholder.com/200" alt="Scientific Calculator">
-                <div class="product-info">
-                    <span class="category-tag">Electronics</span>
-                    <h3>Scientific Calculator FX-570EX</h3>
-                    <p class="price">RM 65.00</p>
-                    <p class="stock">Stock: 5 units</p>
-                    <p class="rating">⭐ 4.8 / 5.0</p>
-                    <button class="btn-add-cart">Add to Cart</button>
+            <!-- FIX 4: Loop Dinamik dari app.py (Ganti Kad Manual) -->
+            {% if products %}
+                {% for product in products %}
+                <div class="product-card">
+                    <!-- FIX 5: URL Gambar Unsplash Percuma/Stabil -->
+                    <img src="{{ product.image }}" alt="{{ product.name }}">
+                    <div class="product-info">
+                        <span class="category-tag">{{ product.category | capitalize }}</span>
+                        <h3>{{ product.name }}</h3>
+                        <p class="price">RM {{ "%.2f"|format(product.price) }}</p>
+                        <p class="stock">Stock: {{ product.stock }} units</p>
+                        <p class="rating">⭐ {{ product.rating }} / 5.0</p>
+                        <!-- FIX 6: Function Add to Cart Terus Connect ke Backend -->
+                        <a href="/add-to-cart/{{ product.id }}" class="btn-add-cart" style="text-align:center; display:block; text-decoration:none;">Add to Cart</a>
+                    </div>
                 </div>
-            </div>
-
-            <!-- Product Card 2 -->
-            <div class="product-card">
-                <img src="https://via.placeholder.com/200" alt="Programming Textbook">
-                <div class="product-info">
-                    <span class="category-tag">Books</span>
-                    <h3>Basic Python & Data Structures Book</h3>
-                    <p class="price">RM 25.00</p>
-                    <p class="stock">Stock: 2 units</p>
-                    <p class="rating">⭐ 5.0 / 5.0</p>
-                    <button class="btn-add-cart">Add to Cart</button>
-                </div>
-            </div>
-
-            <!-- Product Card 3 -->
-            <div class="product-card">
-                <img src="https://via.placeholder.com/200" alt="Study Desk Lamp">
-                <div class="product-info">
-                    <span class="category-tag">Accessories</span>
-                    <h3>Rechargeable LED Desk Lamp</h3>
-                    <p class="price">RM 18.00</p>
-                    <p class="stock">Stock: 10 units</p>
-                    <p class="rating">⭐ 4.5 / 5.0</p>
-                    <button class="btn-add-cart">Add to Cart</button>
-                </div>
-            </div>
+                {% endfor %}
+            {% else %}
+                <p>No products available right now.</p>
+            {% endif %}
 
         </div>
     </main>
