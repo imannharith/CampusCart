@@ -8,15 +8,21 @@
           content="width=device-width, initial-scale=1.0">
 
     <title>CampusCart - Student Marketplace</title>
+<<<<<<< HEAD
 
     <link rel="stylesheet"
           href="{{ url_for('static', filename='style.css') }}">
+=======
+    <!-- FIX 1: Pautan CSS Menggunakan url_for Flask -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+>>>>>>> 06806041ec293f5979c4697c6ddcc3c77cdb9ca8
 </head>
 
 <body>
 
     <!-- Navigation Bar -->
     <header class="navbar">
+<<<<<<< HEAD
 
         <div class="logo">
             Campus<span>Cart</span>
@@ -59,6 +65,33 @@
                 Search
             </button>
 
+=======
+        <!-- FIX 2: Pautan Logo ke Route '/' -->
+        <div class="logo">
+            <a href="/" style="text-decoration: none; color: inherit;">Campus<span>Cart</span></a>
+        </div>
+        
+        <!-- Search Bar & Filter -->
+        <form action="/products" method="GET" class="search-container">
+            <input type="text" name="search" placeholder="Search campus items, books, gadgets...">
+            <select name="category" class="category-select">
+                <option value="all">All Categories</option>
+                <option value="books">Books & Notes</option>
+                <option value="electronics">Gadgets / Electronics</option>
+                <option value="fashion">Apparel & Fashion</option>
+                <option value="accessories">Accessories</option>
+            </select>
+            <button type="submit">Search</button>
+        </form>
+
+        <!-- FIX 3: Navigasi Menggunakan URL Route Flask (Bukan .html) -->
+        <div class="nav-links">
+            <a href="/" class="active">Home</a>
+            <a href="/products">Products</a>
+            <a href="/login">Login</a>
+            <a href="/register" class="btn-register">Register</a>
+            <a href="/cart" class="cart-icon">🛒 Cart</a>
+>>>>>>> 06806041ec293f5979c4697c6ddcc3c77cdb9ca8
         </div>
 
 
@@ -99,8 +132,12 @@
 
     </section>
 
+<<<<<<< HEAD
 
     <!-- Main Content / Product Section -->
+=======
+    <!-- Main Content / Dynamic Product Section -->
+>>>>>>> 06806041ec293f5979c4697c6ddcc3c77cdb9ca8
     <main class="container">
 
         <h2>
@@ -109,6 +146,7 @@
 
 
         <div class="product-grid">
+<<<<<<< HEAD
 
 
             <!-- ========================= -->
@@ -250,6 +288,29 @@
                 </div>
 
             </div>
+=======
+            
+            <!-- FIX 4: Loop Dinamik dari app.py (Ganti Kad Manual) -->
+            {% if products %}
+                {% for product in products %}
+                <div class="product-card">
+                    <!-- FIX 5: URL Gambar Unsplash Percuma/Stabil -->
+                    <img src="{{ product.image }}" alt="{{ product.name }}">
+                    <div class="product-info">
+                        <span class="category-tag">{{ product.category | capitalize }}</span>
+                        <h3>{{ product.name }}</h3>
+                        <p class="price">RM {{ "%.2f"|format(product.price) }}</p>
+                        <p class="stock">Stock: {{ product.stock }} units</p>
+                        <p class="rating">⭐ {{ product.rating }} / 5.0</p>
+                        <!-- FIX 6: Function Add to Cart Terus Connect ke Backend -->
+                        <a href="/add-to-cart/{{ product.id }}" class="btn-add-cart" style="text-align:center; display:block; text-decoration:none;">Add to Cart</a>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <p>No products available right now.</p>
+            {% endif %}
+>>>>>>> 06806041ec293f5979c4697c6ddcc3c77cdb9ca8
 
 
         </div>
