@@ -28,6 +28,15 @@
         </nav>
 
         <div class="sidebar-bottom">
+
+        <div class="admin-user">
+            <div class="avatar">A</div>
+            <div>
+                <strong>Administrator</strong>
+                <small>CampusCart Admin</small>
+            </div>
+        </div>
+
             <a href="#">Settings</a>
             <a href="{{ url_for('logout') }}">Logout</a>
         </div>
@@ -49,172 +58,124 @@
                 </p>
             </div>
 
-            <div class="admin-user">
-
-                <div class="avatar">A</div>
-
-                <div>
-                    <strong>Administrator</strong>
-                    <small>CampusCart Admin</small>
-                </div>
-
-            </div>
-
-        </header>
+</header>
 
 
-        <!-- STATISTICS -->
-        <section class="stats">
+        <!-- BOARD: what is happening | what needs me -->
+        <section class="board">
 
-            <div class="card">
-                <span class="icon blue">U</span>
-
-                <div>
-                    <p>Registered users</p>
-                    <h2>{{ total_users }}</h2>
-                    <small>Student and seller accounts</small>
-                </div>
-            </div>
-
-
-            <div class="card">
-                <span class="icon purple">P</span>
-
-                <div>
-                    <p>Total products</p>
-                    <h2>{{ total_products }}</h2>
-                    <small>Across all categories</small>
-                </div>
-            </div>
-
-
-            <div class="card">
-                <span class="icon orange">!</span>
-
-                <div>
-                    <p>Pending</p>
-                    <h2>{{ pending_products }}</h2>
-                    <small>Needs review</small>
-                </div>
-            </div>
-
-
-            <div class="card">
-                <span class="icon red">R</span>
-
-                <div>
-                    <p>Reports</p>
-                    <h2>{{ reported_products }}</h2>
-                    <small>Needs attention</small>
-                </div>
-            </div>
-
-        </section>
-
-
-        <!-- CONTENT GRID -->
-        <section class="content-grid">
-
-            <!-- ACTIVITY -->
-            <div class="panel">
+            <!-- PRIMARY: marketplace overview -->
+            <div class="panel board-main">
 
                 <div class="panel-title">
-
                     <div>
-                        <h3>Marketplace Activity</h3>
+                        <h3>Marketplace activity</h3>
                         <p>Listings submitted this week</p>
                     </div>
-
-                    <span class="period">7 Days</span>
-
+                    <span class="period">7 days</span>
                 </div>
 
+                <!-- headline figures read as one strip, not four boxes -->
+                <div class="metric-strip">
+
+                    <div class="metric">
+                        <p>Registered users</p>
+                        <h2>{{ total_users }}</h2>
+                    </div>
+
+                    <div class="metric">
+                        <p>Total products</p>
+                        <h2>{{ total_products }}</h2>
+                    </div>
+
+                    <div class="metric">
+                        <p>Approved</p>
+                        <h2>{{ approved_products }}</h2>
+                    </div>
+
+                </div>
 
                 <div class="chart">
-
-                    <div class="bar" style="height:45%">
-                        <span>Mon</span>
-                    </div>
-
-                    <div class="bar" style="height:65%">
-                        <span>Tue</span>
-                    </div>
-
-                    <div class="bar" style="height:55%">
-                        <span>Wed</span>
-                    </div>
-
-                    <div class="bar" style="height:80%">
-                        <span>Thu</span>
-                    </div>
-
-                    <div class="bar" style="height:70%">
-                        <span>Fri</span>
-                    </div>
-
-                    <div class="bar" style="height:90%">
-                        <span>Sat</span>
-                    </div>
-
-                    <div class="bar" style="height:75%">
-                        <span>Sun</span>
-                    </div>
-
+                    <div class="bar" style="height:45%"><span>Mon</span></div>
+                    <div class="bar" style="height:65%"><span>Tue</span></div>
+                    <div class="bar" style="height:55%"><span>Wed</span></div>
+                    <div class="bar" style="height:80%"><span>Thu</span></div>
+                    <div class="bar" style="height:70%"><span>Fri</span></div>
+                    <div class="bar" style="height:90%"><span>Sat</span></div>
+                    <div class="bar" style="height:75%"><span>Sun</span></div>
                 </div>
 
             </div>
 
 
-            <!-- QUICK ACTIONS -->
-            <div class="panel">
+            <!-- SECONDARY: the admin's actual work queue -->
+            <aside class="board-side">
 
-                <div class="panel-title">
+                <div class="panel">
 
-                    <div>
-                        <h3>Quick Actions</h3>
-                        <p>Manage your marketplace</p>
+                    <div class="panel-title">
+                        <div>
+                            <h3>Needs attention</h3>
+                            <p>Waiting on an admin decision</p>
+                        </div>
                     </div>
+
+                    <a class="queue" href="{{ url_for('listings', status='Pending') }}">
+                        <span class="queue-count">{{ pending_products }}</span>
+                        <span class="queue-label">
+                            <strong>Pending review</strong>
+                            <small>Not yet approved or rejected</small>
+                        </span>
+                        <span class="queue-go">&rarr;</span>
+                    </a>
+
+                    <a class="queue" href="{{ url_for('listings', status='Reported') }}">
+                        <span class="queue-count queue-alert">{{ reported_products }}</span>
+                        <span class="queue-label">
+                            <strong>Reported listings</strong>
+                            <small>Flagged by students</small>
+                        </span>
+                        <span class="queue-go">&rarr;</span>
+                    </a>
 
                 </div>
 
 
-                <!-- GO TO LISTINGS -->
-                <a href="{{ url_for('listings') }}" class="action">
+                <div class="panel">
 
-                    <div>
-                        <strong>Manage Listings</strong>
-                        <small>Review student products</small>
+                    <div class="panel-title">
+                        <div>
+                            <h3>Quick actions</h3>
+                        </div>
                     </div>
 
-                    <span>→</span>
+                    <a href="{{ url_for('listings') }}" class="action">
+                        <div>
+                            <strong>Manage listings</strong>
+                            <small>Review student products</small>
+                        </div>
+                        <span>&rarr;</span>
+                    </a>
 
-                </a>
+                    <a href="{{ url_for('users') }}" class="action">
+                        <div>
+                            <strong>Manage users</strong>
+                            <small>View registered accounts</small>
+                        </div>
+                        <span>&rarr;</span>
+                    </a>
 
+                    <a href="{{ url_for('reports') }}" class="action">
+                        <div>
+                            <strong>Order reports</strong>
+                            <small>View orders and sales</small>
+                        </div>
+                        <span>&rarr;</span>
+                    </a>
 
-                <a href="{{ url_for('users') }}" class="action">
+                </div>
 
-                    <div>
-                        <strong>Manage Users</strong>
-                        <small>View registered students</small>
-                    </div>
-
-                    <span>→</span>
-
-                </a>
-
-
-                <a href="{{ url_for('reports') }}" class="action">
-
-                    <div>
-                        <strong>Order Reports</strong>
-                        <small>View orders &amp; sales</small>
-                    </div>
-
-                    <span>→</span>
-
-                </a>
-
-            </div>
+            </aside>
 
         </section>
 

@@ -159,6 +159,7 @@ def dashboard():
         total_products=stats["total_products"],
         pending_products=stats["pending_products"],
         reported_products=stats["reported_products"],
+        approved_products=stats["approved_products"],
         total_users=database.get_user_stats()["total"],
         recent_products=recent_products,
     )

@@ -242,25 +242,26 @@ header h1 {
     max-width: 62ch;
 }
 
+/* lives in the sidebar footer, not the page header */
 .admin-user {
     display: flex;
     align-items: center;
-    gap: 11px;
-    flex-shrink: 0;
-    padding: 7px 15px 7px 7px;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--r-surface);
+    gap: 10px;
+    padding: 8px 10px;
+    margin-bottom: 6px;
+    border-radius: var(--r-control);
+    background: var(--surface-2);
 }
 
 .avatar {
-    width: 32px;
-    height: 32px;
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: var(--r-control);
-    font-size: 13px;
+    border-radius: var(--r-badge);
+    font-size: 12px;
     font-weight: 600;
     color: var(--brand-ink);
     background: var(--brand);
@@ -268,14 +269,143 @@ header h1 {
 
 .admin-user strong {
     display: block;
-    font-size: 13px;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--text);
+    line-height: 1.3;
+}
+
+.admin-user small {
+    font-size: 11px;
+    color: var(--text-3);
+}
+
+
+/* ===== BOARD =====
+   Asymmetric split: what is happening on the left, what needs the
+   admin on the right. Replaces the row of four equal boxes. */
+
+.board {
+    display: grid;
+    grid-template-columns: minmax(0, 1.85fr) minmax(0, 1fr);
+    gap: 16px;
+    margin-bottom: 16px;
+    align-items: start;
+}
+
+.board-main { margin-bottom: 0; }
+
+.board-side {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.board-side .panel { margin-bottom: 0; }
+
+
+/* headline figures as one divided strip inside the activity panel */
+
+.metric-strip {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1px;
+    margin-bottom: 26px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    border-radius: var(--r-control);
+    overflow: hidden;
+}
+
+.metric {
+    padding: 14px 16px;
+    background: var(--surface);
+}
+
+.metric p {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-2);
+    margin-bottom: 6px;
+}
+
+.metric h2 {
+    font-size: 26px;
+    font-weight: 600;
+    line-height: 1;
+    letter-spacing: -0.035em;
+    color: var(--text);
+}
+
+
+/* work queue: a count you can click straight through to */
+
+.queue {
+    display: flex;
+    align-items: center;
+    gap: 13px;
+    padding: 12px;
+    margin-bottom: 8px;
+    border-radius: var(--r-control);
+    text-decoration: none;
+    background: var(--surface-2);
+    border: 1px solid transparent;
+    transition: background-color var(--fast) var(--ease), border-color var(--fast) var(--ease);
+}
+
+.queue:last-child { margin-bottom: 0; }
+
+.queue:hover {
+    background: var(--surface-3);
+    border-color: var(--border-2);
+}
+
+.queue-count {
+    flex-shrink: 0;
+    min-width: 42px;
+    height: 42px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 8px;
+    border-radius: var(--r-control);
+    font-size: 19px;
+    font-weight: 600;
+    letter-spacing: -0.03em;
+    color: var(--text);
+    background: var(--surface-3);
+    box-shadow: inset 0 0 0 1px var(--hairline);
+}
+
+.queue-alert {
+    color: var(--bad);
+    background: var(--bad-wash);
+    box-shadow: inset 0 0 0 1px rgba(240, 82, 109, 0.28);
+}
+
+.queue-label { flex: 1; min-width: 0; }
+
+.queue-label strong {
+    display: block;
+    font-size: 13.5px;
     font-weight: 600;
     color: var(--text);
 }
 
-.admin-user small {
-    font-size: 11.5px;
+.queue-label small {
+    font-size: 12px;
     color: var(--text-3);
+}
+
+.queue-go {
+    flex-shrink: 0;
+    color: var(--text-3);
+    transition: color var(--fast) var(--ease), transform var(--fast) var(--ease);
+}
+
+.queue:hover .queue-go {
+    color: var(--brand);
+    transform: translateX(3px);
 }
 
 
@@ -400,6 +530,7 @@ header h1 {
     display: flex;
     align-items: flex-end;
     justify-content: space-around;
+    gap: 8px;
     padding-top: 20px;
     border-bottom: 1px solid var(--border);
     /* four reference lines so the bars can be read, not just seen */
@@ -410,9 +541,12 @@ header h1 {
     );
 }
 
+/* shrink rather than collide once the panel gets narrow */
 .bar {
     position: relative;
-    width: 34px;
+    flex: 1 1 0;
+    min-width: 0;
+    max-width: 34px;
     border-radius: 5px 5px 0 0;
     background: var(--brand);
     transition: background-color var(--fast) var(--ease);
@@ -787,14 +921,19 @@ tbody tr:hover td { background: var(--surface-2); }
 }
 
 .stats,
+.board,
 .content-grid,
 .panel {
     animation: rise 340ms var(--ease) backwards;
 }
 
 .stats        { animation-delay: 30ms; }
+.board        { animation-delay: 40ms; }
 .content-grid { animation-delay: 70ms; }
 .panel        { animation-delay: 70ms; }
+
+/* panels inside the board already animate with it */
+.board .panel { animation: none; }
 
 
 /* =========================================================
@@ -964,6 +1103,7 @@ tbody tr:hover td { background: var(--surface-2); }
 
     .stats { grid-template-columns: repeat(2, 1fr); }
 
+    .board,
     .content-grid,
     .filters,
     .form-grid { grid-template-columns: 1fr; }
@@ -971,6 +1111,7 @@ tbody tr:hover td { background: var(--surface-2); }
 
 @media (max-width: 520px) {
     .stats { grid-template-columns: 1fr; }
+    .metric-strip { grid-template-columns: 1fr; }
 }
 
 @media (prefers-reduced-motion: reduce) {
