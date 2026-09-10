@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Register - CampusCart</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='auth.css') }}">
 </head>
 <body>
 
@@ -15,6 +16,10 @@
             
             <h2>Create an Account</h2>
             <p class="auth-subtitle">Join CampusCart to buy and sell campus essentials.</p>
+
+            {% if error %}
+            <p class="auth-error">{{ error }}</p>
+            {% endif %}
 
             <!-- Form sedia untuk disambung oleh Backend Python -->
             <form action="/register" method="POST" class="auth-form">

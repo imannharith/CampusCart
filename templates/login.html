@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - CampusCart</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='auth.css') }}">
 </head>
 <body>
 
@@ -16,18 +17,12 @@
             <h2>Welcome Back</h2>
             <p class="auth-subtitle">Please enter your details to sign in.</p>
 
+            {% if error %}
+            <p class="auth-error">{{ error }}</p>
+            {% endif %}
+
             <!-- Form sedia untuk disambung oleh Backend Python -->
             <form action="/login" method="POST" class="auth-form">
-                
-                <!-- Pilihan Role / Peranan -->
-                <div class="form-group">
-                    <label for="role">Login As</label>
-                    <select id="role" name="role" required>
-                        <option value="student">Student / Customer</option>
-                        <option value="seller">Student Seller</option>
-                        <option value="admin">System Admin</option>
-                    </select>
-                </div>
 
                 <div class="form-group">
                     <label for="email">Campus Email</label>
@@ -39,11 +34,19 @@
                     <input type="password" id="password" name="password" placeholder="••••••••" required>
                 </div>
 
+                <label class="auth-checkbox">
+                    <input type="checkbox" name="remember">
+                    Remember me for 30 days
+                </label>
+
                 <button type="submit" class="btn-auth">Sign In</button>
             </form>
 
             <p class="auth-footer">
                 Don't have an account? <a href="/register">Sign Up Here</a>
+            </p>
+            <p class="auth-footer auth-admin-link">
+                <a href="{{ url_for('admin_login') }}">Admin sign in →</a>
             </p>
         </div>
     </div>
