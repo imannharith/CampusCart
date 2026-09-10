@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0">
+
+    <title>Checkout - CampusCart</title>
+
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='shopping.css') }}">
+
+</head>
+
+<body>
+
+<div class="container">
+
+    <h1>Checkout</h1>
+
+
+    <!-- CUSTOMER INFORMATION -->
+
+    <div class="checkout-section">
+
+        <h2>Customer Information</h2>
+
+        <form action="{{ url_for('place_order') }}"
+              method="POST">
+
+            <label for="name">
+                Full Name
+            </label>
+
+            <input
+                type="text"
+                id="name"
+                name="name"
+                placeholder="Enter your full name"
+                required
+            >
+
+
+            <label for="phone">
+                Phone Number
+            </label>
+
+            <input
+                type="tel"
+                id="phone"
+                name="phone"
+                placeholder="Enter your phone number"
+                required
+            >
+
+
+            <label for="address">
+                Delivery Address
+            </label>
+
+            <textarea
+                id="address"
+                name="address"
+                placeholder="Enter your delivery address"
+                required
+            ></textarea>
+
+
+            <!-- ORDER SUMMARY -->
+
+            <h2>Order Summary</h2>
+
+            {% for product_id, item in cart.items() %}
+
+                <div class="checkout-item">
+
+                    <div>
+
+                        <strong>
+                            {{ item.name }}
+                        </strong>
+
+                        <p>
+                            Quantity:
+                            {{ item.quantity }}
+                        </p>
+
+                    </div>
+
+                    <p>
+                        RM {{ "%.2f"|format(
+                            item.price * item.quantity
+                        ) }}
+                    </p>
+
+                </div>
+
+            {% endfor %}
+
+
+            <div class="checkout-total">
+
+                <p>
+                    Subtotal:
+                    RM {{ "%.2f"|format(subtotal) }}
+                </p>
+
+                <p>
+                    Discount:
+                    RM {{ "%.2f"|format(discount) }}
+                </p>
+
+                <h2>
+                    Total:
+                    RM {{ "%.2f"|format(total) }}
+                </h2>
+
+            </div>
+
+
+            <button
+                type="submit"
+                class="checkout-button">
+
+                Place Order
+
+            </button>
+
+        </form>
+
+    </div>
+
+
+    <br>
+
+    <a href="{{ url_for('view_cart') }}"
+       class="button">
+
+        Back to Cart
+
+    </a>
+
+</div>
+
+</body>
+
+</html>

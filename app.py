@@ -379,6 +379,161 @@ def remove_from_cart(product_id):
         del cart[product_id]
     return redirect(url_for("view_cart"))
 
+# -------------------------
+# CHECKOUT
+# -------------------------
+
+@app.route("/checkout")
+def checkout():
+
+    # If cart is empty, go back to cart
+    if not cart:
+        return redirect(url_for("view_cart"))
+
+    # Calculate subtotal
+    subtotal = 0
+
+    for item in cart.values():
+        subtotal += item["price"] * item["quantity"]
+
+    # No discount yet
+    discount = 0
+
+    # Final total
+    total = subtotal - discount
+
+    return render_template(
+        "checkout.html",
+        cart=cart,
+        subtotal=subtotal,
+        discount=discount,
+        total=total
+    )
+
+# -------------------------
+# PLACE ORDER
+# -------------------------
+
+@app.route("/place-order", methods=["POST"])
+def place_order():
+
+    # Don't place an empty order
+    if not cart:
+        return redirect(url_for("view_cart"))
+
+    # Temporary user ID
+    # Later this will come from the login system
+    user_id = 1
+
+    # Get customer information
+    name = request.form["name"]
+    phone = request.form["phone"]
+    address = request.form["address"]
+
+    # Calculate subtotal
+    subtotal = 0
+
+    for item in cart.values():
+        subtotal += item["price"] * item["quantity"]
+
+    # No discount yet
+    discount = 0
+
+    # Calculate final total
+    total = subtotal - discount
+
+    # Connect to database
+    import sqlite3
+
+    connection = sqlite3.connect("database.db")
+
+    cursor = connection.cursor()
+
+    # Create order
+    cursor.execute("""
+        INSERT INTO orders
+        (user_id, subtotal, discount, total, status)
+        VALUES (?, ?, ?, ?, ?)
+    """, (
+        user_id,
+        subtotal,
+        discount,
+        total,
+        "Pending"
+    ))
+
+    # Get newly created order ID
+    order_id = cursor.lastrowid
+
+
+    # Add products to order_items
+    for product_id, item in cart.items():
+
+        cursor.execute("""
+            INSERT INTO order_items
+            (order_id, product_id, quantity, price)
+            VALUES (?, ?, ?, ?)
+        """, (
+            order_id,
+            product_id,
+            item["quantity"],
+            item["price"]
+        ))
+
+
+    connection.commit()
+    connection.close()
+
+
+    # Clear cart after successful order
+    cart.clear()
+
+
+    # Show confirmation
+    return render_template(
+        "order_confirmation.html",
+        order_id=order_id,
+        name=name,
+        phone=phone,
+        address=address,
+        subtotal=subtotal,
+        discount=discount,
+        total=total
+    )
+
+# -------------------------
+# MY ORDERS
+# -------------------------
+
+@app.route("/orders")
+def view_orders():
+
+    # Temporary user ID
+    # Later this will come from the login system
+    user_id = 1
+
+    import sqlite3
+
+    connection = sqlite3.connect("database.db")
+    connection.row_factory = sqlite3.Row
+
+    cursor = connection.cursor()
+
+    cursor.execute("""
+        SELECT *
+        FROM orders
+        WHERE user_id = ?
+        ORDER BY order_date DESC
+    """, (user_id,))
+
+    orders = cursor.fetchall()
+
+    connection.close()
+
+    return render_template(
+        "orders.html",
+        orders=orders
+    )
 
 # -------------------------
 # RUN APPLICATION

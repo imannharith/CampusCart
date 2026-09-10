@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0">
+
+    <title>My Orders - CampusCart</title>
+
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='shopping.css') }}">
+
+</head>
+
+<body>
+
+<div class="container">
+
+    <h1>My Orders</h1>
+
+    {% if orders %}
+
+        {% for order in orders %}
+
+            <div class="order-card">
+
+                <div class="order-header">
+
+                    <h2>
+                        Order #{{ order["id"] }}
+                    </h2>
+
+                    <span class="order-status">
+                        {{ order["status"] }}
+                    </span>
+
+                </div>
+
+                <p>
+                    Order Date:
+                    {{ order["order_date"] }}
+                </p>
+
+                <p>
+                    Subtotal:
+                    RM {{ "%.2f"|format(order["subtotal"]) }}
+                </p>
+
+                <p>
+                    Discount:
+                    RM {{ "%.2f"|format(order["discount"]) }}
+                </p>
+
+                <h3>
+                    Total:
+                    RM {{ "%.2f"|format(order["total"]) }}
+                </h3>
+
+            </div>
+
+        {% endfor %}
+
+    {% else %}
+
+        <div class="empty-cart">
+
+            <h2>No Orders Yet</h2>
+
+            <p>
+                You haven't placed any orders.
+            </p>
+
+            <a href="/" class="button">
+                Start Shopping
+            </a>
+
+        </div>
+
+    {% endif %}
+
+    <br>
+
+    <a href="/" class="button">
+        Continue Shopping
+    </a>
+
+</div>
+
+</body>
+
+</html>

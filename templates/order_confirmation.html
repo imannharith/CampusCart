@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0">
+
+    <title>Order Confirmed - CampusCart</title>
+
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='shopping.css') }}">
+
+</head>
+
+<body>
+
+<div class="container">
+
+    <div class="confirmation">
+
+        <div class="success-icon">
+            ✓
+        </div>
+
+        <h1>
+            Order Placed Successfully!
+        </h1>
+
+        <p>
+            Thank you, {{ name }}!
+        </p>
+
+        <p>
+            Your order has been received.
+        </p>
+
+
+        <div class="order-details">
+
+            <h2>
+                Order #{{ order_id }}
+            </h2>
+
+            <p>
+                <strong>Customer:</strong>
+                {{ name }}
+            </p>
+
+            <p>
+                <strong>Phone:</strong>
+                {{ phone }}
+            </p>
+
+            <p>
+                <strong>Delivery Address:</strong>
+                {{ address }}
+            </p>
+
+            <hr>
+
+            <p>
+                Subtotal:
+                RM {{ "%.2f"|format(subtotal) }}
+            </p>
+
+            <p>
+                Discount:
+                RM {{ "%.2f"|format(discount) }}
+            </p>
+
+            <h2>
+                Total:
+                RM {{ "%.2f"|format(total) }}
+            </h2>
+
+            <p>
+                <strong>Status:</strong>
+                Pending
+            </p>
+
+        </div>
+
+
+        <div class="confirmation-buttons">
+
+            <a href="{{ url_for('view_orders') }}"
+               class="checkout-button">
+
+                View My Orders
+
+            </a>
+
+            <a href="/"
+               class="button">
+
+                Continue Shopping
+
+            </a>
+
+        </div>
+
+    </div>
+
+</div>
+
+</body>
+
+</html>
