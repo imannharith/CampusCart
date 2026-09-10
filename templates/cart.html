@@ -52,9 +52,11 @@
             </div>
 
 
+            <!-- QUANTITY CONTROLS -->
+
             <div class="quantity-buttons">
 
-                <a href="/decrease/{{ product_id }}"
+                <a href="{{ url_for('decrease_quantity', product_id=product_id) }}"
                    class="button">
                     −
                 </a>
@@ -63,7 +65,7 @@
                     {{ item.quantity }}
                 </span>
 
-                <a href="/increase/{{ product_id }}"
+                <a href="{{ url_for('increase_quantity', product_id=product_id) }}"
                    class="button">
                     +
                 </a>
@@ -71,7 +73,9 @@
             </div>
 
 
-            <a href="/remove/{{ product_id }}"
+            <!-- REMOVE ITEM -->
+
+            <a href="{{ url_for('remove_from_cart', product_id=product_id) }}"
                class="remove-button">
 
                 Remove
@@ -83,12 +87,17 @@
         {% endfor %}
 
 
+        <!-- CART SUMMARY -->
+
         <div class="cart-summary">
 
             <h2>
                 Subtotal:
                 RM {{ "%.2f"|format(subtotal) }}
             </h2>
+
+
+            <!-- CONTINUE SHOPPING -->
 
             <a href="/"
                class="button">
@@ -97,10 +106,22 @@
 
             </a>
 
+
+            <!-- CHECKOUT -->
+
+            <a href="{{ url_for('checkout') }}"
+               class="checkout-button">
+
+                Proceed to Checkout
+
+            </a>
+
         </div>
 
 
     {% else %}
+
+        <!-- EMPTY CART -->
 
         <div class="empty-cart">
 
@@ -110,8 +131,11 @@
                 Add products to your shopping cart.
             </p>
 
-            <a href="/" class="button">
+            <a href="/"
+               class="button">
+
                 Continue Shopping
+
             </a>
 
         </div>

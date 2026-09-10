@@ -1,0 +1,704 @@
+/* =========================================
+   CAMPUSCART - SHOPPING FEATURES
+   ========================================= */
+
+/* =========================================
+   GENERAL PAGE
+   ========================================= */
+
+body {
+    margin: 0;
+    padding: 0;
+    font-family: Arial, sans-serif;
+    background-color: #f5f5f5;
+    color: #333;
+}
+
+.container {
+    width: 90%;
+    max-width: 1000px;
+    margin: 40px auto;
+}
+
+.container h1 {
+    text-align: center;
+    margin-bottom: 30px;
+    color: #222;
+}
+
+
+/* =========================================
+   SHOPPING CART
+   ========================================= */
+
+.cart-item {
+    background-color: white;
+    padding: 20px;
+    margin-bottom: 15px;
+    border-radius: 10px;
+    border: 1px solid #ddd;
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+}
+
+.product-info {
+    flex: 1;
+}
+
+.product-info h2 {
+    margin: 0 0 10px 0;
+    font-size: 20px;
+}
+
+.product-info p {
+    margin: 6px 0;
+}
+
+
+/* =========================================
+   QUANTITY BUTTONS
+   ========================================= */
+
+.quantity-buttons {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.quantity-buttons span {
+    font-size: 18px;
+    font-weight: bold;
+    min-width: 25px;
+    text-align: center;
+}
+
+.button {
+    display: inline-block;
+    padding: 8px 14px;
+
+    background-color: #333;
+    color: white;
+
+    text-decoration: none;
+    border-radius: 5px;
+
+    font-weight: bold;
+}
+
+.button:hover {
+    background-color: #555;
+}
+
+
+/* =========================================
+   REMOVE BUTTON
+   ========================================= */
+
+.remove-button {
+    display: inline-block;
+
+    padding: 8px 12px;
+
+    background-color: #dc3545;
+    color: white;
+
+    text-decoration: none;
+
+    border-radius: 5px;
+}
+
+.remove-button:hover {
+    background-color: #b02a37;
+}
+
+
+/* =========================================
+   CART SUMMARY
+   ========================================= */
+
+.cart-summary {
+    background-color: white;
+
+    padding: 25px;
+
+    margin-top: 25px;
+
+    border-radius: 10px;
+
+    border: 1px solid #ddd;
+
+    text-align: right;
+}
+
+.cart-summary h2 {
+    margin-top: 0;
+}
+
+
+/* =========================================
+   CHECKOUT BUTTON
+   ========================================= */
+
+.checkout-button {
+    display: inline-block;
+
+    padding: 12px 20px;
+
+    background-color: #198754;
+    color: white;
+
+    text-decoration: none;
+
+    border-radius: 6px;
+
+    font-weight: bold;
+}
+
+.checkout-button:hover {
+    background-color: #146c43;
+}
+
+
+/* =========================================
+   EMPTY CART
+   ========================================= */
+
+.empty-cart {
+    background-color: white;
+
+    padding: 50px;
+
+    text-align: center;
+
+    border-radius: 10px;
+
+    border: 1px solid #ddd;
+}
+
+.empty-cart h2 {
+    margin-bottom: 10px;
+}
+
+.empty-cart p {
+    margin-bottom: 25px;
+}
+
+
+/* =========================================
+   CHECKOUT PAGE
+   ========================================= */
+
+.checkout-section {
+    max-width: 800px;
+    margin: 30px auto;
+
+    background-color: white;
+
+    padding: 30px;
+
+    border-radius: 12px;
+
+    border: 1px solid #ddd;
+}
+
+
+/* Checkout headings */
+
+.checkout-section h2 {
+    margin-top: 0;
+    margin-bottom: 20px;
+
+    color: #222;
+}
+
+
+/* Customer information */
+
+.checkout-section label {
+    display: block;
+
+    margin-top: 15px;
+    margin-bottom: 6px;
+
+    font-weight: bold;
+
+    color: #444;
+}
+
+.checkout-section input,
+.checkout-section textarea {
+    width: 100%;
+
+    padding: 12px;
+
+    border: 1px solid #ccc;
+
+    border-radius: 6px;
+
+    font-size: 15px;
+
+    box-sizing: border-box;
+}
+
+.checkout-section textarea {
+    min-height: 100px;
+
+    resize: vertical;
+}
+
+.checkout-section input:focus,
+.checkout-section textarea:focus {
+    outline: none;
+
+    border-color: #333;
+}
+
+
+/* =========================================
+   CHECKOUT ORDER ITEMS
+   ========================================= */
+
+.checkout-item {
+    display: flex;
+
+    justify-content: space-between;
+
+    align-items: center;
+
+    padding: 15px 0;
+
+    border-bottom: 1px solid #eee;
+}
+
+.checkout-item p {
+    margin: 5px 0;
+
+    color: #555;
+}
+
+
+/* =========================================
+   CHECKOUT TOTAL
+   ========================================= */
+
+.checkout-total {
+    margin-top: 20px;
+
+    padding-top: 15px;
+
+    border-top: 2px solid #333;
+}
+
+.checkout-total p {
+    display: flex;
+
+    justify-content: space-between;
+
+    margin: 10px 0;
+
+    font-size: 16px;
+}
+
+.checkout-total .final-total {
+    font-size: 22px;
+
+    font-weight: bold;
+
+    color: #222;
+}
+
+
+/* =========================================
+   PLACE ORDER BUTTON
+   ========================================= */
+
+.place-order-button {
+    display: block;
+
+    width: 100%;
+
+    padding: 14px;
+
+    margin-top: 25px;
+
+    background-color: #198754;
+
+    color: white;
+
+    border: none;
+
+    border-radius: 6px;
+
+    font-size: 16px;
+
+    font-weight: bold;
+
+    cursor: pointer;
+}
+
+.place-order-button:hover {
+    background-color: #146c43;
+}
+
+
+/* =========================================
+   ORDER CONFIRMATION
+   ========================================= */
+
+.confirmation {
+    max-width: 700px;
+
+    margin: 50px auto;
+
+    background-color: white;
+
+    padding: 40px;
+
+    text-align: center;
+
+    border-radius: 12px;
+
+    border: 1px solid #ddd;
+}
+
+
+/* Success icon */
+
+.success-icon {
+    font-size: 60px;
+
+    margin-bottom: 15px;
+}
+
+
+/* Confirmation heading */
+
+.confirmation h1 {
+    color: #198754;
+
+    margin-bottom: 10px;
+}
+
+.confirmation > p {
+    color: #666;
+
+    font-size: 16px;
+}
+
+
+/* =========================================
+   ORDER DETAILS
+   ========================================= */
+
+.order-details {
+    margin-top: 25px;
+
+    padding: 20px;
+
+    background-color: #f7f7f7;
+
+    border-radius: 8px;
+
+    text-align: left;
+}
+
+.order-details p {
+    margin: 10px 0;
+
+    color: #444;
+}
+
+.order-details strong {
+    color: #222;
+}
+
+
+/* =========================================
+   CONFIRMATION BUTTONS
+   ========================================= */
+
+.confirmation-buttons {
+    margin-top: 25px;
+
+    display: flex;
+
+    justify-content: center;
+
+    gap: 12px;
+
+    flex-wrap: wrap;
+}
+
+.confirmation-buttons a {
+    padding: 12px 20px;
+
+    border-radius: 6px;
+
+    text-decoration: none;
+
+    font-weight: bold;
+}
+
+.confirmation-buttons .button {
+    background-color: #333;
+
+    color: white;
+}
+
+.confirmation-buttons .button:hover {
+    background-color: #555;
+}
+
+.confirmation-buttons .secondary-button {
+    background-color: #eee;
+
+    color: #333;
+}
+
+.confirmation-buttons .secondary-button:hover {
+    background-color: #ddd;
+}
+
+
+/* =========================================
+   ORDER HISTORY
+   ========================================= */
+
+.orders-container {
+    width: 90%;
+
+    max-width: 900px;
+
+    margin: 40px auto;
+}
+
+.orders-container h1 {
+    text-align: center;
+
+    margin-bottom: 30px;
+
+    color: #222;
+}
+
+
+/* Individual order */
+
+.order-card {
+    background-color: white;
+
+    margin-bottom: 20px;
+
+    padding: 25px;
+
+    border-radius: 12px;
+
+    border: 1px solid #ddd;
+}
+
+
+/* Order header */
+
+.order-header {
+    display: flex;
+
+    justify-content: space-between;
+
+    align-items: center;
+
+    border-bottom: 1px solid #eee;
+
+    padding-bottom: 15px;
+
+    margin-bottom: 15px;
+}
+
+.order-header h2 {
+    margin: 0;
+
+    color: #333;
+}
+
+.order-header p {
+    margin: 5px 0;
+
+    color: #666;
+}
+
+
+/* =========================================
+   ORDER STATUS
+   ========================================= */
+
+.order-status {
+    padding: 6px 12px;
+
+    background-color: #eee;
+
+    border-radius: 20px;
+
+    font-size: 14px;
+
+    font-weight: bold;
+}
+
+
+/* Order information */
+
+.order-card p {
+    color: #555;
+
+    margin: 8px 0;
+}
+
+
+/* Total */
+
+.order-total {
+    font-size: 20px;
+
+    font-weight: bold;
+
+    color: #222;
+
+    margin-top: 15px;
+
+    padding-top: 15px;
+
+    border-top: 1px solid #eee;
+}
+
+
+/* =========================================
+   EMPTY ORDER HISTORY
+   ========================================= */
+
+.empty-orders {
+    text-align: center;
+
+    background-color: white;
+
+    padding: 40px;
+
+    border-radius: 12px;
+
+    border: 1px solid #ddd;
+}
+
+.empty-orders h2 {
+    color: #333;
+}
+
+.empty-orders p {
+    color: #666;
+
+    margin-bottom: 20px;
+}
+
+
+/* =========================================
+   MOBILE RESPONSIVE
+   ========================================= */
+
+@media (max-width: 700px) {
+
+    .container {
+        width: 95%;
+
+        margin: 20px auto;
+    }
+
+    /* Cart */
+
+    .cart-item {
+        flex-direction: column;
+
+        align-items: flex-start;
+    }
+
+    .quantity-buttons {
+        width: 100%;
+
+        justify-content: center;
+    }
+
+    .remove-button {
+        width: 100%;
+
+        text-align: center;
+
+        box-sizing: border-box;
+    }
+
+    .cart-summary {
+        text-align: center;
+    }
+
+
+    /* Checkout */
+
+    .checkout-section {
+        width: 90%;
+
+        padding: 20px;
+
+        margin: 20px auto;
+
+        box-sizing: border-box;
+    }
+
+    .checkout-item {
+        flex-direction: column;
+
+        align-items: flex-start;
+
+        gap: 5px;
+    }
+
+
+    /* Confirmation */
+
+    .confirmation {
+        width: 90%;
+
+        margin: 20px auto;
+
+        padding: 25px;
+
+        box-sizing: border-box;
+    }
+
+
+    /* Order history */
+
+    .orders-container {
+        width: 95%;
+
+        margin: 20px auto;
+    }
+
+    .order-card {
+        padding: 20px;
+    }
+
+    .order-header {
+        flex-direction: column;
+
+        align-items: flex-start;
+
+        gap: 10px;
+    }
+
+
+    /* Confirmation buttons */
+
+    .confirmation-buttons {
+        flex-direction: column;
+    }
+
+    .confirmation-buttons a {
+        text-align: center;
+    }
+}
