@@ -629,9 +629,14 @@ def register():
 
 @app.route("/logout")
 def logout():
+    was_admin = session.get('role') == 'admin'
+
     # Buang data user dari session & hantar balik ke login page
     session.pop('user', None)
     session.pop('role', None)
+
+    if was_admin:
+        return redirect(url_for("admin_login"))
     return redirect(url_for("login"))
 
 
