@@ -1,32 +1,36 @@
 /* =========================================================
    CAMPUSCART ADMIN PANEL
-   Dark, futuristic theme
+   Signal / terminal theme — grid backdrop, electric-blue
+   accent, monospace data readouts, corner-bracket panels.
    Same class names as before -- dashboard.html, listings.html,
    reports.html, and user.html all work with this file untouched.
    ========================================================= */
 
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
 
 :root {
-    --bg: #0a0e17;
-    --bg-elevated: #10151f;
-    --panel: #12182a;
-    --panel-border: #1f2940;
-    --panel-border-light: #2a3654;
-    --text: #e6ecff;
-    --text-dim: #8892b0;
-    --text-faint: #5a6584;
-    --accent: #4d7fff;
-    --accent-glow: rgba(77, 127, 255, 0.35);
-    --accent-2: #7c5cff;
-    --success: #2ee6a6;
-    --success-bg: rgba(46, 230, 166, 0.12);
-    --warning: #ffb84d;
-    --warning-bg: rgba(255, 184, 77, 0.12);
+    --bg: #070a12;
+    --bg-elevated: #0c1120;
+    --panel: #101627;
+    --panel-border: #1c2540;
+    --panel-border-light: #30406b;
+    --text: #f0f4ff;
+    --text-dim: #98a3c4;
+    --text-faint: #626e94;
+    --accent: #3d7fff;
+    --accent-soft: #7db2ff;
+    --accent-glow: rgba(61, 127, 255, 0.32);
+    --accent-gradient: linear-gradient(135deg, #3d7fff, #7db2ff);
+    --accent-2: #22d3ee;
+    --success: #3dffa0;
+    --success-bg: rgba(61, 255, 160, 0.10);
+    --warning: #ffcf3d;
+    --warning-bg: rgba(255, 207, 61, 0.10);
     --danger: #ff5c7a;
-    --danger-bg: rgba(255, 92, 122, 0.12);
-    --info: #4dc4ff;
-    --info-bg: rgba(77, 196, 255, 0.12);
+    --danger-bg: rgba(255, 92, 122, 0.10);
+    --info: #22d3ee;
+    --info-bg: rgba(34, 211, 238, 0.10);
+    --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
 * {
@@ -38,8 +42,10 @@
 body {
     font-family: "Inter", "Segoe UI", Arial, sans-serif;
     background:
-        radial-gradient(circle at 15% 0%, rgba(77, 127, 255, 0.08), transparent 40%),
-        radial-gradient(circle at 85% 20%, rgba(124, 92, 255, 0.06), transparent 40%),
+        linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px) 0 0/100% 44px,
+        linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px) 0 0/44px 100%,
+        radial-gradient(circle at 12% 0%, rgba(61, 127, 255, 0.10), transparent 45%),
+        radial-gradient(circle at 90% 15%, rgba(34, 211, 238, 0.05), transparent 40%),
         var(--bg);
     color: var(--text);
     min-height: 100vh;
@@ -56,7 +62,7 @@ h1, h2, h3 {
     position: fixed;
     width: 240px;
     height: 100vh;
-    background: linear-gradient(180deg, var(--bg-elevated) 0%, #0c111c 100%);
+    background: var(--bg-elevated);
     border-right: 1px solid var(--panel-border);
     padding: 28px 18px;
     display: flex;
@@ -71,14 +77,16 @@ h1, h2, h3 {
 }
 
 .sidebar h2 span {
-    background: linear-gradient(90deg, var(--accent), var(--accent-2));
+    background: var(--accent-gradient);
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
+    filter: drop-shadow(0 0 14px rgba(61, 127, 255, 0.45));
 }
 
 .admin-label {
     color: var(--text-faint);
+    font-family: var(--mono);
     font-size: 10px;
     letter-spacing: 2px;
     font-weight: 600;
@@ -97,27 +105,28 @@ nav a,
     color: var(--text-dim);
     text-decoration: none;
     padding: 11px 14px;
-    border-radius: 10px;
+    border-radius: 6px;
     font-size: 13px;
     font-weight: 500;
-    transition: all 0.18s ease;
+    transition: all 0.15s ease;
     display: flex;
     align-items: center;
     gap: 10px;
     position: relative;
+    border-left: 2px solid transparent;
 }
 
 nav a:hover,
 .sidebar-link:hover {
-    background: rgba(77, 127, 255, 0.08);
+    background: rgba(255, 255, 255, 0.03);
     color: var(--text);
 }
 
 nav a.active,
 .sidebar-link.active {
-    background: linear-gradient(90deg, rgba(77, 127, 255, 0.18), rgba(124, 92, 255, 0.08));
-    color: white;
-    box-shadow: inset 3px 0 0 var(--accent);
+    background: rgba(61, 127, 255, 0.10);
+    color: var(--accent-soft);
+    border-left: 2px solid var(--accent);
 }
 
 .sidebar-bottom {
@@ -133,8 +142,8 @@ nav a.active,
     text-decoration: none;
     padding: 10px 14px;
     font-size: 12px;
-    border-radius: 8px;
-    transition: all 0.18s ease;
+    border-radius: 6px;
+    transition: all 0.15s ease;
 }
 
 .sidebar-bottom a:hover {
@@ -145,10 +154,11 @@ nav a.active,
 .notification-count {
     background: var(--danger);
     color: white;
+    font-family: var(--mono);
     font-size: 9px;
     font-weight: 700;
     padding: 1px 6px;
-    border-radius: 10px;
+    border-radius: 4px;
     margin-left: auto;
 }
 
@@ -170,6 +180,7 @@ header {
 
 .small-title {
     color: var(--accent);
+    font-family: var(--mono);
     font-size: 11px;
     font-weight: 700;
     letter-spacing: 2px;
@@ -196,18 +207,20 @@ header h1 {
     background: var(--panel);
     border: 1px solid var(--panel-border);
     padding: 8px 16px 8px 8px;
-    border-radius: 50px;
+    border-radius: 8px;
 }
 
 .avatar {
     width: 34px;
     height: 34px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    border-radius: 10px;
+    background: var(--accent-gradient);
+    box-shadow: 0 0 16px rgba(61, 127, 255, 0.4);
     display: flex;
     align-items: center;
     justify-content: center;
     color: white;
+    font-family: var(--mono);
     font-weight: 700;
     font-size: 13px;
 }
@@ -234,19 +247,52 @@ header h1 {
 }
 
 .card {
+    position: relative;
     background: var(--panel);
     border: 1px solid var(--panel-border);
-    border-radius: 16px;
+    border-radius: 14px;
     padding: 20px;
     display: flex;
     gap: 14px;
     align-items: flex-start;
-    transition: border-color 0.2s ease, transform 0.2s ease;
+    transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card::before,
+.card::after {
+    content: "";
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    border: 1px solid var(--panel-border-light);
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.card::before {
+    top: -1px;
+    left: -1px;
+    border-right: none;
+    border-bottom: none;
+}
+
+.card::after {
+    bottom: -1px;
+    right: -1px;
+    border-left: none;
+    border-top: none;
 }
 
 .card:hover {
     border-color: var(--panel-border-light);
     transform: translateY(-2px);
+    box-shadow: 0 12px 28px -12px rgba(61, 127, 255, 0.35);
+}
+
+.card:hover::before,
+.card:hover::after {
+    opacity: 1;
+    border-color: var(--accent);
 }
 
 .card p {
@@ -258,6 +304,7 @@ header h1 {
 
 .card h2 {
     color: white;
+    font-family: var(--mono);
     font-size: 26px;
     font-weight: 700;
     line-height: 1;
@@ -273,7 +320,7 @@ header h1 {
 .icon {
     width: 38px;
     height: 38px;
-    border-radius: 11px;
+    border-radius: 8px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -288,8 +335,8 @@ header h1 {
 }
 
 .purple {
-    background: rgba(124, 92, 255, 0.12);
-    color: var(--accent-2);
+    background: rgba(139, 124, 255, 0.12);
+    color: #8b7cff;
 }
 
 .orange {
@@ -306,11 +353,35 @@ header h1 {
 /* ===== PANELS ===== */
 
 .panel {
+    position: relative;
     background: var(--panel);
     border: 1px solid var(--panel-border);
-    border-radius: 16px;
+    border-radius: 14px;
     padding: 24px;
     margin-bottom: 22px;
+}
+
+.panel::before,
+.panel::after {
+    content: "";
+    position: absolute;
+    width: 14px;
+    height: 14px;
+    border: 1px solid var(--panel-border-light);
+}
+
+.panel::before {
+    top: -1px;
+    left: -1px;
+    border-right: none;
+    border-bottom: none;
+}
+
+.panel::after {
+    bottom: -1px;
+    right: -1px;
+    border-left: none;
+    border-top: none;
 }
 
 .panel-title {
@@ -355,10 +426,12 @@ header h1 {
 
 .bar {
     width: 32px;
-    background: linear-gradient(180deg, var(--accent-2), var(--accent));
+    background: linear-gradient(180deg, rgba(61, 127, 255, 0.35), rgba(61, 127, 255, 0.05));
+    border: 1px solid var(--panel-border-light);
+    border-top: 2px solid var(--accent);
     border-radius: 6px 6px 0 0;
+    box-shadow: 0 0 14px rgba(61, 127, 255, 0.2);
     position: relative;
-    box-shadow: 0 0 16px var(--accent-glow);
 }
 
 .bar span {
@@ -368,16 +441,18 @@ header h1 {
     transform: translateX(-50%);
     margin-top: 8px;
     color: var(--text-faint);
+    font-family: var(--mono);
     font-size: 10px;
 }
 
 .period {
-    background: rgba(77, 127, 255, 0.1);
+    background: var(--accent-glow);
     color: var(--accent);
+    font-family: var(--mono);
     font-size: 10px;
     font-weight: 600;
     padding: 4px 10px;
-    border-radius: 20px;
+    border-radius: 4px;
 }
 
 
@@ -389,15 +464,15 @@ header h1 {
     align-items: center;
     padding: 14px;
     border: 1px solid var(--panel-border);
-    border-radius: 12px;
+    border-radius: 8px;
     text-decoration: none;
     margin-bottom: 9px;
-    transition: all 0.18s ease;
+    transition: all 0.15s ease;
 }
 
 .action:hover {
     border-color: var(--accent);
-    background: rgba(77, 127, 255, 0.06);
+    background: rgba(61, 127, 255, 0.06);
 }
 
 .action strong {
@@ -431,7 +506,7 @@ header h1 {
     background: var(--bg-elevated);
     border: 1px solid var(--panel-border);
     color: var(--text);
-    border-radius: 9px;
+    border-radius: 6px;
     outline: none;
     font-size: 12.5px;
     font-family: inherit;
@@ -450,16 +525,19 @@ header h1 {
 .filters button {
     padding: 0 22px;
     border: none;
-    border-radius: 9px;
-    background: linear-gradient(90deg, var(--accent), var(--accent-2));
+    border-radius: 8px;
+    background: var(--accent-gradient);
     color: white;
-    font-weight: 600;
+    font-weight: 700;
     cursor: pointer;
     font-size: 12.5px;
+    letter-spacing: 0.2px;
+    transition: box-shadow 0.15s ease, filter 0.15s ease;
 }
 
 .filters button:hover {
-    filter: brightness(1.1);
+    filter: brightness(1.08);
+    box-shadow: 0 6px 20px -4px rgba(61, 127, 255, 0.55);
 }
 
 
@@ -479,17 +557,18 @@ th {
     background: var(--bg-elevated);
     padding: 12px 14px;
     color: var(--text-faint);
+    font-family: var(--mono);
     font-size: 10px;
     text-transform: uppercase;
     letter-spacing: 0.6px;
 }
 
 th:first-child {
-    border-radius: 8px 0 0 8px;
+    border-radius: 6px 0 0 6px;
 }
 
 th:last-child {
-    border-radius: 0 8px 8px 0;
+    border-radius: 0 6px 6px 0;
 }
 
 td {
@@ -511,11 +590,15 @@ td strong {
 /* ===== STATUS ===== */
 
 .status {
-    padding: 5px 11px;
-    border-radius: 20px;
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 4px;
+    border-left: 2px solid transparent;
+    font-family: var(--mono);
     font-size: 10px;
     font-weight: 700;
-    letter-spacing: 0.2px;
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
     white-space: nowrap;
 }
 
@@ -523,11 +606,13 @@ td strong {
 .delivered {
     background: var(--success-bg);
     color: var(--success);
+    border-left-color: var(--success);
 }
 
 .pending {
     background: var(--warning-bg);
     color: var(--warning);
+    border-left-color: var(--warning);
 }
 
 .reported,
@@ -535,11 +620,13 @@ td strong {
 .rejected {
     background: var(--danger-bg);
     color: var(--danger);
+    border-left-color: var(--danger);
 }
 
 .shipped {
     background: var(--info-bg);
     color: var(--info);
+    border-left-color: var(--info);
 }
 
 
@@ -548,11 +635,12 @@ td strong {
 .view-btn,
 .approve-btn,
 .reject-btn {
-    border: none;
+    border: 1px solid transparent;
     padding: 7px 12px;
-    border-radius: 7px;
+    border-radius: 5px;
     font-size: 10.5px;
     font-weight: 700;
+    letter-spacing: 0.2px;
     cursor: pointer;
     transition: filter 0.15s ease;
 }
@@ -560,22 +648,25 @@ td strong {
 .view-btn:hover,
 .approve-btn:hover,
 .reject-btn:hover {
-    filter: brightness(1.25);
+    filter: brightness(1.2);
 }
 
 .view-btn {
     background: var(--info-bg);
     color: var(--info);
+    border-color: rgba(53, 230, 255, 0.25);
 }
 
 .approve-btn {
     background: var(--success-bg);
     color: var(--success);
+    border-color: rgba(61, 255, 160, 0.25);
 }
 
 .reject-btn {
     background: var(--danger-bg);
     color: var(--danger);
+    border-color: rgba(255, 92, 92, 0.25);
 }
 
 
@@ -607,7 +698,7 @@ td strong {
     background: var(--bg-elevated);
     border: 1px solid var(--panel-border);
     color: var(--text);
-    border-radius: 9px;
+    border-radius: 6px;
     outline: none;
     font-size: 12.5px;
     font-family: inherit;
@@ -626,17 +717,20 @@ td strong {
 .form-grid button {
     padding: 11px 22px;
     border: none;
-    border-radius: 9px;
-    background: linear-gradient(90deg, var(--accent), var(--accent-2));
+    border-radius: 8px;
+    background: var(--accent-gradient);
     color: white;
-    font-weight: 600;
+    font-weight: 700;
     cursor: pointer;
     font-size: 12.5px;
+    letter-spacing: 0.2px;
+    transition: box-shadow 0.15s ease, filter 0.15s ease;
 }
 
 .filters-button:hover,
 .form-grid button:hover {
-    filter: brightness(1.1);
+    filter: brightness(1.08);
+    box-shadow: 0 6px 20px -4px rgba(61, 127, 255, 0.55);
 }
 
 .cancel-link {
@@ -666,7 +760,7 @@ td strong {
     justify-content: center;
     width: 24px;
     height: 24px;
-    border-radius: 7px;
+    border-radius: 5px;
     background: var(--bg-elevated);
     border: 1px solid var(--panel-border);
     color: var(--text);
@@ -691,13 +785,14 @@ td strong {
 }
 
 .category-tag {
-    background: rgba(124, 92, 255, 0.1);
-    color: var(--accent-2);
-    padding: 6px 14px;
-    border-radius: 20px;
+    background: rgba(61, 127, 255, 0.10);
+    color: var(--accent-soft);
+    font-family: var(--mono);
+    padding: 6px 12px;
+    border-radius: 6px;
     font-size: 11px;
     font-weight: 600;
-    border: 1px solid rgba(124, 92, 255, 0.2);
+    border: 1px solid rgba(61, 127, 255, 0.25);
 }
 
 
@@ -719,7 +814,47 @@ td strong {
 @media (max-width: 900px) {
 
     .sidebar {
+        position: static;
+        width: 100%;
+        height: auto;
+        flex-direction: row;
+        align-items: center;
+        gap: 16px;
+        padding: 14px 16px;
+        border-right: none;
+        border-bottom: 1px solid var(--panel-border);
+        overflow-x: auto;
+    }
+
+    .sidebar h2 {
+        font-size: 16px;
+        white-space: nowrap;
+        margin-bottom: 0;
+    }
+
+    .admin-label,
+    .sidebar-bottom {
         display: none;
+    }
+
+    nav {
+        flex-direction: row;
+        flex: none;
+        gap: 4px;
+    }
+
+    nav a,
+    .sidebar-link {
+        white-space: nowrap;
+        padding: 8px 12px;
+        border-left: none;
+        border-bottom: 2px solid transparent;
+    }
+
+    nav a.active,
+    .sidebar-link.active {
+        border-left: none;
+        border-bottom: 2px solid var(--accent);
     }
 
     .main {
