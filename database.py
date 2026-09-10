@@ -94,8 +94,45 @@ def init_db():
     )
     """)
 
+    # USERS TABLE (student / seller accounts, not admins -- those are
+    # a separate hard-coded allowlist in app.py)
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        fullname TEXT NOT NULL,
+        email TEXT UNIQUE NOT NULL,
+        password_hash TEXT NOT NULL,
+        role TEXT NOT NULL DEFAULT 'student',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+
     connection.commit()
     connection.close()
+
+
+# -------------------------
+# USER ACCOUNTS
+# -------------------------
+
+def create_user(fullname, email, password_hash, role):
+    connection = get_connection()
+    cursor = connection.cursor()
+    cursor.execute("""
+        INSERT INTO users (fullname, email, password_hash, role)
+        VALUES (?, ?, ?, ?)
+    """, (fullname, email, password_hash, role))
+    connection.commit()
+    connection.close()
+
+
+def get_user_by_email(email):
+    connection = get_connection()
+    cursor = connection.cursor()
+    cursor.execute("SELECT * FROM users WHERE email = ?", (email,))
+    user = cursor.fetchone()
+    connection.close()
+    return user
 
 
 # -------------------------

@@ -14,6 +14,10 @@
             <h2>Campus<span>Cart</span></h2>
             <p class="subtitle admin-auth-subtitle">Sign in to manage the marketplace.</p>
 
+            {% if error %}
+            <p class="admin-auth-error">{{ error }}</p>
+            {% endif %}
+
             <form action="/admin/login" method="POST" class="admin-auth-form">
 
                 <div class="form-group">

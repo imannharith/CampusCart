@@ -1,12 +1,25 @@
+from datetime import timedelta
 from functools import wraps
 
 from flask import Flask, render_template, redirect, url_for, request, session
+from werkzeug.security import generate_password_hash, check_password_hash
 
 import database
 import admin_functions as admin
 
 app = Flask(__name__)
 app.secret_key = 'campuscart_secret_key_bebas_tukar'
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=30)
+
+
+# Hard-coded admin allowlist -- only these emails/passwords can reach
+# the admin panel. Passwords are hashed here, never stored in plain
+# text, even though the hashes themselves live in source control.
+ADMIN_ACCOUNTS = {
+    "zikryman123@gmail.com": "scrypt:32768:8:1$lfJSd8WxZnbJAX6j$6f91f9a88d7409a67970259ce6276ff095810bc16cd24733ca514d155e99d76c6e71cfb2646cd17a0257080664097647ba8998330a562ec1da1465d30bf9e8bf",
+    "imannhairurizal@gmail.com": "scrypt:32768:8:1$nDtoMhQAZUKDqApr$603d72c49e6f8f568f62a6c2fa53a5d4ab945cbfb450f1f69ae9ca1e3e3a96fc12ea0b3605370d567651dcb3a64549717bca3872b676d40682af04d8586726f8",
+    "priyaankavi0703@gmail.com": "scrypt:32768:8:1$NAoOq6JLC75PWzFu$2f8166558a27e2bc51af2fe58aa0e3eaedf0ccb00f572556ed26d9e2312d9aa6172a09465970abbdbacb9c6521d88db8235665c6ae051749b6b69409c722f8c4",
+}
 
 
 def admin_required(view):
@@ -574,28 +587,43 @@ def view_orders():
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
-        # Ambil data dari form login.html
         email = request.form.get("email")
-        role = request.form.get("role")
-        
-        # Simpan dalam session (Placeholder sehingga backend DB user korang siap)
-        session['user'] = email
-        session['role'] = role
-        
-        # Kalau Admin, hantar ke Dashboard. Kalau Customer/Seller, hantar ke Homepage
-        if role == "admin":
-            return redirect(url_for("dashboard"))
+        password = request.form.get("password")
+        remember = request.form.get("remember")
+
+        user = database.get_user_by_email(email)
+
+        if user is None or not check_password_hash(user["password_hash"], password):
+            return render_template("login.html", error="Incorrect email or password.")
+
+        session.permanent = bool(remember)
+        session['user'] = user["email"]
+        session['role'] = user["role"]
+
         return redirect(url_for("home"))
-        
+
     return render_template("login.html")
 
 
 @app.route("/register", methods=["GET", "POST"])
 def register():
     if request.method == "POST":
-        # Lepas register, terus minta user login
+        fullname = request.form.get("fullname")
+        role = request.form.get("role")
+        email = request.form.get("email")
+        password = request.form.get("password")
+        confirm_password = request.form.get("confirm_password")
+
+        if password != confirm_password:
+            return render_template("register.html", error="Passwords don't match.")
+
+        if database.get_user_by_email(email) is not None:
+            return render_template("register.html", error="An account with that email already exists.")
+
+        database.create_user(fullname, email, generate_password_hash(password), role)
+
         return redirect(url_for("login"))
-        
+
     return render_template("register.html")
 
 
@@ -611,8 +639,13 @@ def logout():
 def admin_login():
     if request.method == "POST":
         email = request.form.get("email")
+        password = request.form.get("password")
 
-        # Placeholder sehingga backend DB user korang siap
+        password_hash = ADMIN_ACCOUNTS.get(email)
+
+        if password_hash is None or not check_password_hash(password_hash, password):
+            return render_template("admin_login.html", error="Incorrect email or password.")
+
         session['user'] = email
         session['role'] = 'admin'
 
