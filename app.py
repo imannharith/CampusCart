@@ -144,6 +144,7 @@ def dashboard():
         total_products=stats["total_products"],
         pending_products=stats["pending_products"],
         reported_products=stats["reported_products"],
+        total_users=database.get_user_stats()["total"],
         recent_products=recent_products,
     )
 
@@ -365,7 +366,15 @@ def update_order_status(order_id, status):
 @app.route("/users")
 @admin_required
 def users():
-    return render_template("user.html")
+
+    search = request.args.get("search", "")
+
+    return render_template(
+        "user.html",
+        users=database.get_all_users(search),
+        user_stats=database.get_user_stats(),
+        search=search,
+    )
 
 
 # -------------------------
