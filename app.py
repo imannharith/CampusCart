@@ -1,10 +1,36 @@
+from datetime import timedelta
+from functools import wraps
+
 from flask import Flask, render_template, redirect, url_for, request, session
+from werkzeug.security import generate_password_hash, check_password_hash
 
 import database
 import admin_functions as admin
 
 app = Flask(__name__)
 app.secret_key = 'campuscart_secret_key_bebas_tukar'
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=30)
+
+
+# Hard-coded admin allowlist -- only these emails/passwords can reach
+# the admin panel. Passwords are hashed here, never stored in plain
+# text, even though the hashes themselves live in source control.
+ADMIN_ACCOUNTS = {
+    "zikryman123@gmail.com": "scrypt:32768:8:1$lfJSd8WxZnbJAX6j$6f91f9a88d7409a67970259ce6276ff095810bc16cd24733ca514d155e99d76c6e71cfb2646cd17a0257080664097647ba8998330a562ec1da1465d30bf9e8bf",
+    "imannhairurizal@gmail.com": "scrypt:32768:8:1$nDtoMhQAZUKDqApr$603d72c49e6f8f568f62a6c2fa53a5d4ab945cbfb450f1f69ae9ca1e3e3a96fc12ea0b3605370d567651dcb3a64549717bca3872b676d40682af04d8586726f8",
+    "priyaankavi0703@gmail.com": "scrypt:32768:8:1$NAoOq6JLC75PWzFu$2f8166558a27e2bc51af2fe58aa0e3eaedf0ccb00f572556ed26d9e2312d9aa6172a09465970abbdbacb9c6521d88db8235665c6ae051749b6b69409c722f8c4",
+}
+
+
+def admin_required(view):
+    # Gate for the admin panel routes -- bounces anyone without an
+    # admin session to the admin login page instead of rendering.
+    @wraps(view)
+    def wrapped(*args, **kwargs):
+        if session.get('role') != 'admin':
+            return redirect(url_for('admin_login'))
+        return view(*args, **kwargs)
+    return wrapped
 
 # Make sure the database and its tables exist, and seed a little
 # sample data so the admin pages aren't empty on first run.
@@ -107,6 +133,7 @@ def product_catalog():
 # ADMIN DASHBOARD
 # -------------------------
 @app.route("/dashboard")
+@admin_required
 def dashboard():
 
     stats = admin.get_dashboard_stats()
@@ -126,6 +153,7 @@ def dashboard():
 # -------------------------
 
 @app.route("/listings")
+@admin_required
 def listings():
 
     category = request.args.get("category", "all")
@@ -160,6 +188,7 @@ def listings():
 # -------------------------
 
 @app.route("/listings/add", methods=["POST"])
+@admin_required
 def add_product():
 
     admin.add_product(
@@ -179,6 +208,7 @@ def add_product():
 # -------------------------
 
 @app.route("/listings/edit/<int:product_id>", methods=["POST"])
+@admin_required
 def edit_product(product_id):
 
     admin.update_product(
@@ -198,6 +228,7 @@ def edit_product(product_id):
 # -------------------------
 
 @app.route("/listings/status/<int:product_id>/<status>")
+@admin_required
 def change_product_status(product_id, status):
 
     admin.set_product_status(product_id, status)
@@ -210,6 +241,7 @@ def change_product_status(product_id, status):
 # -------------------------
 
 @app.route("/listings/delete/<int:product_id>")
+@admin_required
 def delete_product(product_id):
 
     admin.delete_product(product_id)
@@ -222,6 +254,7 @@ def delete_product(product_id):
 # -------------------------
 
 @app.route("/listings/stock/<int:product_id>/<action>")
+@admin_required
 def adjust_product_stock(product_id, action):
 
     amount = 1 if action == "increase" else -1
@@ -235,6 +268,7 @@ def adjust_product_stock(product_id, action):
 # -------------------------
 
 @app.route("/categories/rename", methods=["POST"])
+@admin_required
 def rename_category():
 
     admin.rename_category(
@@ -250,6 +284,7 @@ def rename_category():
 # -------------------------
 
 @app.route("/discounts/add", methods=["POST"])
+@admin_required
 def add_discount():
 
     admin.add_discount_code(
@@ -261,6 +296,7 @@ def add_discount():
 
 
 @app.route("/discounts/toggle/<int:discount_id>")
+@admin_required
 def toggle_discount(discount_id):
 
     admin.toggle_discount_code(discount_id)
@@ -269,6 +305,7 @@ def toggle_discount(discount_id):
 
 
 @app.route("/discounts/delete/<int:discount_id>")
+@admin_required
 def delete_discount(discount_id):
 
     admin.delete_discount_code(discount_id)
@@ -281,6 +318,7 @@ def delete_discount(discount_id):
 # -------------------------
 
 @app.route("/reviews/delete/<int:review_id>")
+@admin_required
 def delete_review(review_id):
 
     admin.delete_review(review_id)
@@ -293,6 +331,7 @@ def delete_review(review_id):
 # -------------------------
 
 @app.route("/reports")
+@admin_required
 def reports():
 
     status = request.args.get("status", "all")
@@ -311,6 +350,7 @@ def reports():
 
 
 @app.route("/reports/status/<int:order_id>/<status>")
+@admin_required
 def update_order_status(order_id, status):
 
     admin.update_order_status(order_id, status)
@@ -323,6 +363,7 @@ def update_order_status(order_id, status):
 # -------------------------
 
 @app.route("/users")
+@admin_required
 def users():
     return render_template("user.html")
 
@@ -546,37 +587,76 @@ def view_orders():
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
-        # Ambil data dari form login.html
         email = request.form.get("email")
-        role = request.form.get("role")
-        
-        # Simpan dalam session (Placeholder sehingga backend DB user korang siap)
-        session['user'] = email
-        session['role'] = role
-        
-        # Kalau Admin, hantar ke Dashboard. Kalau Customer/Seller, hantar ke Homepage
-        if role == "admin":
-            return redirect(url_for("dashboard"))
+        password = request.form.get("password")
+        remember = request.form.get("remember")
+
+        user = database.get_user_by_email(email)
+
+        if user is None or not check_password_hash(user["password_hash"], password):
+            return render_template("login.html", error="Incorrect email or password.")
+
+        session.permanent = bool(remember)
+        session['user'] = user["email"]
+        session['role'] = user["role"]
+
         return redirect(url_for("home"))
-        
+
     return render_template("login.html")
 
 
 @app.route("/register", methods=["GET", "POST"])
 def register():
     if request.method == "POST":
-        # Lepas register, terus minta user login
+        fullname = request.form.get("fullname")
+        role = request.form.get("role")
+        email = request.form.get("email")
+        password = request.form.get("password")
+        confirm_password = request.form.get("confirm_password")
+
+        if password != confirm_password:
+            return render_template("register.html", error="Passwords don't match.")
+
+        if database.get_user_by_email(email) is not None:
+            return render_template("register.html", error="An account with that email already exists.")
+
+        database.create_user(fullname, email, generate_password_hash(password), role)
+
         return redirect(url_for("login"))
-        
+
     return render_template("register.html")
 
 
 @app.route("/logout")
 def logout():
+    was_admin = session.get('role') == 'admin'
+
     # Buang data user dari session & hantar balik ke login page
     session.pop('user', None)
     session.pop('role', None)
+
+    if was_admin:
+        return redirect(url_for("admin_login"))
     return redirect(url_for("login"))
+
+
+@app.route("/admin/login", methods=["GET", "POST"])
+def admin_login():
+    if request.method == "POST":
+        email = request.form.get("email")
+        password = request.form.get("password")
+
+        password_hash = ADMIN_ACCOUNTS.get(email)
+
+        if password_hash is None or not check_password_hash(password_hash, password):
+            return render_template("admin_login.html", error="Incorrect email or password.")
+
+        session['user'] = email
+        session['role'] = 'admin'
+
+        return redirect(url_for("dashboard"))
+
+    return render_template("admin_login.html")
 
 # -------------------------
 # RUN APPLICATION
