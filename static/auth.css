@@ -1,150 +1,155 @@
 /* =========================================================
    CAMPUSCART — LOGIN / REGISTER
-   Same "Instrument" language as the admin panel, inverted to
-   a light ground so it sits with the storefront rather than
-   cutting to a dark screen mid-flow.
+   Swiss industrial print: unbleached documentation paper,
+   carbon ink, aviation red. The light substrate of the same
+   system the admin terminal runs on — same accent, same type,
+   same zero-radius rigidity, opposite ground.
    ========================================================= */
 
-@import url('https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700&f[]=clash-display@500,600&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800;900&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
 
 :root {
-    --ground:   #eceef0;
-    --tray:     #f6f7f8;
-    --surface:  #ffffff;
+    --paper:     #f4f4f0;   /* matte documentation stock */
+    --paper-2:   #eae8e3;   /* recessed field */
+    --white:     #fdfdfb;
 
-    --hair:     rgba(13, 25, 33, 0.09);
-    --hair-2:   rgba(13, 25, 33, 0.16);
+    --ink:       #0a0a0a;   /* carbon */
+    --ink-dim:   #6a6a64;
+    --ink-faint: #9b9b93;
 
-    --text:     #13181b;
-    --muted:    #5f6a71;
-    --faint:    #949da3;
+    --rule:      #d6d6ce;   /* hairline */
+    --rule-2:    #0a0a0a;   /* structural */
 
-    --accent:      #2f7f96;
-    --accent-hi:   #3590a9;
-    --accent-deep: #24657f;
-    --accent-wash: rgba(47, 127, 150, 0.11);
-    --accent-line: rgba(47, 127, 150, 0.30);
+    --alert:      #e61919;  /* aviation red — the only accent */
+    --alert-wash: rgba(230, 25, 25, 0.07);
 
-    --bad:      #b4544f;
+    --macro: "Archivo", "Helvetica Neue", Arial, sans-serif;
+    --ui:    "IBM Plex Sans", system-ui, sans-serif;
+    --mono:  "IBM Plex Mono", ui-monospace, Menlo, monospace;
 
-    --r-lg: 16px;
-    --r-md: 9px;
-    --r-sm: 5px;
-
-    --ease: cubic-bezier(0.32, 0.72, 0, 1);
-
-    --ui:   "Satoshi", "Helvetica Neue", sans-serif;
-    --disp: "Clash Display", "Satoshi", sans-serif;
-    --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+    --step: 60ms;
 }
 
-* { box-sizing: border-box; }
+*,
+*::before,
+*::after {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    border-radius: 0;
+}
 
 body {
-    margin: 0;
     font-family: var(--ui);
-    color: var(--text);
-    background: var(--ground);
+    font-size: 13px;
+    color: var(--ink);
+    background: var(--paper);
     -webkit-font-smoothing: antialiased;
-    font-synthesis-weight: none;
 }
 
-/* grain, same as the admin side — keeps the flat ground honest */
+/* press grain — keeps the flat stock from reading as vector */
 body::after {
     content: "";
     position: fixed;
     inset: 0;
-    z-index: 1;
+    z-index: 100;
     pointer-events: none;
-    opacity: 0.03;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
+    opacity: 0.05;
+    mix-blend-mode: multiply;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
 :focus-visible {
-    outline: 2px solid var(--accent);
-    outline-offset: 2px;
-    border-radius: 3px;
+    outline: 2px solid var(--alert);
+    outline-offset: 1px;
 }
 
 .auth-container {
-    position: relative;
-    z-index: 2;
     min-height: 100dvh;
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 28px 22px;
+    padding: 32px 22px;
 }
 
-/* the double bezel: a tray holding a white core */
+/* a specification sheet, not a floating card */
 .auth-box {
-    position: relative;
     width: 100%;
-    max-width: 404px;
-    padding: 7px;
-    border-radius: var(--r-lg);
-    background: var(--tray);
-    box-shadow:
-        inset 0 0 0 1px var(--hair),
-        0 26px 50px -32px rgba(13, 25, 33, 0.45);
+    max-width: 412px;
+    background: var(--white);
+    border: 1px solid var(--rule-2);
+    border-top: 5px solid var(--alert);
 }
-
-/* inner core, concentric radius = outer minus the 7px inset */
-.auth-box::before {
-    content: "";
-    position: absolute;
-    inset: 7px;
-    border-radius: calc(var(--r-lg) - 7px);
-    background: var(--surface);
-    box-shadow: inset 0 0 0 1px var(--hair);
-}
-
-.auth-box > * { position: relative; }
 
 .logo {
-    padding: 27px 26px 0;
-    text-align: left;
+    padding: 22px 26px 16px;
+    border-bottom: 1px solid var(--rule);
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
 }
 
 .logo a {
-    font-family: var(--disp);
-    font-size: 22px;
-    font-weight: 600;
-    letter-spacing: -0.02em;
-    color: var(--text);
+    font-family: var(--macro);
+    font-size: 19px;
+    font-weight: 900;
+    letter-spacing: -0.035em;
+    text-transform: uppercase;
+    color: var(--ink);
     text-decoration: none;
 }
 
-.logo a span { color: var(--accent); }
+.logo a span { color: var(--alert); }
+
+/* document code — structural, not ornamental */
+.logo::after {
+    content: "FORM / AUTH-01";
+    font-family: var(--mono);
+    font-size: 8.5px;
+    font-weight: 500;
+    letter-spacing: 0.14em;
+    color: var(--ink-faint);
+    white-space: nowrap;
+}
 
 h2 {
-    font-family: var(--disp);
-    font-size: 24px;
-    font-weight: 600;
-    letter-spacing: -0.025em;
-    line-height: 1.12;
-    color: var(--text);
-    margin: 21px 26px 0;
+    font-family: var(--macro);
+    font-size: clamp(1.75rem, 6vw, 2.2rem);
+    font-weight: 900;
+    line-height: 0.9;
+    letter-spacing: -0.045em;
+    text-transform: uppercase;
+    color: var(--ink);
+    margin: 26px 26px 0;
     text-wrap: balance;
 }
 
 .auth-subtitle {
-    margin: 7px 26px 24px;
-    font-size: 13.5px;
-    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 9.5px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+    margin: 12px 26px 22px;
+    padding-bottom: 18px;
+    border-bottom: 1px solid var(--rule);
 }
 
 .auth-error {
     margin: 0 26px 18px;
-    padding: 10px 13px;
-    border-radius: var(--r-md);
-    font-size: 12.5px;
+    padding: 10px 12px;
+    font-family: var(--mono);
+    font-size: 10px;
     font-weight: 500;
-    color: var(--bad);
-    background: rgba(180, 84, 79, 0.07);
-    box-shadow: inset 0 0 0 1px rgba(180, 84, 79, 0.26);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--alert);
+    background: var(--alert-wash);
+    border: 1px solid var(--alert);
 }
+
+.auth-error::before { content: "// "; }
 
 .auth-form {
     display: flex;
@@ -161,118 +166,136 @@ h2 {
 
 .form-group label {
     font-family: var(--mono);
-    font-size: 9.5px;
+    font-size: 9px;
     font-weight: 500;
-    letter-spacing: 0.16em;
+    letter-spacing: 0.18em;
     text-transform: uppercase;
-    color: var(--faint);
+    color: var(--ink-dim);
 }
 
 .form-group input,
 .form-group select {
-    padding: 11px 13px;
-    font-family: var(--ui);
-    font-size: 14px;
-    color: var(--text);
-    background: var(--tray);
-    border: none;
-    border-radius: var(--r-md);
+    padding: 11px 12px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--ink);
+    background: var(--paper);
+    border: 1px solid var(--rule);
     outline: none;
-    box-shadow: inset 0 0 0 1px var(--hair);
-    transition: box-shadow 0.25s var(--ease), background-color 0.25s var(--ease);
+    transition: border-color var(--step) linear, background-color var(--step) linear;
 }
 
 .form-group select { cursor: pointer; }
 
-.form-group input::placeholder { color: var(--faint); }
+.form-group input::placeholder {
+    color: var(--ink-faint);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
 
 .form-group input:hover,
-.form-group select:hover { box-shadow: inset 0 0 0 1px var(--hair-2); }
+.form-group select:hover { border-color: var(--ink-faint); }
 
 .form-group input:focus,
 .form-group select:focus {
-    background: var(--surface);
-    box-shadow: inset 0 0 0 1px var(--accent), 0 0 0 3px var(--accent-wash);
+    border-color: var(--alert);
+    background: var(--white);
 }
 
 .auth-checkbox {
     display: flex;
     align-items: center;
-    gap: 8px;
-    margin-top: -2px;
-    font-size: 12.5px;
-    color: var(--muted);
+    gap: 9px;
+    font-family: var(--mono);
+    font-size: 9.5px;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
     cursor: pointer;
 }
 
 .auth-checkbox input {
-    width: 15px;
-    height: 15px;
-    accent-color: var(--accent);
+    width: 14px;
+    height: 14px;
+    accent-color: var(--alert);
     cursor: pointer;
 }
 
 .btn-auth {
     margin-top: 6px;
-    padding: 12px 16px;
-    font-family: var(--ui);
-    font-size: 14px;
-    font-weight: 700;
-    color: #ffffff;
-    background: var(--accent);
-    border: none;
-    border-radius: var(--r-md);
+    padding: 13px 16px;
+    font-family: var(--mono);
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--paper);
+    background: var(--ink);
+    border: 1px solid var(--ink);
     cursor: pointer;
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22);
-    transition: background-color 0.25s var(--ease), transform 0.12s var(--ease);
+    transition: background-color var(--step) linear, border-color var(--step) linear;
 }
 
-.btn-auth:hover { background: #3590a9; }
-.btn-auth:active { transform: scale(0.985); }
+.btn-auth:hover {
+    background: var(--alert);
+    border-color: var(--alert);
+}
+
+.btn-auth:active { transform: translateY(1px); }
 
 .auth-footer {
     margin: 22px 26px 0;
+    padding-top: 16px;
     text-align: center;
-    font-size: 13px;
-    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 9.5px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+    border-top: 1px solid var(--rule);
 }
-
-.auth-footer:last-child { padding-bottom: 27px; }
 
 .auth-footer a {
-    color: var(--accent);
+    color: var(--ink);
     font-weight: 600;
     text-decoration: none;
-    transition: color 0.25s var(--ease);
+    border-bottom: 1px solid var(--alert);
+    transition: color var(--step) linear;
 }
 
-.auth-footer a:hover { color: #24657f; }
+.auth-footer a:hover { color: var(--alert); }
 
-/* the admin door — deliberately quiet, it isn't for most people */
+/* the admin door — present, deliberately unadvertised */
 .auth-admin-link {
-    margin-top: 9px;
-    padding-bottom: 27px;
+    margin-top: 10px;
+    padding-top: 0;
+    padding-bottom: 24px;
+    border-top: none;
 }
 
 .auth-admin-link a {
-    font-family: var(--mono);
-    font-size: 11px;
+    font-size: 9px;
     font-weight: 400;
-    letter-spacing: 0.06em;
-    color: var(--faint);
+    letter-spacing: 0.12em;
+    color: var(--ink-faint);
+    border-bottom: none;
 }
 
-.auth-admin-link a:hover { color: var(--muted); }
+.auth-admin-link a:hover {
+    color: var(--ink-dim);
+    border-bottom: 1px solid var(--ink-faint);
+}
 
 @media (max-width: 460px) {
     .logo,
+    .auth-form { padding-left: 18px; padding-right: 18px; }
+
     h2,
     .auth-subtitle,
     .auth-error,
-    .auth-form,
-    .auth-footer { margin-left: 0; margin-right: 0; padding-left: 20px; padding-right: 20px; }
+    .auth-footer { margin-left: 18px; margin-right: 18px; }
 
-    .auth-form { padding: 0 20px; }
+    .logo { flex-direction: column; align-items: flex-start; gap: 6px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
