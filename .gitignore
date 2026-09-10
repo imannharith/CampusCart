@@ -3,3 +3,9 @@ __pycache__/
 .DS_Store
 .env
 database.db
+
+# editor tooling, not part of the app -- install with:
+# npx skills add Leonxlnx/taste-skill
+.agents/
+.claude/
+skills-lock.json
