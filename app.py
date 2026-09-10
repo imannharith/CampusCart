@@ -488,9 +488,7 @@ def place_order():
     total = subtotal - discount
 
     # Connect to database
-    import sqlite3
-
-    connection = sqlite3.connect("database.db")
+    connection = database.get_connection()
 
     cursor = connection.cursor()
 
@@ -557,10 +555,7 @@ def view_orders():
     # Later this will come from the login system
     user_id = 1
 
-    import sqlite3
-
-    connection = sqlite3.connect("database.db")
-    connection.row_factory = sqlite3.Row
+    connection = database.get_connection()
 
     cursor = connection.cursor()
 
