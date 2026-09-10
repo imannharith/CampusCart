@@ -37,7 +37,6 @@
     <header>
 
         <div>
-            <p class="small-title">MARKETPLACE</p>
             <h1>Orders &amp; Sales Reports</h1>
             <p class="subtitle">
                 Track orders and monitor overall sales performance.
@@ -192,7 +191,7 @@
                             {% for item in order.line_items %}
                                 {{ item.product_name or 'Deleted product' }} &times;{{ item.quantity }}{% if not loop.last %}, {% endif %}
                             {% else %}
-                                —
+                                No items
                             {% endfor %}
                         </td>
                         <td>RM {{ "%.2f"|format(order.subtotal) }}</td>

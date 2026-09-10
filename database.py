@@ -237,6 +237,60 @@ def get_user_by_email(email):
     return user
 
 
+def get_all_users(search=None):
+    """Registered accounts, newest first, optionally filtered by a
+    case-insensitive match on name or email."""
+
+    connection = get_connection()
+    cursor = connection.cursor()
+
+    query = "SELECT id, fullname, email, role, created_at FROM users WHERE 1=1"
+    params = []
+
+    if search:
+        query += " AND (LOWER(fullname) LIKE LOWER(?) OR LOWER(email) LIKE LOWER(?))"
+        params.append(f"%{search}%")
+        params.append(f"%{search}%")
+
+    query += " ORDER BY id DESC"
+
+    cursor.execute(query, params)
+    users = [dict(row) for row in cursor.fetchall()]
+
+    connection.close()
+    return users
+
+
+def get_user_stats():
+    """Real counts for the admin user cards."""
+
+    connection = get_connection()
+    cursor = connection.cursor()
+
+    cursor.execute("SELECT COUNT(*) AS c FROM users")
+    total = cursor.fetchone()["c"]
+
+    cursor.execute("SELECT COUNT(*) AS c FROM users WHERE LOWER(role) = 'student'")
+    students = cursor.fetchone()["c"]
+
+    cursor.execute("SELECT COUNT(*) AS c FROM users WHERE LOWER(role) = 'seller'")
+    sellers = cursor.fetchone()["c"]
+
+    cursor.execute(
+        "SELECT COUNT(*) AS c FROM users WHERE created_at >= datetime('now', '-7 days')"
+    )
+    this_week = cursor.fetchone()["c"]
+
+    connection.close()
+
+    return {
+        "total": total,
+        "students": students,
+        "sellers": sellers,
+        "this_week": this_week,
+    }
+
+
 # -------------------------
 # OPTIONAL SAMPLE DATA
 # -------------------------

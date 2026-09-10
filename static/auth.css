@@ -1,67 +1,68 @@
 /* =========================================================
-   CAMPUSCART — LOGIN / REGISTER
-   Swiss industrial print: unbleached documentation paper,
-   carbon ink, aviation red. The light substrate of the same
-   system the admin terminal runs on — same accent, same type,
-   same zero-radius rigidity, opposite ground.
+   CAMPUSCART — SIGN IN / REGISTER
+   Same system as the admin console: off-black ground, one
+   brand blue, 12px surfaces / 8px controls / 6px badges,
+   depth from hairlines rather than glows.
    ========================================================= */
 
-@import url('https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800;900&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap');
 
 :root {
-    --paper:     #f4f4f0;   /* matte documentation stock */
-    --paper-2:   #eae8e3;   /* recessed field */
-    --white:     #fdfdfb;
+    --bg:         #0b0c0e;
+    --surface:    #121418;
+    --surface-2:  #171a1f;
 
-    --ink:       #0a0a0a;   /* carbon */
-    --ink-dim:   #6a6a64;
-    --ink-faint: #9b9b93;
+    --border:     #23272e;
+    --border-2:   #2f343c;
+    --hairline:   rgba(255, 255, 255, 0.055);
 
-    --rule:      #d6d6ce;   /* hairline */
-    --rule-2:    #0a0a0a;   /* structural */
+    --text:       #f2f4f7;
+    --text-2:     #9aa3b0;
+    --text-3:     #69707c;
 
-    --alert:      #e61919;  /* aviation red — the only accent */
-    --alert-wash: rgba(230, 25, 25, 0.07);
+    --brand:      #2e6bff;
+    --brand-hi:   #4a80ff;
+    --brand-ink:  #ffffff;
+    --brand-wash: rgba(46, 107, 255, 0.13);
 
-    --macro: "Archivo", "Helvetica Neue", Arial, sans-serif;
-    --ui:    "IBM Plex Sans", system-ui, sans-serif;
-    --mono:  "IBM Plex Mono", ui-monospace, Menlo, monospace;
+    --bad:        #f0526d;
+    --bad-wash:   rgba(240, 82, 109, 0.12);
 
-    --step: 60ms;
+    --r-surface: 12px;
+    --r-control: 8px;
+
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 18px 44px -20px rgba(0, 0, 0, 0.8);
+
+    --ease: cubic-bezier(0.16, 1, 0.3, 1);
+    --fast: 150ms;
+
+    --ui: "Geist", "Helvetica Neue", Arial, sans-serif;
 }
 
-*,
-*::before,
-*::after {
+* {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
-    border-radius: 0;
 }
 
 body {
     font-family: var(--ui);
-    font-size: 13px;
-    color: var(--ink);
-    background: var(--paper);
+    font-size: 14px;
+    line-height: 1.55;
+    color: var(--text);
+    background: var(--bg);
     -webkit-font-smoothing: antialiased;
 }
 
-/* press grain — keeps the flat stock from reading as vector */
-body::after {
-    content: "";
-    position: fixed;
-    inset: 0;
-    z-index: 100;
-    pointer-events: none;
-    opacity: 0.05;
-    mix-blend-mode: multiply;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
+:focus-visible {
+    outline: 2px solid var(--brand);
+    outline-offset: 2px;
+    border-radius: 4px;
 }
 
-:focus-visible {
-    outline: 2px solid var(--alert);
-    outline-offset: 1px;
+@keyframes rise {
+    from { opacity: 0.001; transform: translateY(8px); }
+    to   { opacity: 1;     transform: none; }
 }
 
 .auth-container {
@@ -69,238 +70,177 @@ body::after {
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 32px 22px;
+    padding: 30px 22px;
 }
 
-/* a specification sheet, not a floating card */
 .auth-box {
     width: 100%;
-    max-width: 412px;
-    background: var(--white);
-    border: 1px solid var(--rule-2);
-    border-top: 5px solid var(--alert);
+    max-width: 400px;
+    padding: 30px 28px 26px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-surface);
+    box-shadow: var(--shadow);
+    animation: rise 360ms var(--ease) backwards;
 }
 
-.logo {
-    padding: 22px 26px 16px;
-    border-bottom: 1px solid var(--rule);
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: 12px;
-}
+.logo { margin-bottom: 26px; }
 
 .logo a {
-    font-family: var(--macro);
-    font-size: 19px;
-    font-weight: 900;
-    letter-spacing: -0.035em;
-    text-transform: uppercase;
-    color: var(--ink);
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: -0.028em;
+    color: var(--text);
     text-decoration: none;
 }
 
-.logo a span { color: var(--alert); }
-
-/* document code — structural, not ornamental */
-.logo::after {
-    content: "FORM / AUTH-01";
-    font-family: var(--mono);
-    font-size: 8.5px;
-    font-weight: 500;
-    letter-spacing: 0.14em;
-    color: var(--ink-faint);
-    white-space: nowrap;
-}
+/* Campus in white, Cart in brand blue */
+.logo a span { color: var(--brand); }
 
 h2 {
-    font-family: var(--macro);
-    font-size: clamp(1.75rem, 6vw, 2.2rem);
-    font-weight: 900;
-    line-height: 0.9;
-    letter-spacing: -0.045em;
-    text-transform: uppercase;
-    color: var(--ink);
-    margin: 26px 26px 0;
+    font-size: 24px;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    line-height: 1.15;
+    color: var(--text);
     text-wrap: balance;
 }
 
 .auth-subtitle {
-    font-family: var(--mono);
-    font-size: 9.5px;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--ink-dim);
-    margin: 12px 26px 22px;
-    padding-bottom: 18px;
-    border-bottom: 1px solid var(--rule);
+    margin: 8px 0 24px;
+    font-size: 14px;
+    color: var(--text-2);
 }
 
 .auth-error {
-    margin: 0 26px 18px;
-    padding: 10px 12px;
-    font-family: var(--mono);
-    font-size: 10px;
-    font-weight: 500;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: var(--alert);
-    background: var(--alert-wash);
-    border: 1px solid var(--alert);
+    margin-bottom: 20px;
+    padding: 10px 13px;
+    border-radius: var(--r-control);
+    font-size: 13px;
+    color: var(--bad);
+    background: var(--bad-wash);
+    border: 1px solid rgba(240, 82, 109, 0.3);
 }
-
-.auth-error::before { content: "// "; }
 
 .auth-form {
     display: flex;
     flex-direction: column;
-    gap: 14px;
-    padding: 0 26px;
+    gap: 15px;
 }
 
 .form-group {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 7px;
 }
 
 .form-group label {
-    font-family: var(--mono);
-    font-size: 9px;
+    font-size: 12.5px;
     font-weight: 500;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
-    color: var(--ink-dim);
+    color: var(--text-2);
 }
 
 .form-group input,
 .form-group select {
-    padding: 11px 12px;
-    font-family: var(--mono);
-    font-size: 12px;
-    color: var(--ink);
-    background: var(--paper);
-    border: 1px solid var(--rule);
+    padding: 11px 13px;
+    font-family: var(--ui);
+    font-size: 14px;
+    color: var(--text);
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--r-control);
     outline: none;
-    transition: border-color var(--step) linear, background-color var(--step) linear;
+    transition: border-color var(--fast) var(--ease), box-shadow var(--fast) var(--ease);
 }
 
 .form-group select { cursor: pointer; }
 
-.form-group input::placeholder {
-    color: var(--ink-faint);
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-}
+.form-group input::placeholder { color: var(--text-3); }
 
 .form-group input:hover,
-.form-group select:hover { border-color: var(--ink-faint); }
+.form-group select:hover { border-color: var(--border-2); }
 
 .form-group input:focus,
 .form-group select:focus {
-    border-color: var(--alert);
-    background: var(--white);
+    border-color: var(--brand);
+    box-shadow: 0 0 0 3px var(--brand-wash);
 }
 
 .auth-checkbox {
     display: flex;
     align-items: center;
     gap: 9px;
-    font-family: var(--mono);
-    font-size: 9.5px;
-    letter-spacing: 0.09em;
-    text-transform: uppercase;
-    color: var(--ink-dim);
+    font-size: 13px;
+    color: var(--text-2);
     cursor: pointer;
 }
 
 .auth-checkbox input {
-    width: 14px;
-    height: 14px;
-    accent-color: var(--alert);
+    width: 15px;
+    height: 15px;
+    accent-color: var(--brand);
     cursor: pointer;
 }
 
 .btn-auth {
-    margin-top: 6px;
-    padding: 13px 16px;
-    font-family: var(--mono);
-    font-size: 10.5px;
+    margin-top: 5px;
+    padding: 12px 16px;
+    font-family: var(--ui);
+    font-size: 14px;
     font-weight: 600;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
-    color: var(--paper);
-    background: var(--ink);
-    border: 1px solid var(--ink);
+    color: var(--brand-ink);
+    background: var(--brand);
+    border: none;
+    border-radius: var(--r-control);
     cursor: pointer;
-    transition: background-color var(--step) linear, border-color var(--step) linear;
+    transition: background-color var(--fast) var(--ease), transform 100ms var(--ease);
 }
 
-.btn-auth:hover {
-    background: var(--alert);
-    border-color: var(--alert);
-}
-
-.btn-auth:active { transform: translateY(1px); }
+.btn-auth:hover  { background: var(--brand-hi); }
+.btn-auth:active { transform: scale(0.98); }
 
 .auth-footer {
-    margin: 22px 26px 0;
-    padding-top: 16px;
+    margin-top: 22px;
+    padding-top: 18px;
     text-align: center;
-    font-family: var(--mono);
-    font-size: 9.5px;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: var(--ink-dim);
-    border-top: 1px solid var(--rule);
+    font-size: 13px;
+    color: var(--text-2);
+    border-top: 1px solid var(--border);
 }
 
 .auth-footer a {
-    color: var(--ink);
+    color: var(--text);
     font-weight: 600;
     text-decoration: none;
-    border-bottom: 1px solid var(--alert);
-    transition: color var(--step) linear;
+    transition: color var(--fast) var(--ease);
 }
 
-.auth-footer a:hover { color: var(--alert); }
+.auth-footer a:hover { color: var(--brand); }
 
-/* the admin door — present, deliberately unadvertised */
+/* the admin door: present, deliberately quiet */
 .auth-admin-link {
     margin-top: 10px;
     padding-top: 0;
-    padding-bottom: 24px;
     border-top: none;
 }
 
 .auth-admin-link a {
-    font-size: 9px;
+    font-size: 12.5px;
     font-weight: 400;
-    letter-spacing: 0.12em;
-    color: var(--ink-faint);
-    border-bottom: none;
+    color: var(--text-3);
 }
 
-.auth-admin-link a:hover {
-    color: var(--ink-dim);
-    border-bottom: 1px solid var(--ink-faint);
-}
+.auth-admin-link a:hover { color: var(--text-2); }
 
 @media (max-width: 460px) {
-    .logo,
-    .auth-form { padding-left: 18px; padding-right: 18px; }
-
-    h2,
-    .auth-subtitle,
-    .auth-error,
-    .auth-footer { margin-left: 18px; margin-right: 18px; }
-
-    .logo { flex-direction: column; align-items: flex-start; gap: 6px; }
+    .auth-box { padding: 26px 20px 22px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-    * {
+    *,
+    *::before,
+    *::after {
+        animation: none !important;
         transition-duration: 0.01ms !important;
-        animation-duration: 0.01ms !important;
     }
 }
