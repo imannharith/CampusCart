@@ -4,6 +4,7 @@ import database
 import admin_functions as admin
 
 app = Flask(__name__)
+app.secret_key = 'campuscart_secret_key_bebas_tukar'
 
 # Make sure the database and its tables exist, and seed a little
 # sample data so the admin pages aren't empty on first run.
@@ -62,11 +63,14 @@ cart = {}
 
 
 # -------------------------
-# HOME PAGE
+# HOME PAGE (Dah dikunci)
 # -------------------------
 @app.route("/")
 def home():
-    # Pass products to homepage if you want to display featured items
+    # Semak sama ada user dah login atau belum
+    if 'user' not in session:
+        return redirect(url_for('login'))
+        
     return render_template("homepage.html", products=products)
 
 
@@ -534,6 +538,45 @@ def view_orders():
         "orders.html",
         orders=orders
     )
+
+# -------------------------
+# AUTHENTICATION ROUTES (LOGIN / REGISTER / LOGOUT)
+# -------------------------
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if request.method == "POST":
+        # Ambil data dari form login.html
+        email = request.form.get("email")
+        role = request.form.get("role")
+        
+        # Simpan dalam session (Placeholder sehingga backend DB user korang siap)
+        session['user'] = email
+        session['role'] = role
+        
+        # Kalau Admin, hantar ke Dashboard. Kalau Customer/Seller, hantar ke Homepage
+        if role == "admin":
+            return redirect(url_for("dashboard"))
+        return redirect(url_for("home"))
+        
+    return render_template("login.html")
+
+
+@app.route("/register", methods=["GET", "POST"])
+def register():
+    if request.method == "POST":
+        # Lepas register, terus minta user login
+        return redirect(url_for("login"))
+        
+    return render_template("register.html")
+
+
+@app.route("/logout")
+def logout():
+    # Buang data user dari session & hantar balik ke login page
+    session.pop('user', None)
+    session.pop('role', None)
+    return redirect(url_for("login"))
 
 # -------------------------
 # RUN APPLICATION
