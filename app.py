@@ -1,3 +1,5 @@
+import os
+import sys
 from datetime import timedelta
 from functools import wraps
 
@@ -32,10 +34,23 @@ def admin_required(view):
         return view(*args, **kwargs)
     return wrapped
 
-# Make sure the database and its tables exist, and seed a little
-# sample data so the admin pages aren't empty on first run.
-database.init_db()
-database.seed_sample_data()
+# Make sure the shared database is reachable and set up. On a
+# database that already has its tables this is a single query.
+try:
+    database.ensure_ready()
+except Exception as error:
+    print(
+        "\nCampusCart could not reach the database."
+        f"\n  {type(error).__name__}: {error}\n"
+        "\nCheck that you're online, and that .env contains a valid"
+        "\nTURSO_DATABASE_URL and TURSO_AUTH_TOKEN.\n",
+        file=sys.stderr,
+    )
+    # the libsql client keeps a non-daemon thread alive, so a normal
+    # exit would hang here rather than returning the shell prompt
+    sys.stdout.flush()
+    sys.stderr.flush()
+    os._exit(1)
 
 
 # -------------------------
