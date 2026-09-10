@@ -1,4 +1,7 @@
 import os
+import threading
+import urllib.error
+import urllib.request
 
 import libsql_client
 from dotenv import load_dotenv
@@ -116,6 +119,76 @@ class _CompatConnection:
 
 def get_connection():
     return _CompatConnection(_get_client())
+
+
+# -------------------------
+# STARTUP
+# -------------------------
+# The database now lives on the network, so every statement is a
+# round trip. Creating all seven tables on each boot meant ~20 of
+# them before the server could even start serving, which is slow on
+# a good connection and hangs on a bad one. Check once instead, and
+# only do the full setup when the schema really is missing.
+
+def check_reachable(timeout=8):
+    """The libsql client has no timeout of its own and blocks forever
+    if the host can't be reached, so probe it first with something
+    that does. Any HTTP response means the host answered; only a
+    connection failure or timeout counts as unreachable."""
+
+    url = os.environ["TURSO_DATABASE_URL"].replace("libsql://", "https://", 1)
+
+    try:
+        urllib.request.urlopen(url, timeout=timeout)
+    except urllib.error.HTTPError:
+        pass          # answered, just not with a 200 -- that's fine
+    except Exception as error:
+        raise ConnectionError(
+            f"could not reach {url} within {timeout}s ({error})"
+        ) from error
+
+
+def schema_exists():
+    connection = get_connection()
+    cursor = connection.cursor()
+    cursor.execute(
+        "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'users'"
+    )
+    found = cursor.fetchone() is not None
+    connection.close()
+    return found
+
+
+def ensure_ready(timeout=20):
+    """One query on a database that's already set up.
+
+    Runs on a daemon thread with a deadline: the libsql client blocks
+    indefinitely if the server accepts the connection but never
+    answers, and a web app that hangs on boot with no output is worse
+    than one that refuses to start with a reason."""
+
+    check_reachable()
+
+    outcome = {}
+
+    def work():
+        try:
+            if not schema_exists():
+                init_db()
+                seed_sample_data()
+            outcome["ready"] = True
+        except Exception as error:
+            outcome["error"] = error
+
+    worker = threading.Thread(target=work, daemon=True)
+    worker.start()
+    worker.join(timeout)
+
+    if "error" in outcome:
+        raise outcome["error"]
+
+    if "ready" not in outcome:
+        raise TimeoutError(f"the database did not respond within {timeout}s")
 
 
 # -------------------------
