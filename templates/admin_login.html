@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Login - CampusCart</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='admin.css') }}">
+</head>
+<body>
+
+    <div class="admin-auth-container">
+        <div class="panel admin-auth-box">
+            <p class="admin-label">ADMIN PANEL</p>
+            <h2>Campus<span>Cart</span></h2>
+            <p class="subtitle admin-auth-subtitle">Sign in to manage the marketplace.</p>
+
+            <form action="/admin/login" method="POST" class="admin-auth-form">
+
+                <div class="form-group">
+                    <label for="email">Admin Email</label>
+                    <input type="email" id="email" name="email" placeholder="admin@campuscart.edu.my" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" name="password" placeholder="••••••••" required>
+                </div>
+
+                <button type="submit" class="admin-auth-btn">Sign In</button>
+            </form>
+
+            <p class="admin-auth-footer"><a href="{{ url_for('login') }}">Back to CampusCart</a></p>
+        </div>
+    </div>
+
+</body>
+</html>

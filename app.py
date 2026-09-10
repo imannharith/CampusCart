@@ -1,3 +1,5 @@
+from functools import wraps
+
 from flask import Flask, render_template, redirect, url_for, request, session
 
 import database
@@ -5,6 +7,17 @@ import admin_functions as admin
 
 app = Flask(__name__)
 app.secret_key = 'campuscart_secret_key_bebas_tukar'
+
+
+def admin_required(view):
+    # Gate for the admin panel routes -- bounces anyone without an
+    # admin session to the admin login page instead of rendering.
+    @wraps(view)
+    def wrapped(*args, **kwargs):
+        if session.get('role') != 'admin':
+            return redirect(url_for('admin_login'))
+        return view(*args, **kwargs)
+    return wrapped
 
 # Make sure the database and its tables exist, and seed a little
 # sample data so the admin pages aren't empty on first run.
@@ -107,6 +120,7 @@ def product_catalog():
 # ADMIN DASHBOARD
 # -------------------------
 @app.route("/dashboard")
+@admin_required
 def dashboard():
 
     stats = admin.get_dashboard_stats()
@@ -126,6 +140,7 @@ def dashboard():
 # -------------------------
 
 @app.route("/listings")
+@admin_required
 def listings():
 
     category = request.args.get("category", "all")
@@ -160,6 +175,7 @@ def listings():
 # -------------------------
 
 @app.route("/listings/add", methods=["POST"])
+@admin_required
 def add_product():
 
     admin.add_product(
@@ -179,6 +195,7 @@ def add_product():
 # -------------------------
 
 @app.route("/listings/edit/<int:product_id>", methods=["POST"])
+@admin_required
 def edit_product(product_id):
 
     admin.update_product(
@@ -198,6 +215,7 @@ def edit_product(product_id):
 # -------------------------
 
 @app.route("/listings/status/<int:product_id>/<status>")
+@admin_required
 def change_product_status(product_id, status):
 
     admin.set_product_status(product_id, status)
@@ -210,6 +228,7 @@ def change_product_status(product_id, status):
 # -------------------------
 
 @app.route("/listings/delete/<int:product_id>")
+@admin_required
 def delete_product(product_id):
 
     admin.delete_product(product_id)
@@ -222,6 +241,7 @@ def delete_product(product_id):
 # -------------------------
 
 @app.route("/listings/stock/<int:product_id>/<action>")
+@admin_required
 def adjust_product_stock(product_id, action):
 
     amount = 1 if action == "increase" else -1
@@ -235,6 +255,7 @@ def adjust_product_stock(product_id, action):
 # -------------------------
 
 @app.route("/categories/rename", methods=["POST"])
+@admin_required
 def rename_category():
 
     admin.rename_category(
@@ -250,6 +271,7 @@ def rename_category():
 # -------------------------
 
 @app.route("/discounts/add", methods=["POST"])
+@admin_required
 def add_discount():
 
     admin.add_discount_code(
@@ -261,6 +283,7 @@ def add_discount():
 
 
 @app.route("/discounts/toggle/<int:discount_id>")
+@admin_required
 def toggle_discount(discount_id):
 
     admin.toggle_discount_code(discount_id)
@@ -269,6 +292,7 @@ def toggle_discount(discount_id):
 
 
 @app.route("/discounts/delete/<int:discount_id>")
+@admin_required
 def delete_discount(discount_id):
 
     admin.delete_discount_code(discount_id)
@@ -281,6 +305,7 @@ def delete_discount(discount_id):
 # -------------------------
 
 @app.route("/reviews/delete/<int:review_id>")
+@admin_required
 def delete_review(review_id):
 
     admin.delete_review(review_id)
@@ -293,6 +318,7 @@ def delete_review(review_id):
 # -------------------------
 
 @app.route("/reports")
+@admin_required
 def reports():
 
     status = request.args.get("status", "all")
@@ -311,6 +337,7 @@ def reports():
 
 
 @app.route("/reports/status/<int:order_id>/<status>")
+@admin_required
 def update_order_status(order_id, status):
 
     admin.update_order_status(order_id, status)
@@ -323,6 +350,7 @@ def update_order_status(order_id, status):
 # -------------------------
 
 @app.route("/users")
+@admin_required
 def users():
     return render_template("user.html")
 
@@ -577,6 +605,20 @@ def logout():
     session.pop('user', None)
     session.pop('role', None)
     return redirect(url_for("login"))
+
+
+@app.route("/admin/login", methods=["GET", "POST"])
+def admin_login():
+    if request.method == "POST":
+        email = request.form.get("email")
+
+        # Placeholder sehingga backend DB user korang siap
+        session['user'] = email
+        session['role'] = 'admin'
+
+        return redirect(url_for("dashboard"))
+
+    return render_template("admin_login.html")
 
 # -------------------------
 # RUN APPLICATION

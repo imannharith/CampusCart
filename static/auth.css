@@ -1,0 +1,162 @@
+/* =========================================================
+   CAMPUSCART AUTH PAGES (LOGIN / REGISTER)
+   Clean white + blue theme, matches the CampusCart wordmark.
+   ========================================================= */
+
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=Inter:wght@400;500;600;700&display=swap');
+
+:root {
+    --auth-blue: #2563eb;
+    --auth-blue-dark: #1d4ed8;
+    --auth-blue-soft: #eaf1ff;
+    --auth-ink: #0f172a;
+    --auth-text-dim: #64748b;
+    --auth-border: #e2e8f0;
+    --auth-bg: #f4f7fc;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    font-family: "Inter", "Segoe UI", Arial, sans-serif;
+    color: var(--auth-ink);
+}
+
+.auth-container {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background:
+        radial-gradient(circle at 15% 10%, rgba(37, 99, 235, 0.08), transparent 40%),
+        radial-gradient(circle at 85% 90%, rgba(37, 99, 235, 0.06), transparent 40%),
+        var(--auth-bg);
+}
+
+.auth-box {
+    width: 100%;
+    max-width: 420px;
+    background: white;
+    border: 1px solid var(--auth-border);
+    border-radius: 18px;
+    padding: 40px 36px;
+    box-shadow: 0 24px 60px -20px rgba(37, 99, 235, 0.18);
+}
+
+.logo a {
+    font-family: "Space Grotesk", "Segoe UI", sans-serif;
+}
+
+h2 {
+    font-family: "Space Grotesk", "Segoe UI", sans-serif;
+    font-size: 24px;
+    font-weight: 700;
+    margin: 0 0 6px;
+    color: var(--auth-ink);
+    text-align: center;
+}
+
+.auth-subtitle {
+    text-align: center;
+    color: var(--auth-text-dim);
+    font-size: 13.5px;
+    margin: 0 0 28px;
+}
+
+.auth-form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.form-group label {
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--auth-ink);
+}
+
+.form-group input,
+.form-group select {
+    padding: 11px 14px;
+    border: 1px solid var(--auth-border);
+    border-radius: 10px;
+    font-size: 14px;
+    font-family: inherit;
+    color: var(--auth-ink);
+    background: #fbfcfe;
+    outline: none;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.form-group input::placeholder {
+    color: #a3adc2;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+    border-color: var(--auth-blue);
+    box-shadow: 0 0 0 3px var(--auth-blue-soft);
+    background: white;
+}
+
+.btn-auth {
+    margin-top: 8px;
+    padding: 12px 16px;
+    border: none;
+    border-radius: 10px;
+    background: linear-gradient(135deg, var(--auth-blue), var(--auth-blue-dark));
+    color: white;
+    font-size: 14.5px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: box-shadow 0.15s ease, filter 0.15s ease, transform 0.15s ease;
+}
+
+.btn-auth:hover {
+    filter: brightness(1.05);
+    box-shadow: 0 10px 24px -8px rgba(37, 99, 235, 0.5);
+    transform: translateY(-1px);
+}
+
+.auth-footer {
+    margin: 24px 0 0;
+    text-align: center;
+    font-size: 13px;
+    color: var(--auth-text-dim);
+}
+
+.auth-footer a {
+    color: var(--auth-blue);
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.auth-footer a:hover {
+    text-decoration: underline;
+}
+
+.auth-admin-link {
+    margin-top: 10px;
+}
+
+.auth-admin-link a {
+    color: var(--auth-text-dim);
+    font-weight: 500;
+    font-size: 12.5px;
+}
+
+@media (max-width: 480px) {
+    .auth-box {
+        padding: 32px 24px;
+    }
+}

@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - CampusCart</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='auth.css') }}">
 </head>
 <body>
 
@@ -25,7 +26,6 @@
                     <select id="role" name="role" required>
                         <option value="student">Student / Customer</option>
                         <option value="seller">Student Seller</option>
-                        <option value="admin">System Admin</option>
                     </select>
                 </div>
 
@@ -44,6 +44,9 @@
 
             <p class="auth-footer">
                 Don't have an account? <a href="/register">Sign Up Here</a>
+            </p>
+            <p class="auth-footer auth-admin-link">
+                <a href="{{ url_for('admin_login') }}">Admin sign in →</a>
             </p>
         </div>
     </div>

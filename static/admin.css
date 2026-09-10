@@ -832,7 +832,7 @@ td strong {
         margin-bottom: 0;
     }
 
-    .admin-label,
+    .sidebar .admin-label,
     .sidebar-bottom {
         display: none;
     }
@@ -877,4 +877,113 @@ td strong {
     .form-grid {
         grid-template-columns: 1fr;
     }
+}
+
+
+/* ===== ADMIN LOGIN ===== */
+
+.admin-auth-container {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+}
+
+.admin-auth-box {
+    width: 100%;
+    max-width: 380px;
+    margin-bottom: 0;
+}
+
+.admin-auth-box h2 {
+    color: white;
+    font-size: 24px;
+}
+
+.admin-auth-box h2 span {
+    background: var(--accent-gradient);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    filter: drop-shadow(0 0 14px rgba(61, 127, 255, 0.45));
+}
+
+.admin-auth-subtitle {
+    margin-top: 6px;
+    margin-bottom: 28px;
+}
+
+.admin-auth-form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.admin-auth-form .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.admin-auth-form label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+    color: var(--text-faint);
+}
+
+.admin-auth-form input {
+    padding: 11px 14px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--panel-border);
+    color: var(--text);
+    border-radius: 8px;
+    outline: none;
+    font-size: 13px;
+    font-family: inherit;
+}
+
+.admin-auth-form input::placeholder {
+    color: var(--text-faint);
+}
+
+.admin-auth-form input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+.admin-auth-btn {
+    margin-top: 4px;
+    padding: 12px 16px;
+    border: none;
+    border-radius: 8px;
+    background: var(--accent-gradient);
+    color: white;
+    font-weight: 700;
+    font-size: 13.5px;
+    cursor: pointer;
+    transition: box-shadow 0.15s ease, filter 0.15s ease;
+}
+
+.admin-auth-btn:hover {
+    filter: brightness(1.08);
+    box-shadow: 0 6px 20px -4px rgba(61, 127, 255, 0.55);
+}
+
+.admin-auth-footer {
+    margin: 24px 0 0;
+    text-align: center;
+    font-size: 12.5px;
+}
+
+.admin-auth-footer a {
+    color: var(--accent);
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.admin-auth-footer a:hover {
+    text-decoration: underline;
 }
