@@ -920,6 +920,18 @@ td strong {
     gap: 16px;
 }
 
+.admin-auth-error {
+    background: var(--danger-bg);
+    border: 1px solid rgba(255, 92, 122, 0.3);
+    color: var(--danger);
+    font-size: 12.5px;
+    font-weight: 500;
+    padding: 10px 14px;
+    border-radius: 8px;
+    margin: 0 0 18px;
+    text-align: center;
+}
+
 .admin-auth-form .form-group {
     display: flex;
     flex-direction: column;

@@ -17,17 +17,12 @@
             <h2>Welcome Back</h2>
             <p class="auth-subtitle">Please enter your details to sign in.</p>
 
+            {% if error %}
+            <p class="auth-error">{{ error }}</p>
+            {% endif %}
+
             <!-- Form sedia untuk disambung oleh Backend Python -->
             <form action="/login" method="POST" class="auth-form">
-                
-                <!-- Pilihan Role / Peranan -->
-                <div class="form-group">
-                    <label for="role">Login As</label>
-                    <select id="role" name="role" required>
-                        <option value="student">Student / Customer</option>
-                        <option value="seller">Student Seller</option>
-                    </select>
-                </div>
 
                 <div class="form-group">
                     <label for="email">Campus Email</label>
@@ -38,6 +33,11 @@
                     <label for="password">Password</label>
                     <input type="password" id="password" name="password" placeholder="••••••••" required>
                 </div>
+
+                <label class="auth-checkbox">
+                    <input type="checkbox" name="remember">
+                    Remember me for 30 days
+                </label>
 
                 <button type="submit" class="btn-auth">Sign In</button>
             </form>

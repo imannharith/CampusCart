@@ -73,6 +73,32 @@ h2 {
     gap: 16px;
 }
 
+.auth-error {
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    color: #b91c1c;
+    font-size: 12.5px;
+    font-weight: 500;
+    padding: 10px 14px;
+    border-radius: 10px;
+    margin: 0 0 18px;
+    text-align: center;
+}
+
+.auth-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12.5px;
+    color: var(--auth-text-dim);
+    cursor: pointer;
+    margin-top: -4px;
+}
+
+.auth-checkbox input {
+    accent-color: var(--auth-blue);
+}
+
 .form-group {
     display: flex;
     flex-direction: column;
