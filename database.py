@@ -6,7 +6,13 @@ import urllib.request
 import libsql_client
 from dotenv import load_dotenv
 
-load_dotenv()
+# Load the .env sitting next to this file, explicitly. Calling
+# load_dotenv() with no argument makes it guess, and it guesses
+# differently depending on how Python was started -- the working
+# directory for "python app.py", frame inspection for "python -c".
+# That means the same .env is found from one command and missed from
+# another, which looks exactly like a broken database connection.
+load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env"))
 
 
 # -------------------------
