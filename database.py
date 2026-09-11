@@ -1,19 +1,194 @@
-import sqlite3
+import os
+import threading
+import urllib.error
+import urllib.request
 
-DATABASE = "database.db"
+import libsql_client
+from dotenv import load_dotenv
+
+load_dotenv()
 
 
 # -------------------------
 # CONNECTION HELPER
 # -------------------------
-# Every admin function in admin_functions.py calls this to get a
-# connection. Using row_factory means we can access columns by
-# name (e.g. row["name"]) instead of only by index.
+# Every admin function in admin_functions.py calls get_connection()
+# and then uses it exactly like a sqlite3 connection (cursor(),
+# execute(), fetchone(), fetchall(), commit(), close()). The actual
+# database now lives on Turso (shared by everyone, instead of each
+# laptop having its own local database.db), so this wraps a single
+# shared libsql client in that same sqlite3-shaped interface -- the
+# rest of the codebase doesn't need to know anything changed.
+#
+# The client itself is created once and reused (it opens a
+# background thread), so close() here is a no-op rather than
+# actually tearing down the connection.
+
+_client = None
+
+
+def _get_client():
+    global _client
+    if _client is None:
+        url = os.environ["TURSO_DATABASE_URL"]
+        # `turso db show --url` prints a libsql:// (websocket) URL, but
+        # the websocket handshake fails on some networks -- HTTP works
+        # the same either way, so always use it under the hood.
+        url = url.replace("libsql://", "https://", 1)
+        auth_token = os.environ["TURSO_AUTH_TOKEN"]
+        _client = libsql_client.create_client_sync(url=url, auth_token=auth_token)
+    return _client
+
+
+class _CompatRow:
+    # libsql's Row already supports row["col"] and row[0], but unlike
+    # sqlite3.Row it has no keys() method -- which dict(row) relies on
+    # (admin_functions.py does this a lot). Adding keys() is enough to
+    # make dict(row) work again.
+    __slots__ = ("_row",)
+
+    def __init__(self, row):
+        self._row = row
+
+    def __getitem__(self, key):
+        return self._row[key]
+
+    def __iter__(self):
+        return iter(self._row.astuple())
+
+    def __len__(self):
+        return len(self._row)
+
+    def __repr__(self):
+        return repr(self._row)
+
+    def keys(self):
+        return self._row.asdict().keys()
+
+
+class _CompatCursor:
+    def __init__(self, client):
+        self._client = client
+        self._result = None
+
+    def execute(self, sql, params=()):
+        self._result = self._client.execute(sql, list(params))
+        return self
+
+    def executemany(self, sql, seq_of_params):
+        for params in seq_of_params:
+            self._client.execute(sql, list(params))
+        return self
+
+    def fetchone(self):
+        if self._result is None or len(self._result.rows) == 0:
+            return None
+        return _CompatRow(self._result.rows[0])
+
+    def fetchall(self):
+        if self._result is None:
+            return []
+        return [_CompatRow(row) for row in self._result.rows]
+
+    @property
+    def lastrowid(self):
+        # NOTE: check "is not None", not truthiness -- a ResultSet for
+        # an INSERT/UPDATE/DELETE has zero *returned* rows, which makes
+        # it falsy (via __len__) even though it's a perfectly valid
+        # result with real last_insert_rowid/rows_affected data on it.
+        return self._result.last_insert_rowid if self._result is not None else None
+
+    @property
+    def rowcount(self):
+        return self._result.rows_affected if self._result is not None else -1
+
+
+class _CompatConnection:
+    def __init__(self, client):
+        self._client = client
+
+    def cursor(self):
+        return _CompatCursor(self._client)
+
+    def commit(self):
+        pass
+
+    def close(self):
+        pass
+
 
 def get_connection():
-    connection = sqlite3.connect(DATABASE)
-    connection.row_factory = sqlite3.Row
-    return connection
+    return _CompatConnection(_get_client())
+
+
+# -------------------------
+# STARTUP
+# -------------------------
+# The database now lives on the network, so every statement is a
+# round trip. Creating all seven tables on each boot meant ~20 of
+# them before the server could even start serving, which is slow on
+# a good connection and hangs on a bad one. Check once instead, and
+# only do the full setup when the schema really is missing.
+
+def check_reachable(timeout=8):
+    """The libsql client has no timeout of its own and blocks forever
+    if the host can't be reached, so probe it first with something
+    that does. Any HTTP response means the host answered; only a
+    connection failure or timeout counts as unreachable."""
+
+    url = os.environ["TURSO_DATABASE_URL"].replace("libsql://", "https://", 1)
+
+    try:
+        urllib.request.urlopen(url, timeout=timeout)
+    except urllib.error.HTTPError:
+        pass          # answered, just not with a 200 -- that's fine
+    except Exception as error:
+        raise ConnectionError(
+            f"could not reach {url} within {timeout}s ({error})"
+        ) from error
+
+
+def schema_exists():
+    connection = get_connection()
+    cursor = connection.cursor()
+    cursor.execute(
+        "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'users'"
+    )
+    found = cursor.fetchone() is not None
+    connection.close()
+    return found
+
+
+def ensure_ready(timeout=20):
+    """One query on a database that's already set up.
+
+    Runs on a daemon thread with a deadline: the libsql client blocks
+    indefinitely if the server accepts the connection but never
+    answers, and a web app that hangs on boot with no output is worse
+    than one that refuses to start with a reason."""
+
+    check_reachable()
+
+    outcome = {}
+
+    def work():
+        try:
+            if not schema_exists():
+                init_db()
+                seed_sample_data()
+            outcome["ready"] = True
+        except Exception as error:
+            outcome["error"] = error
+
+    worker = threading.Thread(target=work, daemon=True)
+    worker.start()
+    worker.join(timeout)
+
+    if "error" in outcome:
+        raise outcome["error"]
+
+    if "ready" not in outcome:
+        raise TimeoutError(f"the database did not respond within {timeout}s")
 
 
 # -------------------------
@@ -22,7 +197,7 @@ def get_connection():
 
 def init_db():
 
-    connection = sqlite3.connect(DATABASE)
+    connection = get_connection()
     cursor = connection.cursor()
 
     # SHOPPING CART TABLE
@@ -133,6 +308,60 @@ def get_user_by_email(email):
     user = cursor.fetchone()
     connection.close()
     return user
+
+
+def get_all_users(search=None):
+    """Registered accounts, newest first, optionally filtered by a
+    case-insensitive match on name or email."""
+
+    connection = get_connection()
+    cursor = connection.cursor()
+
+    query = "SELECT id, fullname, email, role, created_at FROM users WHERE 1=1"
+    params = []
+
+    if search:
+        query += " AND (LOWER(fullname) LIKE LOWER(?) OR LOWER(email) LIKE LOWER(?))"
+        params.append(f"%{search}%")
+        params.append(f"%{search}%")
+
+    query += " ORDER BY id DESC"
+
+    cursor.execute(query, params)
+    users = [dict(row) for row in cursor.fetchall()]
+
+    connection.close()
+    return users
+
+
+def get_user_stats():
+    """Real counts for the admin user cards."""
+
+    connection = get_connection()
+    cursor = connection.cursor()
+
+    cursor.execute("SELECT COUNT(*) AS c FROM users")
+    total = cursor.fetchone()["c"]
+
+    cursor.execute("SELECT COUNT(*) AS c FROM users WHERE LOWER(role) = 'student'")
+    students = cursor.fetchone()["c"]
+
+    cursor.execute("SELECT COUNT(*) AS c FROM users WHERE LOWER(role) = 'seller'")
+    sellers = cursor.fetchone()["c"]
+
+    cursor.execute(
+        "SELECT COUNT(*) AS c FROM users WHERE created_at >= datetime('now', '-7 days')"
+    )
+    this_week = cursor.fetchone()["c"]
+
+    connection.close()
+
+    return {
+        "total": total,
+        "students": students,
+        "sellers": sellers,
+        "this_week": this_week,
+    }
 
 
 # -------------------------

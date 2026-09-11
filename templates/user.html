@@ -16,13 +16,22 @@
     <p class="admin-label">ADMIN PANEL</p>
 
     <nav>
-        <a href="{{ url_for('dashboard') }}">📊 Dashboard</a>
-        <a href="{{ url_for('listings') }}">📦 Listings</a>
-        <a href="{{ url_for('users') }}" class="active">👥 Users</a>
-        <a href="{{ url_for('reports') }}">📈 Reports</a>
+        <a href="{{ url_for('dashboard') }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7.5" height="7.5" rx="1.5"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="1.5"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="1.5"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1.5"/></svg>Dashboard</a>
+        <a href="{{ url_for('listings') }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 8.2 12 4l8.5 4.2v7.6L12 20l-8.5-4.2z"/><path d="m3.5 8.2 8.5 4.3 8.5-4.3M12 12.5V20"/></svg>Listings</a>
+        <a href="{{ url_for('users') }}" class="active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9.5" cy="8" r="3.3"/><path d="M3.8 19.6a5.7 5.7 0 0 1 11.4 0"/><path d="M16.4 5.4a3.3 3.3 0 0 1 0 5.2M17.6 14.6a5.7 5.7 0 0 1 2.6 5"/></svg>Users</a>
+        <a href="{{ url_for('reports') }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4v16h16"/><path d="M8.4 20v-5.5M12.8 20v-9.5M17.2 20v-3.5"/></svg>Reports</a>
     </nav>
 
     <div class="sidebar-bottom">
+
+        <div class="admin-user">
+            <div class="avatar">A</div>
+            <div>
+                <strong>Administrator</strong>
+                <small>CampusCart Admin</small>
+            </div>
+        </div>
+
         <a href="#">Settings</a>
         <a href="{{ url_for('logout') }}">Logout</a>
     </div>
@@ -37,25 +46,13 @@
     <header>
 
         <div>
-            <p class="small-title">MARKETPLACE</p>
             <h1>Manage Users</h1>
             <p class="subtitle">
                 View and manage CampusCart users.
             </p>
         </div>
 
-        <div class="admin-user">
-
-            <div class="avatar">A</div>
-
-            <div>
-                <strong>Administrator</strong>
-                <small>CampusCart Admin</small>
-            </div>
-
-        </div>
-
-    </header>
+</header>
 
 
     <!-- USER STATISTICS -->
@@ -64,36 +61,36 @@
         <div class="card">
             <span class="icon blue">U</span>
             <div>
-                <p>Total Users</p>
-                <h2>125</h2>
-                <small>Registered students</small>
+                <p>Total accounts</p>
+                <h2>{{ user_stats.total }}</h2>
+                <small>Registered on CampusCart</small>
             </div>
         </div>
 
         <div class="card">
-            <span class="icon purple">&#10003;</span>
+            <span class="icon purple">S</span>
             <div>
-                <p>Active Users</p>
-                <h2>118</h2>
-                <small>Currently active</small>
+                <p>Students</p>
+                <h2>{{ user_stats.students }}</h2>
+                <small>Buying accounts</small>
             </div>
         </div>
 
         <div class="card">
-            <span class="icon orange">!</span>
+            <span class="icon blue">L</span>
             <div>
-                <p>New Users</p>
-                <h2>12</h2>
-                <small>This week</small>
+                <p>Sellers</p>
+                <h2>{{ user_stats.sellers }}</h2>
+                <small>Can list products</small>
             </div>
         </div>
 
         <div class="card">
-            <span class="icon red">R</span>
+            <span class="icon orange">N</span>
             <div>
-                <p>Blocked Users</p>
-                <h2>7</h2>
-                <small>Restricted accounts</small>
+                <p>New this week</p>
+                <h2>{{ user_stats.this_week }}</h2>
+                <small>Signed up in last 7 days</small>
             </div>
         </div>
 
@@ -105,20 +102,16 @@
 
         <div class="panel-title">
             <div>
-                <h3>User Management</h3>
-                <p>Search and manage registered users.</p>
+                <h3>Find a user</h3>
+                <p>Search registered accounts by name or email.</p>
             </div>
         </div>
 
-        <div class="filters">
-            <input type="text" placeholder="Search name or email...">
-            <select>
-                <option>All Users</option>
-                <option>Active</option>
-                <option>Blocked</option>
-            </select>
-            <button>Search</button>
-        </div>
+        <form method="GET" action="{{ url_for('users') }}" class="filters" style="grid-template-columns: 1fr auto;">
+            <input type="text" name="search" placeholder="Search name or email"
+                   value="{{ search }}">
+            <button type="submit">Search</button>
+        </form>
 
     </section>
 
@@ -128,71 +121,45 @@
 
         <div class="panel-title">
             <div>
-                <h3>Registered Users</h3>
-                <p>CampusCart student accounts.</p>
+                <h3>Registered users</h3>
+                <p>{{ users|length }} account(s){% if search %} matching "{{ search }}"{% endif %}.</p>
             </div>
         </div>
 
+        {% if users %}
         <div class="table-container">
             <table>
                 <thead>
                     <tr>
-                        <th>User</th>
+                        <th>Name</th>
                         <th>Email</th>
-                        <th>Listings</th>
+                        <th>Role</th>
                         <th>Joined</th>
-                        <th>Status</th>
-                        <th>Action</th>
                     </tr>
                 </thead>
                 <tbody>
+                    {% for user in users %}
                     <tr>
-                        <td><strong>Ahmad</strong></td>
-                        <td>ahmad@student.edu</td>
-                        <td>8</td>
-                        <td>Aug 20, 2026</td>
-                        <td><span class="status approved">Active</span></td>
-                        <td class="action-cell">
-                            <a href="#" class="view-btn">View</a>
-                            <a href="#" class="reject-btn">Block</a>
-                        </td>
+                        <td><strong>{{ user.fullname }}</strong></td>
+                        <td>{{ user.email }}</td>
+                        <td><span class="category-tag">{{ user.role|capitalize }}</span></td>
+                        <td>{{ (user.created_at or '')[:10] }}</td>
                     </tr>
-                    <tr>
-                        <td><strong>Daniel</strong></td>
-                        <td>daniel@student.edu</td>
-                        <td>5</td>
-                        <td>Aug 18, 2026</td>
-                        <td><span class="status approved">Active</span></td>
-                        <td class="action-cell">
-                            <a href="#" class="view-btn">View</a>
-                            <a href="#" class="reject-btn">Block</a>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td><strong>Sarah</strong></td>
-                        <td>sarah@student.edu</td>
-                        <td>11</td>
-                        <td>Aug 15, 2026</td>
-                        <td><span class="status reported">Blocked</span></td>
-                        <td class="action-cell">
-                            <a href="#" class="view-btn">View</a>
-                            <a href="#" class="approve-btn">Unblock</a>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td><strong>Jason</strong></td>
-                        <td>jason@student.edu</td>
-                        <td>3</td>
-                        <td>Aug 10, 2026</td>
-                        <td><span class="status approved">Active</span></td>
-                        <td class="action-cell">
-                            <a href="#" class="view-btn">View</a>
-                            <a href="#" class="reject-btn">Block</a>
-                        </td>
-                    </tr>
+                    {% endfor %}
                 </tbody>
             </table>
         </div>
+        {% else %}
+        <div class="empty-state">
+            {% if search %}
+                <strong>No accounts match that search</strong>
+                <span>Try a different name or email, or clear the search.</span>
+            {% else %}
+                <strong>No accounts yet</strong>
+                <span>Registered students and sellers will appear here.</span>
+            {% endif %}
+        </div>
+        {% endif %}
 
     </section>
 
