@@ -1,3 +1,5 @@
+import os
+import sys
 from datetime import timedelta
 from functools import wraps
 
@@ -32,10 +34,23 @@ def admin_required(view):
         return view(*args, **kwargs)
     return wrapped
 
-# Make sure the database and its tables exist, and seed a little
-# sample data so the admin pages aren't empty on first run.
-database.init_db()
-database.seed_sample_data()
+# Make sure the shared database is reachable and set up. On a
+# database that already has its tables this is a single query.
+try:
+    database.ensure_ready()
+except Exception as error:
+    print(
+        "\nCampusCart could not reach the database."
+        f"\n  {type(error).__name__}: {error}\n"
+        "\nCheck that you're online, and that .env contains a valid"
+        "\nTURSO_DATABASE_URL and TURSO_AUTH_TOKEN.\n",
+        file=sys.stderr,
+    )
+    # the libsql client keeps a non-daemon thread alive, so a normal
+    # exit would hang here rather than returning the shell prompt
+    sys.stdout.flush()
+    sys.stderr.flush()
+    os._exit(1)
 
 
 # -------------------------
@@ -144,6 +159,8 @@ def dashboard():
         total_products=stats["total_products"],
         pending_products=stats["pending_products"],
         reported_products=stats["reported_products"],
+        approved_products=stats["approved_products"],
+        total_users=database.get_user_stats()["total"],
         recent_products=recent_products,
     )
 
@@ -365,7 +382,15 @@ def update_order_status(order_id, status):
 @app.route("/users")
 @admin_required
 def users():
-    return render_template("user.html")
+
+    search = request.args.get("search", "")
+
+    return render_template(
+        "user.html",
+        users=database.get_all_users(search),
+        user_stats=database.get_user_stats(),
+        search=search,
+    )
 
 
 # -------------------------
@@ -488,9 +513,7 @@ def place_order():
     total = subtotal - discount
 
     # Connect to database
-    import sqlite3
-
-    connection = sqlite3.connect("database.db")
+    connection = database.get_connection()
 
     cursor = connection.cursor()
 
@@ -557,10 +580,7 @@ def view_orders():
     # Later this will come from the login system
     user_id = 1
 
-    import sqlite3
-
-    connection = sqlite3.connect("database.db")
-    connection.row_factory = sqlite3.Row
+    connection = database.get_connection()
 
     cursor = connection.cursor()
 

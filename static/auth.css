@@ -1,188 +1,246 @@
 /* =========================================================
-   CAMPUSCART AUTH PAGES (LOGIN / REGISTER)
-   Clean white + blue theme, matches the CampusCart wordmark.
+   CAMPUSCART — SIGN IN / REGISTER
+   Same system as the admin console: off-black ground, one
+   brand blue, 12px surfaces / 8px controls / 6px badges,
+   depth from hairlines rather than glows.
    ========================================================= */
 
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap');
 
 :root {
-    --auth-blue: #2563eb;
-    --auth-blue-dark: #1d4ed8;
-    --auth-blue-soft: #eaf1ff;
-    --auth-ink: #0f172a;
-    --auth-text-dim: #64748b;
-    --auth-border: #e2e8f0;
-    --auth-bg: #f4f7fc;
+    --bg:         #0b0c0e;
+    --surface:    #121418;
+    --surface-2:  #171a1f;
+
+    --border:     #23272e;
+    --border-2:   #2f343c;
+    --hairline:   rgba(255, 255, 255, 0.055);
+
+    --text:       #f2f4f7;
+    --text-2:     #9aa3b0;
+    --text-3:     #69707c;
+
+    --brand:      #2e6bff;
+    --brand-hi:   #4a80ff;
+    --brand-ink:  #ffffff;
+    --brand-wash: rgba(46, 107, 255, 0.13);
+
+    --bad:        #f0526d;
+    --bad-wash:   rgba(240, 82, 109, 0.12);
+
+    --r-surface: 12px;
+    --r-control: 8px;
+
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 18px 44px -20px rgba(0, 0, 0, 0.8);
+
+    --ease: cubic-bezier(0.16, 1, 0.3, 1);
+    --fast: 150ms;
+
+    --ui: "Geist", "Helvetica Neue", Arial, sans-serif;
 }
 
 * {
+    margin: 0;
+    padding: 0;
     box-sizing: border-box;
 }
 
 body {
-    margin: 0;
-    font-family: "Inter", "Segoe UI", Arial, sans-serif;
-    color: var(--auth-ink);
+    font-family: var(--ui);
+    font-size: 14px;
+    line-height: 1.55;
+    color: var(--text);
+    background: var(--bg);
+    -webkit-font-smoothing: antialiased;
+}
+
+:focus-visible {
+    outline: 2px solid var(--brand);
+    outline-offset: 2px;
+    border-radius: 4px;
+}
+
+@keyframes rise {
+    from { opacity: 0.001; transform: translateY(8px); }
+    to   { opacity: 1;     transform: none; }
 }
 
 .auth-container {
-    min-height: 100vh;
+    min-height: 100dvh;
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 24px;
-    background:
-        radial-gradient(circle at 15% 10%, rgba(37, 99, 235, 0.08), transparent 40%),
-        radial-gradient(circle at 85% 90%, rgba(37, 99, 235, 0.06), transparent 40%),
-        var(--auth-bg);
+    padding: 30px 22px;
 }
 
 .auth-box {
     width: 100%;
-    max-width: 420px;
-    background: white;
-    border: 1px solid var(--auth-border);
-    border-radius: 18px;
-    padding: 40px 36px;
-    box-shadow: 0 24px 60px -20px rgba(37, 99, 235, 0.18);
+    max-width: 400px;
+    padding: 30px 28px 26px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-surface);
+    box-shadow: var(--shadow);
+    animation: rise 360ms var(--ease) backwards;
 }
+
+.logo { margin-bottom: 26px; }
 
 .logo a {
-    font-family: "Space Grotesk", "Segoe UI", sans-serif;
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: -0.028em;
+    color: var(--text);
+    text-decoration: none;
 }
 
+/* Campus in white, Cart in brand blue */
+.logo a span { color: var(--brand); }
+
 h2 {
-    font-family: "Space Grotesk", "Segoe UI", sans-serif;
     font-size: 24px;
     font-weight: 700;
-    margin: 0 0 6px;
-    color: var(--auth-ink);
-    text-align: center;
+    letter-spacing: -0.03em;
+    line-height: 1.15;
+    color: var(--text);
+    text-wrap: balance;
 }
 
 .auth-subtitle {
-    text-align: center;
-    color: var(--auth-text-dim);
-    font-size: 13.5px;
-    margin: 0 0 28px;
+    margin: 8px 0 24px;
+    font-size: 14px;
+    color: var(--text-2);
+}
+
+.auth-error {
+    margin-bottom: 20px;
+    padding: 10px 13px;
+    border-radius: var(--r-control);
+    font-size: 13px;
+    color: var(--bad);
+    background: var(--bad-wash);
+    border: 1px solid rgba(240, 82, 109, 0.3);
 }
 
 .auth-form {
     display: flex;
     flex-direction: column;
-    gap: 16px;
-}
-
-.auth-error {
-    background: #fef2f2;
-    border: 1px solid #fecaca;
-    color: #b91c1c;
-    font-size: 12.5px;
-    font-weight: 500;
-    padding: 10px 14px;
-    border-radius: 10px;
-    margin: 0 0 18px;
-    text-align: center;
-}
-
-.auth-checkbox {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 12.5px;
-    color: var(--auth-text-dim);
-    cursor: pointer;
-    margin-top: -4px;
-}
-
-.auth-checkbox input {
-    accent-color: var(--auth-blue);
+    gap: 15px;
 }
 
 .form-group {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 7px;
 }
 
 .form-group label {
     font-size: 12.5px;
-    font-weight: 600;
-    color: var(--auth-ink);
+    font-weight: 500;
+    color: var(--text-2);
 }
 
 .form-group input,
 .form-group select {
-    padding: 11px 14px;
-    border: 1px solid var(--auth-border);
-    border-radius: 10px;
+    padding: 11px 13px;
+    font-family: var(--ui);
     font-size: 14px;
-    font-family: inherit;
-    color: var(--auth-ink);
-    background: #fbfcfe;
+    color: var(--text);
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--r-control);
     outline: none;
-    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    transition: border-color var(--fast) var(--ease), box-shadow var(--fast) var(--ease);
 }
 
-.form-group input::placeholder {
-    color: #a3adc2;
-}
+.form-group select { cursor: pointer; }
+
+.form-group input::placeholder { color: var(--text-3); }
+
+.form-group input:hover,
+.form-group select:hover { border-color: var(--border-2); }
 
 .form-group input:focus,
 .form-group select:focus {
-    border-color: var(--auth-blue);
-    box-shadow: 0 0 0 3px var(--auth-blue-soft);
-    background: white;
+    border-color: var(--brand);
+    box-shadow: 0 0 0 3px var(--brand-wash);
+}
+
+.auth-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    font-size: 13px;
+    color: var(--text-2);
+    cursor: pointer;
+}
+
+.auth-checkbox input {
+    width: 15px;
+    height: 15px;
+    accent-color: var(--brand);
+    cursor: pointer;
 }
 
 .btn-auth {
-    margin-top: 8px;
+    margin-top: 5px;
     padding: 12px 16px;
+    font-family: var(--ui);
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--brand-ink);
+    background: var(--brand);
     border: none;
-    border-radius: 10px;
-    background: linear-gradient(135deg, var(--auth-blue), var(--auth-blue-dark));
-    color: white;
-    font-size: 14.5px;
-    font-weight: 700;
+    border-radius: var(--r-control);
     cursor: pointer;
-    transition: box-shadow 0.15s ease, filter 0.15s ease, transform 0.15s ease;
+    transition: background-color var(--fast) var(--ease), transform 100ms var(--ease);
 }
 
-.btn-auth:hover {
-    filter: brightness(1.05);
-    box-shadow: 0 10px 24px -8px rgba(37, 99, 235, 0.5);
-    transform: translateY(-1px);
-}
+.btn-auth:hover  { background: var(--brand-hi); }
+.btn-auth:active { transform: scale(0.98); }
 
 .auth-footer {
-    margin: 24px 0 0;
+    margin-top: 22px;
+    padding-top: 18px;
     text-align: center;
     font-size: 13px;
-    color: var(--auth-text-dim);
+    color: var(--text-2);
+    border-top: 1px solid var(--border);
 }
 
 .auth-footer a {
-    color: var(--auth-blue);
+    color: var(--text);
     font-weight: 600;
     text-decoration: none;
+    transition: color var(--fast) var(--ease);
 }
 
-.auth-footer a:hover {
-    text-decoration: underline;
-}
+.auth-footer a:hover { color: var(--brand); }
 
+/* the admin door: present, deliberately quiet */
 .auth-admin-link {
     margin-top: 10px;
+    padding-top: 0;
+    border-top: none;
 }
 
 .auth-admin-link a {
-    color: var(--auth-text-dim);
-    font-weight: 500;
     font-size: 12.5px;
+    font-weight: 400;
+    color: var(--text-3);
 }
 
-@media (max-width: 480px) {
-    .auth-box {
-        padding: 32px 24px;
+.auth-admin-link a:hover { color: var(--text-2); }
+
+@media (max-width: 460px) {
+    .auth-box { padding: 26px 20px 22px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation: none !important;
+        transition-duration: 0.01ms !important;
     }
 }

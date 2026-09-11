@@ -528,10 +528,16 @@ def get_dashboard_stats():
     )
     reported_products = cursor.fetchone()["total"]
 
+    cursor.execute(
+        "SELECT COUNT(*) AS total FROM products WHERE LOWER(status) = 'approved'"
+    )
+    approved_products = cursor.fetchone()["total"]
+
     connection.close()
 
     return {
         "total_products": total_products,
         "pending_products": pending_products,
         "reported_products": reported_products,
+        "approved_products": approved_products,
     }
