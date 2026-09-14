@@ -6,51 +6,22 @@ import urllib.request
 import libsql_client
 from dotenv import load_dotenv
 
-# Load the .env sitting next to this file, explicitly. Calling
-# load_dotenv() with no argument makes it guess, and it guesses
-# differently depending on how Python was started -- the working
-# directory for "python app.py", frame inspection for "python -c".
-# That means the same .env is found from one command and missed from
-# another, which looks exactly like a broken database connection.
 load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env"))
 
-
-# -------------------------
-# CONNECTION HELPER
-# -------------------------
-# Every admin function in admin_functions.py calls get_connection()
-# and then uses it exactly like a sqlite3 connection (cursor(),
-# execute(), fetchone(), fetchall(), commit(), close()). The actual
-# database now lives on Turso (shared by everyone, instead of each
-# laptop having its own local database.db), so this wraps a single
-# shared libsql client in that same sqlite3-shaped interface -- the
-# rest of the codebase doesn't need to know anything changed.
-#
-# The client itself is created once and reused (it opens a
-# background thread), so close() here is a no-op rather than
-# actually tearing down the connection.
-
 _client = None
-
 
 def _get_client():
     global _client
     if _client is None:
         url = os.environ["TURSO_DATABASE_URL"]
-        # `turso db show --url` prints a libsql:// (websocket) URL, but
-        # the websocket handshake fails on some networks -- HTTP works
-        # the same either way, so always use it under the hood.
+
         url = url.replace("libsql://", "https://", 1)
         auth_token = os.environ["TURSO_AUTH_TOKEN"]
         _client = libsql_client.create_client_sync(url=url, auth_token=auth_token)
     return _client
 
-
 class _CompatRow:
-    # libsql's Row already supports row["col"] and row[0], but unlike
-    # sqlite3.Row it has no keys() method -- which dict(row) relies on
-    # (admin_functions.py does this a lot). Adding keys() is enough to
-    # make dict(row) work again.
+
     __slots__ = ("_row",)
 
     def __init__(self, row):
@@ -70,7 +41,6 @@ class _CompatRow:
 
     def keys(self):
         return self._row.asdict().keys()
-
 
 class _CompatCursor:
     def __init__(self, client):
@@ -98,16 +68,12 @@ class _CompatCursor:
 
     @property
     def lastrowid(self):
-        # NOTE: check "is not None", not truthiness -- a ResultSet for
-        # an INSERT/UPDATE/DELETE has zero *returned* rows, which makes
-        # it falsy (via __len__) even though it's a perfectly valid
-        # result with real last_insert_rowid/rows_affected data on it.
+
         return self._result.last_insert_rowid if self._result is not None else None
 
     @property
     def rowcount(self):
         return self._result.rows_affected if self._result is not None else -1
-
 
 class _CompatConnection:
     def __init__(self, client):
@@ -122,19 +88,8 @@ class _CompatConnection:
     def close(self):
         pass
 
-
 def get_connection():
     return _CompatConnection(_get_client())
-
-
-# -------------------------
-# STARTUP
-# -------------------------
-# The database now lives on the network, so every statement is a
-# round trip. Creating all seven tables on each boot meant ~20 of
-# them before the server could even start serving, which is slow on
-# a good connection and hangs on a bad one. Check once instead, and
-# only do the full setup when the schema really is missing.
 
 def check_reachable(timeout=8):
     """The libsql client has no timeout of its own and blocks forever
@@ -147,12 +102,11 @@ def check_reachable(timeout=8):
     try:
         urllib.request.urlopen(url, timeout=timeout)
     except urllib.error.HTTPError:
-        pass          # answered, just not with a 200 -- that's fine
+        pass
     except Exception as error:
         raise ConnectionError(
             f"could not reach {url} within {timeout}s ({error})"
         ) from error
-
 
 def schema_exists():
     connection = get_connection()
@@ -163,7 +117,6 @@ def schema_exists():
     found = cursor.fetchone() is not None
     connection.close()
     return found
-
 
 def ensure_ready(timeout=20):
     """One query on a database that's already set up.
@@ -196,17 +149,11 @@ def ensure_ready(timeout=20):
     if "ready" not in outcome:
         raise TimeoutError(f"the database did not respond within {timeout}s")
 
-
-# -------------------------
-# CREATE ALL TABLES
-# -------------------------
-
 def init_db():
 
     connection = get_connection()
     cursor = connection.cursor()
 
-    # SHOPPING CART TABLE
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS cart (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -216,7 +163,6 @@ def init_db():
     )
     """)
 
-    # ORDERS TABLE
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS orders (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -229,7 +175,6 @@ def init_db():
     )
     """)
 
-    # PRODUCTS INSIDE AN ORDER
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS order_items (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -240,7 +185,6 @@ def init_db():
     )
     """)
 
-    # DISCOUNT CODES TABLE
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS discount_codes (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -250,7 +194,6 @@ def init_db():
     )
     """)
 
-    # PRODUCTS TABLE
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS products (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -263,7 +206,6 @@ def init_db():
     )
     """)
 
-    # REVIEWS TABLE
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS reviews (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -275,8 +217,6 @@ def init_db():
     )
     """)
 
-    # USERS TABLE (student / seller accounts, not admins -- those are
-    # a separate hard-coded allowlist in app.py)
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -291,11 +231,6 @@ def init_db():
     connection.commit()
     connection.close()
 
-
-# -------------------------
-# USER ACCOUNTS
-# -------------------------
-
 def create_user(fullname, email, password_hash, role):
     connection = get_connection()
     cursor = connection.cursor()
@@ -306,7 +241,6 @@ def create_user(fullname, email, password_hash, role):
     connection.commit()
     connection.close()
 
-
 def get_user_by_email(email):
     connection = get_connection()
     cursor = connection.cursor()
@@ -314,7 +248,6 @@ def get_user_by_email(email):
     user = cursor.fetchone()
     connection.close()
     return user
-
 
 def get_all_users(search=None):
     """Registered accounts, newest first, optionally filtered by a
@@ -338,7 +271,6 @@ def get_all_users(search=None):
 
     connection.close()
     return users
-
 
 def get_user_stats():
     """Real counts for the admin user cards."""
@@ -368,13 +300,6 @@ def get_user_stats():
         "sellers": sellers,
         "this_week": this_week,
     }
-
-
-# -------------------------
-# OPTIONAL SAMPLE DATA
-# -------------------------
-# Only inserts sample rows if the products table is empty, so this
-# is safe to call every time the app starts without duplicating data.
 
 def seed_sample_data():
 
@@ -430,7 +355,6 @@ def seed_sample_data():
 
     connection.commit()
     connection.close()
-
 
 if __name__ == "__main__":
     init_db()

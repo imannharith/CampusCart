@@ -10,17 +10,14 @@
 
 <body>
 
-    <!-- SIDEBAR -->
     <aside class="sidebar">
 
         <h2>Campus<span>Cart</span></h2>
         <p class="admin-label">ADMIN PANEL</p>
 
         <nav>
-            <!-- Dashboard page -->
             <a href="{{ url_for('dashboard') }}" class="active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7.5" height="7.5" rx="1.5"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="1.5"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="1.5"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1.5"/></svg>Dashboard</a>
 
-            <!-- Go to Listings page -->
             <a href="{{ url_for('listings') }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 8.2 12 4l8.5 4.2v7.6L12 20l-8.5-4.2z"/><path d="m3.5 8.2 8.5 4.3 8.5-4.3M12 12.5V20"/></svg>Listings</a>
 
             <a href="{{ url_for('users') }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9.5" cy="8" r="3.3"/><path d="M3.8 19.6a5.7 5.7 0 0 1 11.4 0"/><path d="M16.4 5.4a3.3 3.3 0 0 1 0 5.2M17.6 14.6a5.7 5.7 0 0 1 2.6 5"/></svg>Users</a>
@@ -43,11 +40,8 @@
 
     </aside>
 
-
-    <!-- MAIN CONTENT -->
     <main class="main">
 
-        <!-- HEADER -->
         <header>
 
             <div>
@@ -60,11 +54,8 @@
 
 </header>
 
-
-        <!-- BOARD: what is happening | what needs me -->
         <section class="board">
 
-            <!-- PRIMARY: marketplace overview -->
             <div class="panel board-main">
 
                 <div class="panel-title">
@@ -75,7 +66,6 @@
                     <span class="period">7 days</span>
                 </div>
 
-                <!-- headline figures read as one strip, not four boxes -->
                 <div class="metric-strip">
 
                     <div class="metric">
@@ -107,8 +97,6 @@
 
             </div>
 
-
-            <!-- SECONDARY: the admin's actual work queue -->
             <aside class="board-side">
 
                 <div class="panel">
@@ -139,7 +127,6 @@
                     </a>
 
                 </div>
-
 
                 <div class="panel">
 
@@ -179,8 +166,6 @@
 
         </section>
 
-
-        <!-- RECENT PRODUCTS -->
         <section class="panel">
 
             <div class="panel-title">
@@ -190,14 +175,11 @@
                     <p>Latest marketplace products</p>
                 </div>
 
-
-                <!-- GO TO LISTINGS -->
                 <a href="{{ url_for('listings') }}" class="view-all">
                     View All →
                 </a>
 
             </div>
-
 
             <table>
 
@@ -212,7 +194,6 @@
                     </tr>
 
                 </thead>
-
 
                 <tbody>
 

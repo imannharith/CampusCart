@@ -13,11 +13,6 @@ requests.
 
 from database import get_connection
 
-
-# =========================================================
-# PRODUCTS
-# =========================================================
-
 def get_all_products(category=None, status=None, search=None):
     """Return products, optionally filtered by category, status,
     and/or a case-insensitive search on the product name."""
@@ -48,7 +43,6 @@ def get_all_products(category=None, status=None, search=None):
     connection.close()
     return products
 
-
 def get_product(product_id):
     """Return a single product as a dict, or None if not found."""
 
@@ -60,7 +54,6 @@ def get_product(product_id):
 
     connection.close()
     return dict(row) if row else None
-
 
 def add_product(name, seller, category, price, stock, status="Pending"):
     """Insert a new product and return its new id."""
@@ -79,7 +72,6 @@ def add_product(name, seller, category, price, stock, status="Pending"):
     connection.close()
     return new_id
 
-
 def update_product(product_id, name, seller, category, price, stock):
     """Update a product's core details."""
 
@@ -95,7 +87,6 @@ def update_product(product_id, name, seller, category, price, stock):
     connection.commit()
     connection.close()
 
-
 def delete_product(product_id):
     """Delete a product by id."""
 
@@ -106,7 +97,6 @@ def delete_product(product_id):
 
     connection.commit()
     connection.close()
-
 
 def set_product_status(product_id, status):
     """Approve, reject, or flag a product as reported.
@@ -123,11 +113,6 @@ def set_product_status(product_id, status):
     connection.commit()
     connection.close()
 
-
-# =========================================================
-# STOCK
-# =========================================================
-
 def update_stock(product_id, new_stock):
     """Directly set a product's stock level."""
 
@@ -141,7 +126,6 @@ def update_stock(product_id, new_stock):
 
     connection.commit()
     connection.close()
-
 
 def adjust_stock(product_id, amount):
     """Increase (positive amount) or decrease (negative amount) stock,
@@ -168,7 +152,6 @@ def adjust_stock(product_id, amount):
     connection.close()
     return new_stock
 
-
 def get_low_stock_products(threshold=3):
     """Return products at or below a stock threshold, for restock alerts."""
 
@@ -184,15 +167,6 @@ def get_low_stock_products(threshold=3):
     connection.close()
     return products
 
-
-# =========================================================
-# CATEGORIES
-# =========================================================
-# Categories aren't a separate table -- they live on each product --
-# so "managing" categories means reading the distinct list in use
-# and being able to bulk re-assign every product from an old
-# category name to a new one (e.g. renaming "Furniture" to "Home").
-
 def get_all_categories():
     """Return a sorted list of distinct category names in use."""
 
@@ -204,7 +178,6 @@ def get_all_categories():
 
     connection.close()
     return categories
-
 
 def rename_category(old_name, new_name):
     """Rename a category across every product that uses it.
@@ -224,11 +197,6 @@ def rename_category(old_name, new_name):
     connection.close()
     return updated
 
-
-# =========================================================
-# DISCOUNT CODES
-# =========================================================
-
 def get_all_discount_codes():
     connection = get_connection()
     cursor = connection.cursor()
@@ -238,7 +206,6 @@ def get_all_discount_codes():
 
     connection.close()
     return codes
-
 
 def add_discount_code(code, discount_percent, active=True):
     """Create a new discount code. Returns its new id, or None if the
@@ -262,7 +229,6 @@ def add_discount_code(code, discount_percent, active=True):
     connection.close()
     return new_id
 
-
 def toggle_discount_code(discount_id):
     """Flip a discount code between active and inactive."""
 
@@ -277,7 +243,6 @@ def toggle_discount_code(discount_id):
     connection.commit()
     connection.close()
 
-
 def delete_discount_code(discount_id):
     connection = get_connection()
     cursor = connection.cursor()
@@ -286,7 +251,6 @@ def delete_discount_code(discount_id):
 
     connection.commit()
     connection.close()
-
 
 def validate_discount_code(code):
     """Return the discount percent for an active code, or None if the
@@ -305,11 +269,6 @@ def validate_discount_code(code):
     connection.close()
     return row["discount_percent"] if row else None
 
-
-# =========================================================
-# REVIEWS
-# =========================================================
-
 def get_all_reviews():
     """Return every review, joined with the product name it belongs to."""
 
@@ -327,7 +286,6 @@ def get_all_reviews():
     connection.close()
     return reviews
 
-
 def get_reviews_for_product(product_id):
     connection = get_connection()
     cursor = connection.cursor()
@@ -340,7 +298,6 @@ def get_reviews_for_product(product_id):
 
     connection.close()
     return reviews
-
 
 def add_review(product_id, reviewer, rating, comment=""):
     connection = get_connection()
@@ -357,7 +314,6 @@ def add_review(product_id, reviewer, rating, comment=""):
     connection.close()
     return new_id
 
-
 def delete_review(review_id):
     connection = get_connection()
     cursor = connection.cursor()
@@ -366,7 +322,6 @@ def delete_review(review_id):
 
     connection.commit()
     connection.close()
-
 
 def get_average_rating(product_id):
     """Return the average rating for a product, rounded to 1 decimal,
@@ -387,11 +342,6 @@ def get_average_rating(product_id):
         return None
     return round(row["avg_rating"], 1)
 
-
-# =========================================================
-# ORDERS
-# =========================================================
-
 def get_all_orders(status=None):
     """Return orders, optionally filtered by status, newest first."""
 
@@ -411,7 +361,6 @@ def get_all_orders(status=None):
     connection.close()
     return orders
 
-
 def get_order_items(order_id):
     """Return the line items for a single order, with product names."""
 
@@ -429,7 +378,6 @@ def get_order_items(order_id):
     connection.close()
     return items
 
-
 def update_order_status(order_id, status):
     """Update an order's status (e.g. Pending, Shipped, Delivered, Cancelled)."""
 
@@ -443,11 +391,6 @@ def update_order_status(order_id, status):
 
     connection.commit()
     connection.close()
-
-
-# =========================================================
-# SALES INFORMATION
-# =========================================================
 
 def get_sales_summary():
     """Return overall sales figures for the dashboard/reports page."""
@@ -480,7 +423,6 @@ def get_sales_summary():
         "average_order_value": round(avg_order_value, 2),
     }
 
-
 def get_top_selling_products(limit=5):
     """Return the best-selling products by total quantity sold."""
 
@@ -503,11 +445,6 @@ def get_top_selling_products(limit=5):
 
     connection.close()
     return top_products
-
-
-# =========================================================
-# DASHBOARD STATS
-# =========================================================
 
 def get_dashboard_stats():
     """Return the summary counts shown as cards on the admin dashboard."""

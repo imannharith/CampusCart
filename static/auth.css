@@ -1,10 +1,3 @@
-/* =========================================================
-   CAMPUSCART — SIGN IN / REGISTER
-   Same system as the admin console: off-black ground, one
-   brand blue, 12px surfaces / 8px controls / 6px badges,
-   depth from hairlines rather than glows.
-   ========================================================= */
-
 @import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap');
 
 :root {
@@ -94,7 +87,6 @@ body {
     text-decoration: none;
 }
 
-/* Campus in white, Cart in brand blue */
 .logo a span { color: var(--brand); }
 
 h2 {
@@ -217,7 +209,6 @@ h2 {
 
 .auth-footer a:hover { color: var(--brand); }
 
-/* the admin door: present, deliberately quiet */
 .auth-admin-link {
     margin-top: 10px;
     padding-top: 0;

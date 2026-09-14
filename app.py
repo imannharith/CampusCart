@@ -13,20 +13,14 @@ app = Flask(__name__)
 app.secret_key = 'campuscart_secret_key_bebas_tukar'
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=30)
 
-
-# Hard-coded admin allowlist -- only these emails/passwords can reach
-# the admin panel. Passwords are hashed here, never stored in plain
-# text, even though the hashes themselves live in source control.
 ADMIN_ACCOUNTS = {
     "zikryman123@gmail.com": "scrypt:32768:8:1$lfJSd8WxZnbJAX6j$6f91f9a88d7409a67970259ce6276ff095810bc16cd24733ca514d155e99d76c6e71cfb2646cd17a0257080664097647ba8998330a562ec1da1465d30bf9e8bf",
     "imannhairurizal@gmail.com": "scrypt:32768:8:1$nDtoMhQAZUKDqApr$603d72c49e6f8f568f62a6c2fa53a5d4ab945cbfb450f1f69ae9ca1e3e3a96fc12ea0b3605370d567651dcb3a64549717bca3872b676d40682af04d8586726f8",
     "priyaankavi0703@gmail.com": "scrypt:32768:8:1$NAoOq6JLC75PWzFu$2f8166558a27e2bc51af2fe58aa0e3eaedf0ccb00f572556ed26d9e2312d9aa6172a09465970abbdbacb9c6521d88db8235665c6ae051749b6b69409c722f8c4",
 }
 
-
 def admin_required(view):
-    # Gate for the admin panel routes -- bounces anyone without an
-    # admin session to the admin login page instead of rendering.
+
     @wraps(view)
     def wrapped(*args, **kwargs):
         if session.get('role') != 'admin':
@@ -34,8 +28,6 @@ def admin_required(view):
         return view(*args, **kwargs)
     return wrapped
 
-# Make sure the shared database is reachable and set up. On a
-# database that already has its tables this is a single query.
 try:
     database.ensure_ready()
 except Exception as error:
@@ -46,16 +38,11 @@ except Exception as error:
         "\nTURSO_DATABASE_URL and TURSO_AUTH_TOKEN.\n",
         file=sys.stderr,
     )
-    # the libsql client keeps a non-daemon thread alive, so a normal
-    # exit would hang here rather than returning the shell prompt
+
     sys.stdout.flush()
     sys.stderr.flush()
     os._exit(1)
 
-
-# -------------------------
-# CENTRALIZED PRODUCTS DATA
-# -------------------------
 # Menggantikan products.json & products.py
 products = [
     {
@@ -96,28 +83,20 @@ products = [
     }
 ]
 
-
-# -------------------------
-# TEMPORARY SHOPPING CART
-# -------------------------
 cart = {}
 
-
-# -------------------------
 # HOME PAGE (Dah dikunci)
-# -------------------------
+
 @app.route("/")
 def home():
     # Semak sama ada user dah login atau belum
     if 'user' not in session:
         return redirect(url_for('login'))
-        
+
     return render_template("homepage.html", products=products)
 
-
-# -------------------------
 # PRODUCT CATALOG PAGE (Dulu products.py)
-# -------------------------
+
 @app.route("/products")
 def product_catalog():
     # Tangkap parameter search & filter dari URL
@@ -143,10 +122,6 @@ def product_catalog():
 
     return render_template("products.html", products=filtered_list)
 
-
-# -------------------------
-# ADMIN DASHBOARD
-# -------------------------
 @app.route("/dashboard")
 @admin_required
 def dashboard():
@@ -163,11 +138,6 @@ def dashboard():
         total_users=database.get_user_stats()["total"],
         recent_products=recent_products,
     )
-
-
-# -------------------------
-# ADMIN LISTINGS (PRODUCT MANAGEMENT)
-# -------------------------
 
 @app.route("/listings")
 @admin_required
@@ -199,11 +169,6 @@ def listings():
         listing_stats=listing_stats,
     )
 
-
-# -------------------------
-# ADD PRODUCT
-# -------------------------
-
 @app.route("/listings/add", methods=["POST"])
 @admin_required
 def add_product():
@@ -218,11 +183,6 @@ def add_product():
     )
 
     return redirect(url_for("listings"))
-
-
-# -------------------------
-# EDIT PRODUCT
-# -------------------------
 
 @app.route("/listings/edit/<int:product_id>", methods=["POST"])
 @admin_required
@@ -239,11 +199,6 @@ def edit_product(product_id):
 
     return redirect(url_for("listings"))
 
-
-# -------------------------
-# CHANGE PRODUCT STATUS (APPROVE / REJECT / REPORT)
-# -------------------------
-
 @app.route("/listings/status/<int:product_id>/<status>")
 @admin_required
 def change_product_status(product_id, status):
@@ -251,11 +206,6 @@ def change_product_status(product_id, status):
     admin.set_product_status(product_id, status)
 
     return redirect(url_for("listings"))
-
-
-# -------------------------
-# DELETE PRODUCT
-# -------------------------
 
 @app.route("/listings/delete/<int:product_id>")
 @admin_required
@@ -265,11 +215,6 @@ def delete_product(product_id):
 
     return redirect(url_for("listings"))
 
-
-# -------------------------
-# QUICK STOCK ADJUST
-# -------------------------
-
 @app.route("/listings/stock/<int:product_id>/<action>")
 @admin_required
 def adjust_product_stock(product_id, action):
@@ -278,11 +223,6 @@ def adjust_product_stock(product_id, action):
     admin.adjust_stock(product_id, amount)
 
     return redirect(url_for("listings"))
-
-
-# -------------------------
-# RENAME CATEGORY
-# -------------------------
 
 @app.route("/categories/rename", methods=["POST"])
 @admin_required
@@ -295,11 +235,6 @@ def rename_category():
 
     return redirect(url_for("listings"))
 
-
-# -------------------------
-# DISCOUNT CODES
-# -------------------------
-
 @app.route("/discounts/add", methods=["POST"])
 @admin_required
 def add_discount():
@@ -311,7 +246,6 @@ def add_discount():
 
     return redirect(url_for("listings"))
 
-
 @app.route("/discounts/toggle/<int:discount_id>")
 @admin_required
 def toggle_discount(discount_id):
@@ -319,7 +253,6 @@ def toggle_discount(discount_id):
     admin.toggle_discount_code(discount_id)
 
     return redirect(url_for("listings"))
-
 
 @app.route("/discounts/delete/<int:discount_id>")
 @admin_required
@@ -329,11 +262,6 @@ def delete_discount(discount_id):
 
     return redirect(url_for("listings"))
 
-
-# -------------------------
-# REVIEWS
-# -------------------------
-
 @app.route("/reviews/delete/<int:review_id>")
 @admin_required
 def delete_review(review_id):
@@ -341,11 +269,6 @@ def delete_review(review_id):
     admin.delete_review(review_id)
 
     return redirect(url_for("listings"))
-
-
-# -------------------------
-# ORDER MANAGEMENT + SALES REPORTS
-# -------------------------
 
 @app.route("/reports")
 @admin_required
@@ -365,7 +288,6 @@ def reports():
         top_products=admin.get_top_selling_products(),
     )
 
-
 @app.route("/reports/status/<int:order_id>/<status>")
 @admin_required
 def update_order_status(order_id, status):
@@ -373,11 +295,6 @@ def update_order_status(order_id, status):
     admin.update_order_status(order_id, status)
 
     return redirect(url_for("reports"))
-
-
-# -------------------------
-# MANAGE USERS (placeholder page)
-# -------------------------
 
 @app.route("/users")
 @admin_required
@@ -392,10 +309,6 @@ def users():
         search=search,
     )
 
-
-# -------------------------
-# ADD TO CART
-# -------------------------
 @app.route("/add-to-cart/<int:product_id>")
 def add_to_cart(product_id):
     product = next((p for p in products if p["id"] == product_id), None)
@@ -415,19 +328,11 @@ def add_to_cart(product_id):
 
     return redirect(url_for("view_cart"))
 
-
-# -------------------------
-# VIEW CART
-# -------------------------
 @app.route("/cart")
 def view_cart():
     subtotal = sum(item["price"] * item["quantity"] for item in cart.values())
     return render_template("cart.html", cart=cart, subtotal=subtotal)
 
-
-# -------------------------
-# INCREASE / DECREASE / REMOVE CART
-# -------------------------
 @app.route("/increase/<int:product_id>")
 def increase_quantity(product_id):
     product = next((p for p in products if p["id"] == product_id), None)
@@ -449,27 +354,19 @@ def remove_from_cart(product_id):
         del cart[product_id]
     return redirect(url_for("view_cart"))
 
-# -------------------------
-# CHECKOUT
-# -------------------------
-
 @app.route("/checkout")
 def checkout():
 
-    # If cart is empty, go back to cart
     if not cart:
         return redirect(url_for("view_cart"))
 
-    # Calculate subtotal
     subtotal = 0
 
     for item in cart.values():
         subtotal += item["price"] * item["quantity"]
 
-    # No discount yet
     discount = 0
 
-    # Final total
     total = subtotal - discount
 
     return render_template(
@@ -480,44 +377,31 @@ def checkout():
         total=total
     )
 
-# -------------------------
-# PLACE ORDER
-# -------------------------
-
 @app.route("/place-order", methods=["POST"])
 def place_order():
 
-    # Don't place an empty order
     if not cart:
         return redirect(url_for("view_cart"))
 
-    # Temporary user ID
-    # Later this will come from the login system
     user_id = 1
 
-    # Get customer information
     name = request.form["name"]
     phone = request.form["phone"]
     address = request.form["address"]
 
-    # Calculate subtotal
     subtotal = 0
 
     for item in cart.values():
         subtotal += item["price"] * item["quantity"]
 
-    # No discount yet
     discount = 0
 
-    # Calculate final total
     total = subtotal - discount
 
-    # Connect to database
     connection = database.get_connection()
 
     cursor = connection.cursor()
 
-    # Create order
     cursor.execute("""
         INSERT INTO orders
         (user_id, subtotal, discount, total, status)
@@ -530,11 +414,8 @@ def place_order():
         "Pending"
     ))
 
-    # Get newly created order ID
     order_id = cursor.lastrowid
 
-
-    # Add products to order_items
     for product_id, item in cart.items():
 
         cursor.execute("""
@@ -548,16 +429,11 @@ def place_order():
             item["price"]
         ))
 
-
     connection.commit()
     connection.close()
 
-
-    # Clear cart after successful order
     cart.clear()
 
-
-    # Show confirmation
     return render_template(
         "order_confirmation.html",
         order_id=order_id,
@@ -569,15 +445,9 @@ def place_order():
         total=total
     )
 
-# -------------------------
-# MY ORDERS
-# -------------------------
-
 @app.route("/orders")
 def view_orders():
 
-    # Temporary user ID
-    # Later this will come from the login system
     user_id = 1
 
     connection = database.get_connection()
@@ -600,10 +470,6 @@ def view_orders():
         orders=orders
     )
 
-# -------------------------
-# AUTHENTICATION ROUTES (LOGIN / REGISTER / LOGOUT)
-# -------------------------
-
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
@@ -623,7 +489,6 @@ def login():
         return redirect(url_for("home"))
 
     return render_template("login.html")
-
 
 @app.route("/register", methods=["GET", "POST"])
 def register():
@@ -646,7 +511,6 @@ def register():
 
     return render_template("register.html")
 
-
 @app.route("/logout")
 def logout():
     was_admin = session.get('role') == 'admin'
@@ -658,7 +522,6 @@ def logout():
     if was_admin:
         return redirect(url_for("admin_login"))
     return redirect(url_for("login"))
-
 
 @app.route("/admin/login", methods=["GET", "POST"])
 def admin_login():
@@ -678,8 +541,5 @@ def admin_login():
 
     return render_template("admin_login.html")
 
-# -------------------------
-# RUN APPLICATION
-# -------------------------
 if __name__ == "__main__":
     app.run(debug=True)
