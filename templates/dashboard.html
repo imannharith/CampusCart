@@ -86,13 +86,9 @@
                 </div>
 
                 <div class="chart">
-                    <div class="bar" style="height:45%"><span>Mon</span></div>
-                    <div class="bar" style="height:65%"><span>Tue</span></div>
-                    <div class="bar" style="height:55%"><span>Wed</span></div>
-                    <div class="bar" style="height:80%"><span>Thu</span></div>
-                    <div class="bar" style="height:70%"><span>Fri</span></div>
-                    <div class="bar" style="height:90%"><span>Sat</span></div>
-                    <div class="bar" style="height:75%"><span>Sun</span></div>
+                    {% for day in chart_days %}
+                    <div class="bar" style="height:{{ day.height }}%" title="{{ day.count }} listing(s)"><span>{{ day.label }}</span></div>
+                    {% endfor %}
                 </div>
 
             </div>

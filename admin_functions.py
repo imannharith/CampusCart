@@ -62,8 +62,8 @@ def add_product(name, seller, category, price, stock, status="Pending"):
     cursor = connection.cursor()
 
     cursor.execute("""
-        INSERT INTO products (name, seller, category, price, stock, status)
-        VALUES (?, ?, ?, ?, ?, ?)
+        INSERT INTO products (name, seller, category, price, stock, status, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
     """, (name, seller, category, price, stock, status))
 
     connection.commit()
@@ -445,6 +445,22 @@ def get_top_selling_products(limit=5):
 
     connection.close()
     return top_products
+
+def get_listings_per_day(days=7):
+
+    connection = get_connection()
+    cursor = connection.cursor()
+
+    cursor.execute("""
+       SELECT DATE(created_at) AS day, COUNT(*) AS listings
+       FROM products
+       WHERE created_at >= datetime('now', '-7 days')
+       GROUP BY DATE(created_at)
+    """)
+    rows = [dict(row) for row in cursor.fetchall()]
+
+    connection.close()
+    return rows
 
 def get_dashboard_stats():
     """Return the summary counts shown as cards on the admin dashboard."""

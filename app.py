@@ -1,6 +1,6 @@
 import os
 import sys
-from datetime import timedelta
+from datetime import date, timedelta
 from functools import wraps
 
 from flask import Flask, render_template, redirect, url_for, request, session
@@ -122,6 +122,33 @@ def product_catalog():
 
     return render_template("products.html", products=filtered_list)
 
+def build_chart_days(rows, days=7):
+    """Turn the daily counts from the database into one slot per day.
+
+    The query only returns days that actually had a listing, so days
+    with none are missing entirely. Fill those in with zero, then scale
+    every count against the busiest day so the template can use the
+    result directly as a bar height in percent."""
+
+    counts = {row["day"]: row["listings"] for row in rows}
+
+    today = date.today()
+    slots = []
+
+    for days_ago in range(days - 1, -1, -1):
+        day = today - timedelta(days=days_ago)
+        slots.append({
+            "label": day.strftime("%a"),
+            "count": counts.get(day.isoformat(), 0),
+        })
+
+    busiest = max(slot["count"] for slot in slots)
+
+    for slot in slots:
+        slot["height"] = round(slot["count"] / busiest * 100) if busiest else 0
+
+    return slots
+
 @app.route("/dashboard")
 @admin_required
 def dashboard():
@@ -137,6 +164,7 @@ def dashboard():
         approved_products=stats["approved_products"],
         total_users=database.get_user_stats()["total"],
         recent_products=recent_products,
+        chart_days=build_chart_days(admin.get_listings_per_day()),
     )
 
 @app.route("/listings")
