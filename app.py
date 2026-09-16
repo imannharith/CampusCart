@@ -508,6 +508,49 @@ def view_orders():
         orders=orders
     )
 
+@app.route("/profile")
+def profile():
+
+    if 'user' not in session:
+        return redirect(url_for('login'))
+
+    user = database.get_user_by_email(session['user'])
+
+    if user is None:
+        return redirect(url_for('logout'))
+
+    return render_template(
+        "userprofile.html",
+        user=dict(user),
+        my_listings=admin.get_all_products(seller=user["fullname"]),
+    )
+
+@app.route("/request-sell", methods=["POST"])
+def request_sell():
+    """A student submitting their own item. It goes in as Pending so it
+    lands in the admin approval queue rather than straight on the shop."""
+
+    if 'user' not in session:
+        return redirect(url_for('login'))
+
+    user = database.get_user_by_email(session['user'])
+
+    if user is None:
+        return redirect(url_for('logout'))
+
+    admin.add_product(
+        name=request.form["product_name"],
+        seller=user["fullname"],
+        category=request.form["category"],
+        price=float(request.form["price"]),
+        stock=int(request.form["stock"]),
+        status="Pending",
+        description=request.form.get("description"),
+        image_url=request.form.get("image_url") or None,
+    )
+
+    return redirect(url_for("profile"))
+
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":

@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>My Profile - CampusCart</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='shopping.css') }}">
 </head>
 <body>
 
@@ -33,9 +34,10 @@
 
         <section id="tab-details" class="tab-content">
             <h2>Personal Information</h2>
-            <p><strong>Name:</strong> {{ user.name if user else 'John Doe (Student)' }}</p>
-            <p><strong>Email:</strong> {{ user.email if user else 'student@campus.edu.my' }}</p>
-            <p><strong>Role:</strong> {{ user.role if user else 'Student / Customer' }}</p>
+            <p><strong>Name:</strong> {{ user.fullname }}</p>
+            <p><strong>Email:</strong> {{ user.email }}</p>
+            <p><strong>Role:</strong> {{ user.role|title }}</p>
+            <p><strong>Member since:</strong> {{ user.created_at }}</p>
             <p><strong>Account Status:</strong> <span style="color: green;">Active</span></p>
         </section>
 
@@ -44,7 +46,7 @@
             <h2>Sell an Item on CampusCart</h2>
             <p><i>Note: Your item will be marked as <b>"Pending Admin Approval"</b> before it appears on the products page.</i></p>
             
-            <form action="/request-sell" method="POST" enctype="multipart/form-data">
+            <form action="/request-sell" method="POST">
                 
                 <div style="margin-bottom: 10px;">
                     <label for="product_name">Product Name:</label><br>
@@ -77,8 +79,8 @@
                 </div>
 
                 <div style="margin-bottom: 15px;">
-                    <label for="product_image">Upload Product Image:</label><br>
-                    <input type="file" id="product_image" name="product_image" accept="image/*" required>
+                    <label for="image_url">Product Image URL:</label><br>
+                    <input type="url" id="image_url" name="image_url" placeholder="https://images.unsplash.com/..." required>
                 </div>
 
                 <button type="submit">Submit Request for Approval</button>
@@ -96,11 +98,15 @@
                     </tr>
                 </thead>
                 <tbody>
+                    {% for item in my_listings %}
                     <tr>
-                        <td>Calculators FX-570EX</td>
-                        <td>RM 65.00</td>
-                        <td><b style="color: orange;">Pending Approval</b></td>
+                        <td>{{ item.name }}</td>
+                        <td>RM {{ "%.2f"|format(item.price) }}</td>
+                        <td><b>{{ item.status }}</b></td>
                     </tr>
+                    {% else %}
+                    <tr><td colspan="3">You haven't submitted any items yet.</td></tr>
+                    {% endfor %}
                 </tbody>
             </table>
         </section>

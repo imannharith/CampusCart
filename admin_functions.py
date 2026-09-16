@@ -13,8 +13,8 @@ requests.
 
 from database import get_connection
 
-def get_all_products(category=None, status=None, search=None):
-    """Return products, optionally filtered by category, status,
+def get_all_products(category=None, status=None, search=None, seller=None):
+    """Return products, optionally filtered by category, status, seller,
     and/or a case-insensitive search on the product name."""
 
     connection = get_connection()
@@ -34,6 +34,10 @@ def get_all_products(category=None, status=None, search=None):
     if search:
         query += " AND LOWER(name) LIKE LOWER(?)"
         params.append(f"%{search}%")
+
+    if seller:
+        query += " AND seller = ?"
+        params.append(seller)
 
     query += " ORDER BY id DESC"
 
@@ -55,16 +59,18 @@ def get_product(product_id):
     connection.close()
     return dict(row) if row else None
 
-def add_product(name, seller, category, price, stock, status="Pending"):
+def add_product(name, seller, category, price, stock, status="Pending",
+                description=None, image_url=None):
     """Insert a new product and return its new id."""
 
     connection = get_connection()
     cursor = connection.cursor()
 
     cursor.execute("""
-        INSERT INTO products (name, seller, category, price, stock, status, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
-    """, (name, seller, category, price, stock, status))
+        INSERT INTO products (name, seller, category, price, stock, status,
+                              description, image_url, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+    """, (name, seller, category, price, stock, status, description, image_url))
 
     connection.commit()
     new_id = cursor.lastrowid

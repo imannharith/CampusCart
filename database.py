@@ -203,6 +203,8 @@ def init_db():
         price REAL NOT NULL,
         stock INTEGER NOT NULL,
         status TEXT NOT NULL DEFAULT 'Pending',
+        description TEXT,
+        image_url TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
     """)
