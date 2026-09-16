@@ -122,13 +122,17 @@ def product_catalog():
 
     return render_template("products.html", products=filtered_list)
 
-def build_chart_days(rows, days=7):
-    """Turn the daily counts from the database into one slot per day.
+def build_chart_days(rows, days=7, baseline=5):
+    """Turn the daily counts from the database into one slot per bar.
 
     The query only returns days that actually had a listing, so days
-    with none are missing entirely. Fill those in with zero, then scale
-    every count against the busiest day so the template can use the
-    result directly as a bar height in percent."""
+    with none are missing entirely and have to be filled in with zero.
+
+    Heights are a percentage of the scale, not of the busiest day. If
+    the busiest day set the scale, the tallest bar would always be
+    100% and a week with four listings would look identical to a week
+    with four hundred. The baseline keeps a quiet week looking quiet,
+    and the scale is reported so the template can label the axis."""
 
     counts = {row["day"]: row["listings"] for row in rows}
 
@@ -142,12 +146,18 @@ def build_chart_days(rows, days=7):
             "count": counts.get(day.isoformat(), 0),
         })
 
-    busiest = max(slot["count"] for slot in slots)
+    peak = max(slot["count"] for slot in slots)
+    scale = max(peak, baseline)
 
     for slot in slots:
-        slot["height"] = round(slot["count"] / busiest * 100) if busiest else 0
+        slot["height"] = round(slot["count"] / scale * 100)
 
-    return slots
+    return {
+        "days": slots,
+        "peak": peak,
+        "scale": scale,
+        "total": sum(slot["count"] for slot in slots),
+    }
 
 @app.route("/dashboard")
 @admin_required
@@ -164,7 +174,7 @@ def dashboard():
         approved_products=stats["approved_products"],
         total_users=database.get_user_stats()["total"],
         recent_products=recent_products,
-        chart_days=build_chart_days(admin.get_listings_per_day()),
+        chart=build_chart_days(admin.get_listings_per_day()),
     )
 
 @app.route("/listings")

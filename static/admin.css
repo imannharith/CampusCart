@@ -510,6 +510,23 @@ header h1 {
     color: var(--text-3);
 }
 
+.chart-axis {
+    position: absolute;
+    left: 0;
+    top: 14px;
+    bottom: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    width: 22px;
+    font-family: var(--mono);
+    font-size: 10.5px;
+    line-height: 1;
+    color: var(--text-3);
+    text-align: right;
+    pointer-events: none;
+}
+
 .period {
     font-size: 11.5px;
     font-weight: 500;

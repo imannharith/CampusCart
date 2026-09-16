@@ -454,9 +454,9 @@ def get_listings_per_day(days=7):
     cursor.execute("""
        SELECT DATE(created_at) AS day, COUNT(*) AS listings
        FROM products
-       WHERE created_at >= datetime('now', '-7 days')
+       WHERE created_at >= datetime('now', ?)
        GROUP BY DATE(created_at)
-    """)
+    """, (f"-{days} days",))
     rows = [dict(row) for row in cursor.fetchall()]
 
     connection.close()

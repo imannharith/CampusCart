@@ -61,7 +61,7 @@
                 <div class="panel-title">
                     <div>
                         <h3>Marketplace activity</h3>
-                        <p>Listings submitted this week</p>
+                        <p>{{ chart.total }} listing(s) submitted &middot; busiest day {{ chart.peak }}</p>
                     </div>
                     <span class="period">7 days</span>
                 </div>
@@ -86,8 +86,14 @@
                 </div>
 
                 <div class="chart">
-                    {% for day in chart_days %}
-                    <div class="bar" style="height:{{ day.height }}%" title="{{ day.count }} listing(s)"><span>{{ day.label }}</span></div>
+
+                    <div class="chart-axis">
+                        <span>{{ chart.scale }}</span>
+                        <span>0</span>
+                    </div>
+
+                    {% for day in chart.days %}
+                    <div class="bar" style="height:{{ day.height }}%" title="{{ day.count }} listing(s) on {{ day.label }}"><span>{{ day.label }}</span></div>
                     {% endfor %}
                 </div>
 
