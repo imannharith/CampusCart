@@ -202,7 +202,8 @@ def init_db():
         category TEXT NOT NULL,
         price REAL NOT NULL,
         stock INTEGER NOT NULL,
-        status TEXT NOT NULL DEFAULT 'Pending'
+        status TEXT NOT NULL DEFAULT 'Pending',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
     """)
 
