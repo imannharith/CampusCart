@@ -1,10 +1,4 @@
-/* =========================================
-   CAMPUSCART - SHOPPING FEATURES
-   ========================================= */
 
-/* =========================================
-   GENERAL PAGE
-   ========================================= */
 
 body {
     margin: 0;
@@ -27,9 +21,7 @@ body {
 }
 
 
-/* =========================================
-   SHOPPING CART
-   ========================================= */
+
 
 .cart-item {
     background-color: white;
@@ -58,9 +50,7 @@ body {
 }
 
 
-/* =========================================
-   QUANTITY BUTTONS
-   ========================================= */
+
 
 .quantity-buttons {
     display: flex;
@@ -93,9 +83,7 @@ body {
 }
 
 
-/* =========================================
-   REMOVE BUTTON
-   ========================================= */
+
 
 .remove-button {
     display: inline-block;
@@ -115,9 +103,7 @@ body {
 }
 
 
-/* =========================================
-   CART SUMMARY
-   ========================================= */
+
 
 .cart-summary {
     background-color: white;
@@ -138,9 +124,7 @@ body {
 }
 
 
-/* =========================================
-   CHECKOUT BUTTON
-   ========================================= */
+
 
 .checkout-button {
     display: inline-block;
@@ -162,9 +146,7 @@ body {
 }
 
 
-/* =========================================
-   EMPTY CART
-   ========================================= */
+
 
 .empty-cart {
     background-color: white;
@@ -187,9 +169,7 @@ body {
 }
 
 
-/* =========================================
-   CHECKOUT PAGE
-   ========================================= */
+
 
 .checkout-section {
     max-width: 800px;
@@ -205,7 +185,7 @@ body {
 }
 
 
-/* Checkout headings */
+
 
 .checkout-section h2 {
     margin-top: 0;
@@ -215,7 +195,7 @@ body {
 }
 
 
-/* Customer information */
+
 
 .checkout-section label {
     display: block;
@@ -257,9 +237,7 @@ body {
 }
 
 
-/* =========================================
-   CHECKOUT ORDER ITEMS
-   ========================================= */
+
 
 .checkout-item {
     display: flex;
@@ -280,9 +258,7 @@ body {
 }
 
 
-/* =========================================
-   CHECKOUT TOTAL
-   ========================================= */
+
 
 .checkout-total {
     margin-top: 20px;
@@ -311,9 +287,7 @@ body {
 }
 
 
-/* =========================================
-   PLACE ORDER BUTTON
-   ========================================= */
+
 
 .place-order-button {
     display: block;
@@ -344,9 +318,7 @@ body {
 }
 
 
-/* =========================================
-   ORDER CONFIRMATION
-   ========================================= */
+
 
 .confirmation {
     max-width: 700px;
@@ -365,7 +337,7 @@ body {
 }
 
 
-/* Success icon */
+
 
 .success-icon {
     font-size: 60px;
@@ -374,7 +346,7 @@ body {
 }
 
 
-/* Confirmation heading */
+
 
 .confirmation h1 {
     color: #198754;
@@ -389,9 +361,7 @@ body {
 }
 
 
-/* =========================================
-   ORDER DETAILS
-   ========================================= */
+
 
 .order-details {
     margin-top: 25px;
@@ -416,9 +386,7 @@ body {
 }
 
 
-/* =========================================
-   CONFIRMATION BUTTONS
-   ========================================= */
+
 
 .confirmation-buttons {
     margin-top: 25px;
@@ -463,9 +431,7 @@ body {
 }
 
 
-/* =========================================
-   ORDER HISTORY
-   ========================================= */
+
 
 .orders-container {
     width: 90%;
@@ -484,7 +450,7 @@ body {
 }
 
 
-/* Individual order */
+
 
 .order-card {
     background-color: white;
@@ -499,7 +465,7 @@ body {
 }
 
 
-/* Order header */
+
 
 .order-header {
     display: flex;
@@ -528,9 +494,7 @@ body {
 }
 
 
-/* =========================================
-   ORDER STATUS
-   ========================================= */
+
 
 .order-status {
     padding: 6px 12px;
@@ -545,7 +509,7 @@ body {
 }
 
 
-/* Order information */
+
 
 .order-card p {
     color: #555;
@@ -554,7 +518,7 @@ body {
 }
 
 
-/* Total */
+
 
 .order-total {
     font-size: 20px;
@@ -571,9 +535,7 @@ body {
 }
 
 
-/* =========================================
-   EMPTY ORDER HISTORY
-   ========================================= */
+
 
 .empty-orders {
     text-align: center;
@@ -598,9 +560,7 @@ body {
 }
 
 
-/* =========================================
-   MOBILE RESPONSIVE
-   ========================================= */
+
 
 @media (max-width: 700px) {
 
@@ -610,7 +570,7 @@ body {
         margin: 20px auto;
     }
 
-    /* Cart */
+    
 
     .cart-item {
         flex-direction: column;
@@ -637,7 +597,7 @@ body {
     }
 
 
-    /* Checkout */
+    
 
     .checkout-section {
         width: 90%;
@@ -658,7 +618,7 @@ body {
     }
 
 
-    /* Confirmation */
+    
 
     .confirmation {
         width: 90%;
@@ -671,7 +631,7 @@ body {
     }
 
 
-    /* Order history */
+    
 
     .orders-container {
         width: 95%;
@@ -692,7 +652,7 @@ body {
     }
 
 
-    /* Confirmation buttons */
+    
 
     .confirmation-buttons {
         flex-direction: column;
@@ -700,5 +660,83 @@ body {
 
     .confirmation-buttons a {
         text-align: center;
+    }
+}
+   
+
+.promo-section {
+    margin-top: 25px;
+    padding: 20px;
+
+    background-color: #f7f7f7;
+
+    border-radius: 8px;
+
+    border: 1px solid #ddd;
+}
+
+.promo-section h2 {
+    margin-top: 0;
+    margin-bottom: 15px;
+}
+
+.promo-section form {
+    display: flex;
+    gap: 10px;
+}
+
+.promo-section input {
+    flex: 1;
+
+    padding: 12px;
+
+    border: 1px solid #ccc;
+
+    border-radius: 6px;
+
+    font-size: 15px;
+
+    box-sizing: border-box;
+}
+
+.promo-button {
+    padding: 12px 18px;
+
+    background-color: #333;
+
+    color: white;
+
+    border: none;
+
+    border-radius: 6px;
+
+    font-weight: bold;
+
+    cursor: pointer;
+}
+
+.promo-button:hover {
+    background-color: #555;
+}
+
+.promo-message {
+    margin-top: 12px;
+
+    font-weight: bold;
+
+    color: #198754;
+}
+
+
+/* Mobile promo form */
+
+@media (max-width: 700px) {
+
+    .promo-section form {
+        flex-direction: column;
+    }
+
+    .promo-button {
+        width: 100%;
     }
 }
