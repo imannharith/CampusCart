@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Profile - CampusCart</title>
+</head>
+<body>
+
+    <header>
+        <div class="logo">
+            <a href="/">Campus<span>Cart</span></a>
+        </div>
+        <nav class="nav-links">
+            <a href="/">Home</a>
+            <a href="/products">Products</a>
+            <a href="/cart">🛒 Cart</a>
+            <a href="/profile"><b>👤 Me</b></a>
+            <a href="/logout">Logout</a>
+        </nav>
+    </header>
+
+    <main class="container">
+        <h1>User Profile</h1>
+
+        <div class="profile-tabs" style="margin-bottom: 20px;">
+            <button onclick="showTab('details')">My Details</button>
+            <button onclick="showTab('selling')">Selling (Request to Sell)</button>
+            <button onclick="showTab('buying')">Buying History</button>
+        </div>
+
+        <hr>
+
+        <section id="tab-details" class="tab-content">
+            <h2>Personal Information</h2>
+            <p><strong>Name:</strong> {{ user.name if user else 'John Doe (Student)' }}</p>
+            <p><strong>Email:</strong> {{ user.email if user else 'student@campus.edu.my' }}</p>
+            <p><strong>Role:</strong> {{ user.role if user else 'Student / Customer' }}</p>
+            <p><strong>Account Status:</strong> <span style="color: green;">Active</span></p>
+        </section>
+
+
+        <section id="tab-selling" class="tab-content" style="display: none;">
+            <h2>Sell an Item on CampusCart</h2>
+            <p><i>Note: Your item will be marked as <b>"Pending Admin Approval"</b> before it appears on the products page.</i></p>
+            
+            <form action="/request-sell" method="POST" enctype="multipart/form-data">
+                
+                <div style="margin-bottom: 10px;">
+                    <label for="product_name">Product Name:</label><br>
+                    <input type="text" id="product_name" name="product_name" placeholder="e.g. Used FX-570EX Calculator" required>
+                </div>
+
+                <div style="margin-bottom: 10px;">
+                    <label for="category">Category:</label><br>
+                    <select id="category" name="category" required>
+                        <option value="books">Books & Notes</option>
+                        <option value="electronics">Electronics & Gadgets</option>
+                        <option value="fashion">Apparel & Fashion</option>
+                        <option value="accessories">Room & Study Accessories</option>
+                    </select>
+                </div>
+
+                <div style="margin-bottom: 10px;">
+                    <label for="price">Price (RM):</label><br>
+                    <input type="number" step="0.01" id="price" name="price" placeholder="50.00" required>
+                </div>
+
+                <div style="margin-bottom: 10px;">
+                    <label for="stock">Quantity / Stock:</label><br>
+                    <input type="number" id="stock" name="stock" value="1" min="1" required>
+                </div>
+
+                <div style="margin-bottom: 10px;">
+                    <label for="description">Product Description:</label><br>
+                    <textarea id="description" name="description" rows="4" placeholder="Describe condition of item, meetup location, etc." required></textarea>
+                </div>
+
+                <div style="margin-bottom: 15px;">
+                    <label for="product_image">Upload Product Image:</label><br>
+                    <input type="file" id="product_image" name="product_image" accept="image/*" required>
+                </div>
+
+                <button type="submit">Submit Request for Approval</button>
+            </form>
+
+            <br><hr><br>
+
+            <h3>My Submitted Items Status</h3>
+            <table border="1" cellpadding="8" cellspacing="0">
+                <thead>
+                    <tr>
+                        <th>Item</th>
+                        <th>Price</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Calculators FX-570EX</td>
+                        <td>RM 65.00</td>
+                        <td><b style="color: orange;">Pending Approval</b></td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+
+        <section id="tab-buying" class="tab-content" style="display: none;">
+            <h2>My Buying Activity</h2>
+            <p>Want to buy more items? <a href="/products"><button>Go to Product Catalog</button></a></p>
+
+            <h3>Recent Orders</h3>
+            <table border="1" cellpadding="8" cellspacing="0">
+                <thead>
+                    <tr>
+                        <th>Order ID</th>
+                        <th>Total</th>
+                        <th>Status</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>#ORD-1001</td>
+                        <td>RM 25.00</td>
+                        <td><span style="color: green;">Completed</span></td>
+                        <td><a href="/products"><button>Buy Again</button></a></td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+    </main>
+
+    <script>
+        function showTab(tabName) {
+            
+            document.getElementById('tab-details').style.display = 'none';
+            document.getElementById('tab-selling').style.display = 'none';
+            document.getElementById('tab-buying').style.display = 'none';
+
+            document.getElementById('tab-' + tabName).style.display = 'block';
+        }
+    </script>
+
+</body>
+</html>
