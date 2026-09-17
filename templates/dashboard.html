@@ -62,7 +62,11 @@
                 <div class="panel-title">
                     <div>
                         <h3>Marketplace activity</h3>
-                        <p>{{ chart.total }} listing(s) submitted &middot; busiest day {{ chart.peak }}</p>
+                        {% if chart.total %}
+                        <p>{{ chart.total }} listing(s) submitted &middot; busiest day {{ chart.peak_day }}</p>
+                        {% else %}
+                        <p>No listings submitted in the last 7 days</p>
+                        {% endif %}
                     </div>
                     <span class="period">7 days</span>
                 </div>
@@ -92,6 +96,10 @@
                         <span>{{ chart.scale }}</span>
                         <span>0</span>
                     </div>
+
+                    {% if not chart.total %}
+                    <div class="chart-empty">No new listings this week</div>
+                    {% endif %}
 
                     {% for day in chart.days %}
                     <div class="bar" style="height:{{ day.height }}%" title="{{ day.count }} listing(s) on {{ day.label }}"><span>{{ day.label }}</span></div>
