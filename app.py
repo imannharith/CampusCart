@@ -3,7 +3,7 @@ import sys
 from datetime import date, timedelta
 from functools import wraps
 
-from flask import Flask, render_template, redirect, url_for, request, session
+from flask import Flask, render_template, redirect, url_for, request, session, abort
 from werkzeug.security import generate_password_hash, check_password_hash
 
 import database
@@ -12,6 +12,10 @@ import admin_functions as admin
 app = Flask(__name__)
 app.secret_key = 'campuscart_secret_key_bebas_tukar'
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=30)
+
+# The only statuses the admin links are allowed to set.
+PRODUCT_STATUSES = {"Approved", "Pending", "Rejected", "Reported"}
+ORDER_STATUSES = {"Pending", "Shipped", "Delivered", "Cancelled"}
 
 ADMIN_ACCOUNTS = {
     "zikryman123@gmail.com": "scrypt:32768:8:1$lfJSd8WxZnbJAX6j$6f91f9a88d7409a67970259ce6276ff095810bc16cd24733ca514d155e99d76c6e71cfb2646cd17a0257080664097647ba8998330a562ec1da1465d30bf9e8bf",
@@ -143,11 +147,16 @@ def build_chart_days(rows, days=7, baseline=5):
         day = today - timedelta(days=days_ago)
         slots.append({
             "label": day.strftime("%a"),
+            "name": day.strftime("%A"),
             "count": counts.get(day.isoformat(), 0),
         })
 
     peak = max(slot["count"] for slot in slots)
     scale = max(peak, baseline)
+
+    # Name the busiest day for the subtitle (the first one if there is a tie).
+    busiest = next(slot for slot in slots if slot["count"] == peak)
+    peak_day = busiest["name"] if peak > 0 else None
 
     for slot in slots:
         slot["height"] = round(slot["count"] / scale * 100)
@@ -155,6 +164,7 @@ def build_chart_days(rows, days=7, baseline=5):
     return {
         "days": slots,
         "peak": peak,
+        "peak_day": peak_day,
         "scale": scale,
         "total": sum(slot["count"] for slot in slots),
     }
@@ -240,6 +250,9 @@ def edit_product(product_id):
 @app.route("/listings/status/<int:product_id>/<status>")
 @admin_required
 def change_product_status(product_id, status):
+
+    if status not in PRODUCT_STATUSES:
+        abort(400)
 
     admin.set_product_status(product_id, status)
 
@@ -329,6 +342,9 @@ def reports():
 @app.route("/reports/status/<int:order_id>/<status>")
 @admin_required
 def update_order_status(order_id, status):
+
+    if status not in ORDER_STATUSES:
+        abort(400)
 
     admin.update_order_status(order_id, status)
 
