@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=Outfit:wght@500;600;700&family=Geist+Mono:wght@400;500&display=swap');
 
 :root {
 
@@ -1043,6 +1043,241 @@ tbody tr:hover td { background: var(--surface-2); }
 }
 
 .admin-auth-footer a:hover { color: var(--text-2); }
+
+/* ==========================================================
+   CampusCart refresh (17 Sep)
+   CSS only: the templates keep their structure.
+   1. Fonts and colours   2. Sidebar becomes a top bar
+   3. Blue activity card  4. Cards, tables, buttons, labels
+   ========================================================== */
+
+/* 1. Fonts and colours: blue and white, rounder shapes */
+:root {
+    --bg:        #f3f6fd;
+    --ui:        "Figtree", "Helvetica Neue", Arial, sans-serif;
+    --display:   "Outfit", "Figtree", sans-serif;
+    --r-surface: 22px;
+    --r-control: 12px;
+    --r-badge:   999px;
+    --blue-soft: #dbe7ff;
+}
+
+/* 2. The sidebar markup is reused as a top navigation bar */
+.sidebar {
+    position: sticky;
+    top: 12px;
+    z-index: 20;
+    width: auto;
+    height: auto;
+    margin: 12px 24px 0;
+    padding: 8px 10px 8px 18px;
+    flex-direction: row;
+    align-items: center;
+    gap: 20px;
+    border-right: none;
+    border-radius: 999px;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06), 0 0 0 1px var(--border);
+}
+
+.sidebar h2 {
+    padding: 0;
+    font-family: var(--display);
+    font-size: 21px;
+    white-space: nowrap;
+}
+
+.sidebar .admin-label {
+    margin: 0;
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-family: var(--ui);
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: var(--brand-hi);
+    background: var(--brand-wash);
+    white-space: nowrap;
+}
+
+nav {
+    flex: 1;
+    flex-direction: row;
+    justify-content: center;
+    gap: 4px;
+}
+
+nav a {
+    padding: 10px 16px;
+    border-radius: 999px;
+    font-size: 14.5px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+nav a.active {
+    color: #ffffff;
+    background: var(--brand);
+}
+
+nav a.active svg { color: #ffffff; }
+nav a.active::before { display: none; }
+
+.sidebar-bottom {
+    flex-direction: row;
+    align-items: center;
+    gap: 4px;
+    padding-top: 0;
+    border-top: none;
+}
+
+.sidebar-bottom a {
+    border-radius: 999px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.admin-user {
+    margin: 0 4px 0 0;
+    padding: 4px 12px 4px 4px;
+    border-radius: 999px;
+}
+
+.admin-user small { display: none; }
+.avatar { width: 32px; height: 32px; border-radius: 50%; }
+
+.main {
+    margin: 0 auto;
+    padding: 34px 40px 80px;
+}
+
+header h1 {
+    font-family: var(--display);
+    font-size: 40px;
+    letter-spacing: -0.03em;
+}
+
+.subtitle { font-size: 16px; }
+
+/* 3. Dashboard: the activity panel becomes the blue card */
+.board-main {
+    padding-bottom: 44px;
+    color: #ffffff;
+    background: var(--brand);
+    box-shadow: 0 12px 30px -16px rgba(37, 99, 235, 0.7);
+}
+
+.board-main .panel-title h3 { color: #ffffff; font-size: 18px; }
+.board-main .panel-title p  { color: var(--blue-soft); }
+
+.board-main .period {
+    white-space: nowrap;
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.16);
+}
+
+.board-main .metric-strip {
+    gap: 10px;
+    background: transparent;
+    border: none;
+}
+
+.board-main .metric {
+    border-radius: var(--r-control);
+    background: rgba(255, 255, 255, 0.12);
+}
+
+.board-main .metric p  { color: var(--blue-soft); }
+.board-main .metric h2 { color: #ffffff; font-family: var(--display); font-size: 30px; }
+
+.board-main .chart {
+    border-bottom-color: rgba(255, 255, 255, 0.4);
+    background-image: repeating-linear-gradient(
+        to top,
+        rgba(255, 255, 255, 0.14) 0 1px,
+        transparent 1px 25%
+    );
+}
+
+.board-main .bar {
+    background: #ffffff;
+    box-shadow: none;
+}
+
+.board-main .bar span,
+.board-main .chart-axis { color: var(--blue-soft); }
+
+.chart-empty {
+    position: absolute;
+    inset: 0 0 0 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    color: var(--blue-soft);
+}
+
+/* 4. Cards, tables, buttons and status labels */
+.card h2,
+.queue-count { font-family: var(--display); }
+
+.icon { border-radius: 50%; }
+
+.queue-count:not(.queue-alert) {
+    color: var(--warn);
+    background: var(--warn-wash);
+    box-shadow: none;
+}
+
+th {
+    font-size: 12.5px;
+    font-weight: 600;
+    letter-spacing: 0;
+    text-transform: none;
+    background: transparent;
+}
+
+th:first-child,
+th:last-child { border-radius: 0; }
+
+.status { padding: 4px 11px; font-weight: 600; }
+
+.rejected,
+.cancelled { color: var(--text-2); background: var(--surface-3); }
+
+.view-btn,
+.approve-btn,
+.reject-btn {
+    padding: 7px 14px;
+    font-weight: 700;
+    display: inline-block;
+}
+
+.view-btn    { color: var(--brand-hi); background: var(--brand-wash); border-color: transparent; }
+.approve-btn { color: #ffffff; background: var(--brand); border-color: var(--brand); }
+.reject-btn  { color: var(--bad); background: var(--surface); border-color: rgba(210, 47, 69, 0.3); }
+
+.approve-btn:hover { color: #ffffff; background: var(--brand-hi); border-color: var(--brand-hi); }
+
+.filters input,
+.filters select,
+.form-grid input { background: var(--surface); border-color: var(--border-2); }
+
+.filters button,
+.filters-button,
+.form-grid button { border-radius: 999px; font-weight: 700; }
+
+.stock-btn { border-radius: 50%; }
+
+.category-tag {
+    color: var(--brand-hi);
+    background: var(--brand-wash);
+    border-color: transparent;
+    font-weight: 600;
+}
+
+@media (max-width: 960px) {
+    .sidebar { margin: 10px 12px 0; border-radius: 20px; }
+    header h1 { font-size: 32px; }
+}
 
 @media (max-width: 960px) {
 
