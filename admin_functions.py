@@ -173,6 +173,24 @@ def get_low_stock_products(threshold=3):
     connection.close()
     return products
 
+def get_dead_listings():
+    """Approved products with nothing left in stock. They still show up
+    in the shop, so a buyer can open one and find it unbuyable -- an
+    admin should restock or unlist them."""
+
+    connection = get_connection()
+    cursor = connection.cursor()
+
+    cursor.execute("""
+        SELECT * FROM products
+        WHERE stock <= 0 AND LOWER(status) = 'approved'
+        ORDER BY name ASC
+    """)
+    products = [dict(row) for row in cursor.fetchall()]
+
+    connection.close()
+    return products
+
 def get_all_categories():
     """Return a sorted list of distinct category names in use."""
 
@@ -274,6 +292,50 @@ def validate_discount_code(code):
 
     connection.close()
     return row["discount_percent"] if row else None
+
+def get_all_discount_tiers():
+    """Spend thresholds and what each one earns, biggest threshold
+    first so the first tier a subtotal clears is the one that applies."""
+
+    connection = get_connection()
+    cursor = connection.cursor()
+
+    cursor.execute("SELECT * FROM discount_tiers ORDER BY min_subtotal DESC")
+    tiers = [dict(row) for row in cursor.fetchall()]
+
+    connection.close()
+    return tiers
+
+def add_discount_tier(min_subtotal, discount_percent):
+    """Create a spend tier. Returns its new id, or None if a tier
+    already exists at that threshold."""
+
+    connection = get_connection()
+    cursor = connection.cursor()
+
+    try:
+        cursor.execute("""
+            INSERT INTO discount_tiers (min_subtotal, discount_percent)
+            VALUES (?, ?)
+        """, (min_subtotal, discount_percent))
+
+        connection.commit()
+        new_id = cursor.lastrowid
+
+    except Exception:
+        new_id = None
+
+    connection.close()
+    return new_id
+
+def delete_discount_tier(tier_id):
+    connection = get_connection()
+    cursor = connection.cursor()
+
+    cursor.execute("DELETE FROM discount_tiers WHERE id = ?", (tier_id,))
+
+    connection.commit()
+    connection.close()
 
 def get_all_reviews():
     """Return every review, joined with the product name it belongs to."""
@@ -384,11 +446,56 @@ def get_order_items(order_id):
     connection.close()
     return items
 
+# Which statuses an order is allowed to move to from where it is now.
+# 'Delivered' is the end of the road: the goods are with the buyer, so
+# taking them back is a returns process rather than an status flip.
+ORDER_TRANSITIONS = {
+    "pending": {"shipped", "cancelled"},
+    "shipped": {"delivered", "cancelled"},
+    "delivered": set(),
+    "cancelled": {"pending"},
+}
+
 def update_order_status(order_id, status):
-    """Update an order's status (e.g. Pending, Shipped, Delivered, Cancelled)."""
+    """Move an order to a new status, returning True if it was applied
+    and False if that move isn't allowed from where the order is now.
+
+    Cancelling hands the items back to the seller's stock, and
+    reinstating a cancelled order takes them out again. Stock only
+    moves when the order crosses into or out of 'Cancelled', so a
+    Pending order being marked Shipped leaves stock alone."""
 
     connection = get_connection()
     cursor = connection.cursor()
+
+    cursor.execute("SELECT status FROM orders WHERE id = ?", (order_id,))
+    row = cursor.fetchone()
+
+    if row is None:
+        connection.close()
+        return False
+
+    if status.lower() not in ORDER_TRANSITIONS.get(row["status"].lower(), set()):
+        connection.close()
+        return False
+
+    was_cancelled = row["status"].lower() == "cancelled"
+    now_cancelled = status.lower() == "cancelled"
+
+    if was_cancelled != now_cancelled:
+        cursor.execute(
+            "SELECT product_id, quantity FROM order_items WHERE order_id = ?",
+            (order_id,)
+        )
+        items = [dict(item) for item in cursor.fetchall()]
+
+        direction = 1 if now_cancelled else -1
+
+        for item in items:
+            cursor.execute(
+                "UPDATE products SET stock = MAX(0, stock + ?) WHERE id = ?",
+                (direction * item["quantity"], item["product_id"])
+            )
 
     cursor.execute(
         "UPDATE orders SET status = ? WHERE id = ?",
@@ -397,6 +504,7 @@ def update_order_status(order_id, status):
 
     connection.commit()
     connection.close()
+    return True
 
 def get_sales_summary():
     """Return overall sales figures for the dashboard/reports page."""

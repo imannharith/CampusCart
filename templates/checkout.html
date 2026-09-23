@@ -21,12 +21,42 @@
 
     <h1>Checkout</h1>
 
+    <div class="promo-section">
+
+        <h2>Promo Code</h2>
+
+        <form action="{{ url_for('apply_promo') }}"
+              method="POST">
+
+            <input
+                type="text"
+                name="promo_code"
+                placeholder="Enter a promo code"
+                value="{{ promo_code or '' }}"
+            >
+
+            <button type="submit" class="promo-button">
+                Apply
+            </button>
+
+        </form>
+
+        {% if message %}
+            <p class="promo-message{% if not message_ok %} promo-message-bad{% endif %}">
+                {{ message }}
+            </p>
+        {% endif %}
+
+    </div>
+
     <div class="checkout-section">
 
         <h2>Customer Information</h2>
 
         <form action="{{ url_for('place_order') }}"
               method="POST">
+
+            <input type="hidden" name="promo_code" value="{{ promo_code or '' }}">
 
             <label for="name">
                 Full Name
@@ -105,7 +135,10 @@
                 </p>
 
                 <p>
-                    <span>Discount:</span>
+                    <span>
+                        Discount:
+                        {% if discount_percent %}({{ discount_percent }}%){% endif %}
+                    </span>
 
                     <span>
                         RM {{ "%.2f"|format(discount) }}

@@ -799,6 +799,12 @@ tbody tr:hover td { background: var(--surface-2); }
 
 .action-cell a { text-decoration: none; }
 
+.action-done {
+    font-size: 13px;
+    color: var(--text-3);
+    white-space: nowrap;
+}
+
 .view-all {
     font-size: 13px;
     font-weight: 500;

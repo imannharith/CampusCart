@@ -15,7 +15,6 @@ app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=30)
 
 # The only statuses the admin links are allowed to set.
 PRODUCT_STATUSES = {"Approved", "Pending", "Rejected", "Reported"}
-ORDER_STATUSES = {"Pending", "Shipped", "Delivered", "Cancelled"}
 
 ADMIN_ACCOUNTS = {
     "zikryman123@gmail.com": "scrypt:32768:8:1$lfJSd8WxZnbJAX6j$6f91f9a88d7409a67970259ce6276ff095810bc16cd24733ca514d155e99d76c6e71cfb2646cd17a0257080664097647ba8998330a562ec1da1465d30bf9e8bf",
@@ -184,6 +183,7 @@ def dashboard():
         approved_products=stats["approved_products"],
         total_users=database.get_user_stats()["total"],
         recent_products=recent_products,
+        dead_listings=admin.get_dead_listings(),
         chart=build_chart_days(admin.get_listings_per_day()),
     )
 
@@ -209,6 +209,7 @@ def listings():
         products=admin.get_all_products(category, status, search),
         categories=admin.get_all_categories(),
         discount_codes=admin.get_all_discount_codes(),
+        discount_tiers=admin.get_all_discount_tiers(),
         reviews=admin.get_all_reviews(),
         selected_category=category,
         selected_status=status,
@@ -313,6 +314,25 @@ def delete_discount(discount_id):
 
     return redirect(url_for("listings"))
 
+@app.route("/tiers/add", methods=["POST"])
+@admin_required
+def add_tier():
+
+    admin.add_discount_tier(
+        min_subtotal=float(request.form["min_subtotal"]),
+        discount_percent=float(request.form["discount_percent"]),
+    )
+
+    return redirect(url_for("listings"))
+
+@app.route("/tiers/delete/<int:tier_id>")
+@admin_required
+def delete_tier(tier_id):
+
+    admin.delete_discount_tier(tier_id)
+
+    return redirect(url_for("listings"))
+
 @app.route("/reviews/delete/<int:review_id>")
 @admin_required
 def delete_review(review_id):
@@ -343,10 +363,10 @@ def reports():
 @admin_required
 def update_order_status(order_id, status):
 
-    if status not in ORDER_STATUSES:
+    # False means that move isn't legal from where the order is now --
+    # delivering something that was never shipped, say.
+    if not admin.update_order_status(order_id, status):
         abort(400)
-
-    admin.update_order_status(order_id, status)
 
     return redirect(url_for("reports"))
 
@@ -408,93 +428,77 @@ def remove_from_cart(product_id):
         del cart[product_id]
     return redirect(url_for("view_cart"))
 
+def price_cart(promo_code=None):
+    """Work out what the cart costs, including any discount.
+
+    Every page that shows a price or charges one goes through here.
+    While checkout and place_order each did their own arithmetic, the
+    page could quote one total and the saved order record another."""
+
+    subtotal = sum(item["price"] * item["quantity"] for item in cart.values())
+
+    # Tiers come back biggest threshold first, so the first one the
+    # subtotal clears is the best one it qualifies for.
+    tier_percent = next(
+        (
+            tier["discount_percent"]
+            for tier in admin.get_all_discount_tiers()
+            if subtotal >= tier["min_subtotal"]
+        ),
+        0,
+    )
+
+    promo_percent = admin.validate_discount_code(promo_code) if promo_code else None
+
+    # Whichever saves the buyer more, rather than both -- stacking a code
+    # on top of a tier could discount an order down to nothing.
+    percent = max(tier_percent, promo_percent or 0)
+    discount = subtotal * (percent / 100)
+
+    return {
+        "subtotal": subtotal,
+        "discount_percent": percent,
+        "discount": discount,
+        "total": subtotal - discount,
+        "tier_percent": tier_percent,
+        "promo_percent": promo_percent,
+    }
+
 @app.route("/checkout")
 def checkout():
 
     if not cart:
         return redirect(url_for("view_cart"))
 
-    subtotal = 0
-
-    for item in cart.values():
-        subtotal += item["price"] * item["quantity"]
-
-    discount = 0
-
-    total = subtotal - discount
-
-    return render_template(
-        "checkout.html",
-        cart=cart,
-        subtotal=subtotal,
-        discount=discount,
-        total=total
-    )
+    return render_template("checkout.html", cart=cart, **price_cart())
 @app.route("/apply-promo", methods=["POST"])
 def apply_promo():
 
     if not cart:
         return redirect(url_for("view_cart"))
 
-    # Get the promo code entered by the customer
     promo_code = request.form.get("promo_code", "").strip().upper()
+    pricing = price_cart(promo_code)
 
-    # Calculate subtotal
-    subtotal = 0
+    if pricing["promo_percent"] is None:
+        message = "That code isn't valid, or it's no longer active."
 
-    for item in cart.values():
-        subtotal += item["price"] * item["quantity"]
-
-    # Default values
-    discount = 0
-    discount_percent = 0
-
-    # Connect to database
-    connection = database.get_connection()
-    cursor = connection.cursor()
-
-    # Check whether promo code exists and is active
-    cursor.execute("""
-        SELECT discount_percent
-        FROM discount_codes
-        WHERE code = ? AND active = 1
-    """, (promo_code,))
-
-    result = cursor.fetchone()
-
-    connection.close()
-
-    # If promo code is valid
-    if result:
-
-        discount_percent = result[0]
-
-        discount = subtotal * (discount_percent / 100)
-
-        total = subtotal - discount
-
+    elif pricing["promo_percent"] <= pricing["tier_percent"]:
         message = (
-            f"Promo code applied! "
-            f"You saved RM {discount:.2f}."
+            f"Your order already qualifies for {pricing['tier_percent']}% off, "
+            f"which is better than that code."
         )
 
-    # If promo code is invalid
     else:
-
-        discount = 0
-        total = subtotal
-
-        message = "Invalid or inactive promo code."
+        message = f"Promo code applied. You saved RM {pricing['discount']:.2f}."
 
     return render_template(
         "checkout.html",
         cart=cart,
-        subtotal=subtotal,
-        discount=discount,
-        discount_percent=discount_percent,
-        total=total,
         promo_code=promo_code,
-        message=message
+        message=message,
+        message_ok=pricing["promo_percent"] is not None,
+        **pricing
     )
 
 @app.route("/place-order", methods=["POST"])
@@ -513,47 +517,15 @@ def place_order():
     address = request.form["address"]
 
     # =========================================
-    # CALCULATE SUBTOTAL
+    # PRICE THE ORDER
     # =========================================
+    # Same call the checkout page made, so the buyer is charged exactly
+    # what they were shown.
 
-    subtotal = 0
+    pricing = price_cart(request.form.get("promo_code", "").strip().upper())
 
-    for item in cart.values():
-        subtotal += item["price"] * item["quantity"]
-
-    # =========================================
-    # GET PROMO CODE
-    # =========================================
-
-    promo_code = request.form.get("promo_code", "").strip().upper()
-
-    # Default discount
-    discount = 0
-
-    # =========================================
-    # CHECK PROMO CODE
-    # =========================================
-
-    if promo_code:
-
-        connection = database.get_connection()
-        cursor = connection.cursor()
-
-        cursor.execute("""
-            SELECT discount_percent
-            FROM discount_codes
-            WHERE code = ? AND active = 1
-        """, (promo_code,))
-
-        result = cursor.fetchone()
-
-        connection.close()
-
-        # Apply discount if promo code is valid
-        if result:
-            discount_percent = result[0]
-
-            discount = subtotal * (discount_percent / 100)
+    subtotal = pricing["subtotal"]
+    discount = pricing["discount"]
 
     # =========================================
     # CALCULATE FINAL TOTAL
@@ -598,6 +570,15 @@ def place_order():
             item["quantity"],
             item["price"]
         ))
+
+        # Worked out in SQL rather than read-then-write, so two orders
+        # placed at the same moment can't both read the same old stock
+        # and each write it back one lower.
+        cursor.execute("""
+            UPDATE products
+            SET stock = MAX(0, stock - ?)
+            WHERE id = ?
+        """, (item["quantity"], product_id))
 
     # Save changes
     connection.commit()
