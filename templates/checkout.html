@@ -63,6 +63,7 @@
                 required
             ></textarea>
 
+
             <h2>Order Summary</h2>
 
             {% for product_id, item in cart.items() %}
@@ -92,24 +93,37 @@
 
             {% endfor %}
 
+
             <div class="checkout-total">
 
                 <p>
-                    Subtotal:
-                    RM {{ "%.2f"|format(subtotal) }}
+                    <span>Subtotal:</span>
+
+                    <span>
+                        RM {{ "%.2f"|format(subtotal) }}
+                    </span>
                 </p>
 
                 <p>
-                    Discount:
-                    RM {{ "%.2f"|format(discount) }}
+                    <span>Discount:</span>
+
+                    <span>
+                        RM {{ "%.2f"|format(discount) }}
+                    </span>
                 </p>
 
-                <h2>
-                    Total:
-                    RM {{ "%.2f"|format(total) }}
-                </h2>
+                <p class="final-total">
+
+                    <span>Total:</span>
+
+                    <span>
+                        RM {{ "%.2f"|format(total) }}
+                    </span>
+
+                </p>
 
             </div>
+
 
             <button
                 type="submit"

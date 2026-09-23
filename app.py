@@ -430,30 +430,142 @@ def checkout():
         discount=discount,
         total=total
     )
-
-@app.route("/place-order", methods=["POST"])
-def place_order():
+@app.route("/apply-promo", methods=["POST"])
+def apply_promo():
 
     if not cart:
         return redirect(url_for("view_cart"))
 
+    # Get the promo code entered by the customer
+    promo_code = request.form.get("promo_code", "").strip().upper()
+
+    # Calculate subtotal
+    subtotal = 0
+
+    for item in cart.values():
+        subtotal += item["price"] * item["quantity"]
+
+    # Default values
+    discount = 0
+    discount_percent = 0
+
+    # Connect to database
+    connection = database.get_connection()
+    cursor = connection.cursor()
+
+    # Check whether promo code exists and is active
+    cursor.execute("""
+        SELECT discount_percent
+        FROM discount_codes
+        WHERE code = ? AND active = 1
+    """, (promo_code,))
+
+    result = cursor.fetchone()
+
+    connection.close()
+
+    # If promo code is valid
+    if result:
+
+        discount_percent = result[0]
+
+        discount = subtotal * (discount_percent / 100)
+
+        total = subtotal - discount
+
+        message = (
+            f"Promo code applied! "
+            f"You saved RM {discount:.2f}."
+        )
+
+    # If promo code is invalid
+    else:
+
+        discount = 0
+        total = subtotal
+
+        message = "Invalid or inactive promo code."
+
+    return render_template(
+        "checkout.html",
+        cart=cart,
+        subtotal=subtotal,
+        discount=discount,
+        discount_percent=discount_percent,
+        total=total,
+        promo_code=promo_code,
+        message=message
+    )
+
+@app.route("/place-order", methods=["POST"])
+def place_order():
+
+    # Make sure the cart is not empty
+    if not cart:
+        return redirect(url_for("view_cart"))
+
+    # Temporary user ID
     user_id = 1
 
+    # Get customer information
     name = request.form["name"]
     phone = request.form["phone"]
     address = request.form["address"]
+
+    # =========================================
+    # CALCULATE SUBTOTAL
+    # =========================================
 
     subtotal = 0
 
     for item in cart.values():
         subtotal += item["price"] * item["quantity"]
 
+    # =========================================
+    # GET PROMO CODE
+    # =========================================
+
+    promo_code = request.form.get("promo_code", "").strip().upper()
+
+    # Default discount
     discount = 0
+
+    # =========================================
+    # CHECK PROMO CODE
+    # =========================================
+
+    if promo_code:
+
+        connection = database.get_connection()
+        cursor = connection.cursor()
+
+        cursor.execute("""
+            SELECT discount_percent
+            FROM discount_codes
+            WHERE code = ? AND active = 1
+        """, (promo_code,))
+
+        result = cursor.fetchone()
+
+        connection.close()
+
+        # Apply discount if promo code is valid
+        if result:
+            discount_percent = result[0]
+
+            discount = subtotal * (discount_percent / 100)
+
+    # =========================================
+    # CALCULATE FINAL TOTAL
+    # =========================================
 
     total = subtotal - discount
 
-    connection = database.get_connection()
+    # =========================================
+    # SAVE ORDER
+    # =========================================
 
+    connection = database.get_connection()
     cursor = connection.cursor()
 
     cursor.execute("""
@@ -470,6 +582,10 @@ def place_order():
 
     order_id = cursor.lastrowid
 
+    # =========================================
+    # SAVE ORDER ITEMS
+    # =========================================
+
     for product_id, item in cart.items():
 
         cursor.execute("""
@@ -483,10 +599,19 @@ def place_order():
             item["price"]
         ))
 
+    # Save changes
     connection.commit()
     connection.close()
 
+    # =========================================
+    # CLEAR CART
+    # =========================================
+
     cart.clear()
+
+    # =========================================
+    # SHOW ORDER CONFIRMATION
+    # =========================================
 
     return render_template(
         "order_confirmation.html",
