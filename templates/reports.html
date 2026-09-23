@@ -191,9 +191,17 @@
                             </span>
                         </td>
                         <td class="action-cell">
-                            <a href="{{ url_for('update_order_status', order_id=order.id, status='Shipped') }}" class="view-btn">Ship</a>
-                            <a href="{{ url_for('update_order_status', order_id=order.id, status='Delivered') }}" class="approve-btn">Deliver</a>
-                            <a href="{{ url_for('update_order_status', order_id=order.id, status='Cancelled') }}" class="reject-btn">Cancel</a>
+                            {% if order.status == 'Pending' %}
+                                <a href="{{ url_for('update_order_status', order_id=order.id, status='Shipped') }}" class="view-btn">Ship</a>
+                                <a href="{{ url_for('update_order_status', order_id=order.id, status='Cancelled') }}" class="reject-btn">Cancel</a>
+                            {% elif order.status == 'Shipped' %}
+                                <a href="{{ url_for('update_order_status', order_id=order.id, status='Delivered') }}" class="approve-btn">Deliver</a>
+                                <a href="{{ url_for('update_order_status', order_id=order.id, status='Cancelled') }}" class="reject-btn">Cancel</a>
+                            {% elif order.status == 'Cancelled' %}
+                                <a href="{{ url_for('update_order_status', order_id=order.id, status='Pending') }}" class="view-btn">Reinstate</a>
+                            {% else %}
+                                <span class="action-done">Completed</span>
+                            {% endif %}
                         </td>
                     </tr>
                     {% else %}

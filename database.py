@@ -108,15 +108,27 @@ def check_reachable(timeout=8):
             f"could not reach {url} within {timeout}s ({error})"
         ) from error
 
-def schema_exists():
+EXPECTED_TABLES = {
+    "cart", "orders", "order_items",
+    "discount_codes", "discount_tiers", "products", "reviews", "users",
+}
+
+def missing_tables():
+    """Which of the app's tables aren't in the database yet.
+
+    Asks for the whole table list in one query rather than checking a
+    single table and assuming the rest followed. A database that has
+    some tables but not others would otherwise look finished, and the
+    missing ones would never get created."""
+
     connection = get_connection()
     cursor = connection.cursor()
-    cursor.execute(
-        "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'users'"
-    )
-    found = cursor.fetchone() is not None
+
+    cursor.execute("SELECT name FROM sqlite_master WHERE type = 'table'")
+    present = {row["name"] for row in cursor.fetchall()}
+
     connection.close()
-    return found
+    return EXPECTED_TABLES - present
 
 def ensure_ready(timeout=20):
     """One query on a database that's already set up.
@@ -132,7 +144,7 @@ def ensure_ready(timeout=20):
 
     def work():
         try:
-            if not schema_exists():
+            if missing_tables():
                 init_db()
                 seed_sample_data()
             outcome["ready"] = True
@@ -194,6 +206,16 @@ def init_db():
     )
     """)
 
+    # Spend-based discounts. min_subtotal is unique so two tiers can't
+    # claim the same threshold and leave which one applies to chance.
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS discount_tiers (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        min_subtotal REAL UNIQUE NOT NULL,
+        discount_percent REAL NOT NULL
+    )
+    """)
+
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS products (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -230,6 +252,16 @@ def init_db():
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
     """)
+
+    # Starting tiers, so a new or repaired database has working spend
+    # discounts rather than none at all. Only filled when the table is
+    # empty -- an admin removing every tier is a choice, not a gap.
+    cursor.execute("SELECT COUNT(*) AS total FROM discount_tiers")
+    if cursor.fetchone()["total"] == 0:
+        cursor.execute("""
+            INSERT INTO discount_tiers (min_subtotal, discount_percent)
+            VALUES (50, 5), (100, 10), (200, 15)
+        """)
 
     connection.commit()
     connection.close()

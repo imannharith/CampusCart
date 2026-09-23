@@ -365,6 +365,51 @@
 
         <div class="panel-title">
             <div>
+                <h3>Discount Tiers</h3>
+                <p>Automatic discounts, based on how much a student spends.</p>
+            </div>
+        </div>
+
+        <form method="POST" action="{{ url_for('add_tier') }}" class="filters">
+            <input type="number" step="0.01" min="0" name="min_subtotal" placeholder="Spend at least (RM)" required>
+            <input type="number" step="0.01" min="0" max="100" name="discount_percent" placeholder="Discount %" required>
+            <button type="submit">Add Tier</button>
+        </form>
+
+        <div class="table-container" style="margin-top: 16px;">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Spend at least</th>
+                        <th>Discount</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for t in discount_tiers %}
+                    <tr>
+                        <td><strong>RM {{ "%.2f"|format(t.min_subtotal) }}</strong></td>
+                        <td>{{ t.discount_percent }}%</td>
+                        <td class="action-cell">
+                            <a href="{{ url_for('delete_tier', tier_id=t.id) }}" class="reject-btn"
+                               onclick="return confirm('Delete this tier?');">
+                                Delete
+                            </a>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="3">No spend tiers yet — only promo codes will apply.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+    </section>
+
+    <section class="panel">
+
+        <div class="panel-title">
+            <div>
                 <h3>Product Reviews</h3>
                 <p>Moderate student reviews.</p>
             </div>
