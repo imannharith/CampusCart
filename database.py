@@ -110,7 +110,7 @@ def check_reachable(timeout=8):
 
 EXPECTED_TABLES = {
     "cart", "orders", "order_items",
-    "discount_codes", "discount_tiers", "products", "reviews", "users",
+    "discount_tiers", "products", "reviews", "users",
 }
 
 def missing_tables():
@@ -194,15 +194,6 @@ def init_db():
         product_id INTEGER NOT NULL,
         quantity INTEGER NOT NULL,
         price REAL NOT NULL
-    )
-    """)
-
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS discount_codes (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        code TEXT UNIQUE NOT NULL,
-        discount_percent REAL NOT NULL,
-        active INTEGER NOT NULL DEFAULT 1
     )
     """)
 
@@ -358,11 +349,6 @@ def seed_sample_data():
         INSERT INTO products (name, seller, category, price, stock, status)
         VALUES (?, ?, ?, ?, ?, ?)
     """, sample_products)
-
-    cursor.execute("""
-        INSERT INTO discount_codes (code, discount_percent, active)
-        VALUES ('WELCOME10', 10, 1), ('STUDENT20', 20, 1)
-    """)
 
     cursor.execute("""
         INSERT INTO reviews (product_id, reviewer, rating, comment)

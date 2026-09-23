@@ -162,21 +162,22 @@ Both now call `price_cart()`, which returns the subtotal, the discount
 and the total together. Because the quote and the charge come from the
 same call, they cannot drift apart.
 
-It also decides the discount:
+It also decides the discount, from the **spend tiers** in the
+`discount_tiers` table: by default RM50 earns 5% off, RM100 earns 10%,
+RM200 earns 15%. Tiers are read biggest-threshold-first, so an order
+gets the best one it qualifies for.
 
-- **Tiers** — RM50 gets 5% off, RM100 gets 10%, RM200 gets 15%. Fixed
-  percentages, so the same basket always costs the same. A random
-  discount would have meant the page showing one price and the saved
-  order recording another, since the two calls would roll separately.
-- **Promo codes** are looked up through
-  `admin_functions.validate_discount_code()`, which already existed but
-  had never been called. The same query had been written out twice more
-  by hand; now it lives in one place.
-- **A code and a tier don't stack.** The buyer gets whichever is worth
-  more. Stacking them could take an order close to nothing, and it
-  makes the final price hard to explain. If someone's tier already
-  beats the code they typed, checkout says so rather than silently
-  ignoring it.
+The percentages are fixed rather than randomised. A random discount
+would have meant the page showing one price and the saved order
+recording another, because `checkout()` and `place_order()` each call
+the pricing function separately and would roll different numbers.
+
+Nothing here is hardcoded — the tiers are rows an admin manages on
+`/listings`, so changing what a discount is worth needs no code change.
+
+Promo codes were removed from the project; the buyer-facing redemption
+was taken out, so the admin panel for managing codes went with it
+rather than being left as a page that configured nothing.
 
 ## Repairing a half-built database
 
@@ -214,8 +215,7 @@ query on a normal start.
    `/orders` both hardcode `user_id = 1`, left over from before login
    existed, so every order belongs to the same user.
 
-4. **Nothing stops a code being reused.** A student can redeem the same
-   code on every order they place. Limiting that needs either a usage
-   count on `discount_codes` or a record of which accounts have already
-   used which code — and the latter depends on orders being linked to
-   real accounts first (3 above).
+4. **`discount_codes` still exists in the database.** The app no longer
+   creates or reads it, but the table and its rows were left in place
+   rather than dropped from a database the whole team shares. It can go
+   whenever everyone agrees it should.

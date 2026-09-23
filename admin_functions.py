@@ -3,7 +3,7 @@ Admin & Management Functions
 -----------------------------
 Python functions backing the admin dashboard, product management,
 and order management pages: products, categories, stock, discount
-codes, reviews, and sales information.
+tiers, reviews, and sales information.
 
 Every function opens its own short-lived connection via
 database.get_connection() and closes it before returning, which
@@ -220,78 +220,6 @@ def rename_category(old_name, new_name):
 
     connection.close()
     return updated
-
-def get_all_discount_codes():
-    connection = get_connection()
-    cursor = connection.cursor()
-
-    cursor.execute("SELECT * FROM discount_codes ORDER BY id DESC")
-    codes = [dict(row) for row in cursor.fetchall()]
-
-    connection.close()
-    return codes
-
-def add_discount_code(code, discount_percent, active=True):
-    """Create a new discount code. Returns its new id, or None if the
-    code already exists (codes must be unique)."""
-
-    connection = get_connection()
-    cursor = connection.cursor()
-
-    try:
-        cursor.execute("""
-            INSERT INTO discount_codes (code, discount_percent, active)
-            VALUES (?, ?, ?)
-        """, (code.upper().strip(), discount_percent, int(active)))
-
-        connection.commit()
-        new_id = cursor.lastrowid
-
-    except Exception:
-        new_id = None
-
-    connection.close()
-    return new_id
-
-def toggle_discount_code(discount_id):
-    """Flip a discount code between active and inactive."""
-
-    connection = get_connection()
-    cursor = connection.cursor()
-
-    cursor.execute(
-        "UPDATE discount_codes SET active = 1 - active WHERE id = ?",
-        (discount_id,)
-    )
-
-    connection.commit()
-    connection.close()
-
-def delete_discount_code(discount_id):
-    connection = get_connection()
-    cursor = connection.cursor()
-
-    cursor.execute("DELETE FROM discount_codes WHERE id = ?", (discount_id,))
-
-    connection.commit()
-    connection.close()
-
-def validate_discount_code(code):
-    """Return the discount percent for an active code, or None if the
-    code doesn't exist or isn't active. Used when applying a code at
-    checkout."""
-
-    connection = get_connection()
-    cursor = connection.cursor()
-
-    cursor.execute(
-        "SELECT discount_percent FROM discount_codes WHERE code = ? AND active = 1",
-        (code.upper().strip(),)
-    )
-    row = cursor.fetchone()
-
-    connection.close()
-    return row["discount_percent"] if row else None
 
 def get_all_discount_tiers():
     """Spend thresholds and what each one earns, biggest threshold

@@ -208,7 +208,6 @@ def listings():
         "listings.html",
         products=admin.get_all_products(category, status, search),
         categories=admin.get_all_categories(),
-        discount_codes=admin.get_all_discount_codes(),
         discount_tiers=admin.get_all_discount_tiers(),
         reviews=admin.get_all_reviews(),
         selected_category=category,
@@ -284,33 +283,6 @@ def rename_category():
         request.form["old_name"],
         request.form["new_name"],
     )
-
-    return redirect(url_for("listings"))
-
-@app.route("/discounts/add", methods=["POST"])
-@admin_required
-def add_discount():
-
-    admin.add_discount_code(
-        code=request.form["code"],
-        discount_percent=float(request.form["discount_percent"]),
-    )
-
-    return redirect(url_for("listings"))
-
-@app.route("/discounts/toggle/<int:discount_id>")
-@admin_required
-def toggle_discount(discount_id):
-
-    admin.toggle_discount_code(discount_id)
-
-    return redirect(url_for("listings"))
-
-@app.route("/discounts/delete/<int:discount_id>")
-@admin_required
-def delete_discount(discount_id):
-
-    admin.delete_discount_code(discount_id)
 
     return redirect(url_for("listings"))
 
@@ -428,7 +400,7 @@ def remove_from_cart(product_id):
         del cart[product_id]
     return redirect(url_for("view_cart"))
 
-def price_cart(promo_code=None):
+def price_cart():
     """Work out what the cart costs, including any discount.
 
     Every page that shows a price or charges one goes through here.
@@ -439,7 +411,7 @@ def price_cart(promo_code=None):
 
     # Tiers come back biggest threshold first, so the first one the
     # subtotal clears is the best one it qualifies for.
-    tier_percent = next(
+    percent = next(
         (
             tier["discount_percent"]
             for tier in admin.get_all_discount_tiers()
@@ -448,11 +420,6 @@ def price_cart(promo_code=None):
         0,
     )
 
-    promo_percent = admin.validate_discount_code(promo_code) if promo_code else None
-
-    # Whichever saves the buyer more, rather than both -- stacking a code
-    # on top of a tier could discount an order down to nothing.
-    percent = max(tier_percent, promo_percent or 0)
     discount = subtotal * (percent / 100)
 
     return {
@@ -460,8 +427,6 @@ def price_cart(promo_code=None):
         "discount_percent": percent,
         "discount": discount,
         "total": subtotal - discount,
-        "tier_percent": tier_percent,
-        "promo_percent": promo_percent,
     }
 
 @app.route("/checkout")
@@ -471,35 +436,6 @@ def checkout():
         return redirect(url_for("view_cart"))
 
     return render_template("checkout.html", cart=cart, **price_cart())
-@app.route("/apply-promo", methods=["POST"])
-def apply_promo():
-
-    if not cart:
-        return redirect(url_for("view_cart"))
-
-    promo_code = request.form.get("promo_code", "").strip().upper()
-    pricing = price_cart(promo_code)
-
-    if pricing["promo_percent"] is None:
-        message = "That code isn't valid, or it's no longer active."
-
-    elif pricing["promo_percent"] <= pricing["tier_percent"]:
-        message = (
-            f"Your order already qualifies for {pricing['tier_percent']}% off, "
-            f"which is better than that code."
-        )
-
-    else:
-        message = f"Promo code applied. You saved RM {pricing['discount']:.2f}."
-
-    return render_template(
-        "checkout.html",
-        cart=cart,
-        promo_code=promo_code,
-        message=message,
-        message_ok=pricing["promo_percent"] is not None,
-        **pricing
-    )
 
 @app.route("/place-order", methods=["POST"])
 def place_order():
@@ -522,7 +458,7 @@ def place_order():
     # Same call the checkout page made, so the buyer is charged exactly
     # what they were shown.
 
-    pricing = price_cart(request.form.get("promo_code", "").strip().upper())
+    pricing = price_cart()
 
     subtotal = pricing["subtotal"]
     discount = pricing["discount"]

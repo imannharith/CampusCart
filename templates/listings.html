@@ -311,60 +311,6 @@
 
         <div class="panel-title">
             <div>
-                <h3>Discount Codes</h3>
-                <p>Create and manage promotional codes.</p>
-            </div>
-        </div>
-
-        <form method="POST" action="{{ url_for('add_discount') }}" class="filters">
-            <input type="text" name="code" placeholder="CODE (e.g. SAVE10)" required>
-            <input type="number" step="0.01" name="discount_percent" placeholder="Discount %" required>
-            <button type="submit">Add Code</button>
-        </form>
-
-        <div class="table-container" style="margin-top: 16px;">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Code</th>
-                        <th>Discount</th>
-                        <th>Status</th>
-                        <th>Action</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for d in discount_codes %}
-                    <tr>
-                        <td><strong>{{ d.code }}</strong></td>
-                        <td>{{ d.discount_percent }}%</td>
-                        <td>
-                            <span class="status {{ 'approved' if d.active else 'reported' }}">
-                                {{ 'Active' if d.active else 'Inactive' }}
-                            </span>
-                        </td>
-                        <td class="action-cell">
-                            <a href="{{ url_for('toggle_discount', discount_id=d.id) }}" class="view-btn">
-                                {{ 'Deactivate' if d.active else 'Activate' }}
-                            </a>
-                            <a href="{{ url_for('delete_discount', discount_id=d.id) }}" class="reject-btn"
-                               onclick="return confirm('Delete this code?');">
-                                Delete
-                            </a>
-                        </td>
-                    </tr>
-                    {% else %}
-                    <tr><td colspan="4">No discount codes yet.</td></tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-
-    </section>
-
-    <section class="panel">
-
-        <div class="panel-title">
-            <div>
                 <h3>Discount Tiers</h3>
                 <p>Automatic discounts, based on how much a student spends.</p>
             </div>
@@ -398,7 +344,7 @@
                         </td>
                     </tr>
                     {% else %}
-                    <tr><td colspan="3">No spend tiers yet — only promo codes will apply.</td></tr>
+                    <tr><td colspan="3">No spend tiers yet — no discounts will apply.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
