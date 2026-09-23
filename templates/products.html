@@ -9,19 +9,18 @@
 <body>
 
     <header class="navbar">
-        <div class="logo">
-            <a href="/" style="text-decoration: none; color: inherit;">Campus<span>Cart</span></a>
-        </div>
-        <div class="nav-links">
+        <a href="/" class="logo">Campus<span>Cart</span></a>
+        <nav class="nav-links">
             <a href="/">Home</a>
             <a href="/products" class="active">Products</a>
-            <a href="/cart" class="cart-icon">🛒 Cart</a>
-            <a href="/profile" class="profile-icon">👤 Me</a>
-            <a href="/logout">Logout</a>
-        </div>
+            <a href="/cart">Cart</a>
+            <a href="/my-shop">My Shop</a>
+            <a href="/profile">Profile</a>
+            <a href="/logout">Log out</a>
+        </nav>
     </header>
 
-    <main class="container listing-container">
+    <main class="container shop-layout">
         
         <aside class="sidebar">
             <h3>Filter & Search</h3>
@@ -29,26 +28,26 @@
             <form action="/products" method="GET">
                 <div class="filter-group">
                     <label for="search">Search Keywords</label>
-                    <input type="text" id="search" name="search" placeholder="Search product name...">
+                    <input type="text" id="search" name="search" placeholder="Search product name..."
+                           value="{{ search }}">
                 </div>
 
                 <div class="filter-group">
                     <label for="category">Category</label>
                     <select id="category" name="category">
-                        <option value="all">All Categories</option>
-                        <option value="books">Books & Notes</option>
-                        <option value="electronics">Electronics & Gadgets</option>
-                        <option value="fashion">Apparel & Fashion</option>
-                        <option value="accessories">Room & Study Accessories</option>
+                        <option value="all" {% if selected_category == 'all' %}selected{% endif %}>All Categories</option>
+                        {% for cat in categories %}
+                        <option value="{{ cat }}" {% if selected_category == cat %}selected{% endif %}>{{ cat | capitalize }}</option>
+                        {% endfor %}
                     </select>
                 </div>
 
                 <div class="filter-group">
                     <label for="sort">Sort By Price</label>
                     <select id="sort" name="sort">
-                        <option value="default">Default</option>
-                        <option value="low-high">Price: Low to High</option>
-                        <option value="high-low">Price: High to Low</option>
+                        <option value="default" {% if sort == 'default' %}selected{% endif %}>Default</option>
+                        <option value="low-high" {% if sort == 'low-high' %}selected{% endif %}>Price: Low to High</option>
+                        <option value="high-low" {% if sort == 'high-low' %}selected{% endif %}>Price: High to Low</option>
                     </select>
                 </div>
 
@@ -63,14 +62,25 @@
                 {% if products %}
                     {% for product in products %}
                     <div class="product-card">
-                        <img src="{{ product.image }}" alt="{{ product.name }}">
+                        {% if product.image_url %}
+                        <img src="{{ product.image_url }}" alt="{{ product.name }}">
+                        {% else %}
+                        <div class="no-image">No photo</div>
+                        {% endif %}
                         <div class="product-info">
                             <span class="category-tag">{{ product.category | capitalize }}</span>
                             <h3>{{ product.name }}</h3>
                             <p class="price">RM {{ "%.2f"|format(product.price) }}</p>
                             <p class="stock">Stock: {{ product.stock }} units</p>
-                            <p class="rating">⭐ {{ product.rating }} / 5.0</p>
+                            <p class="seller">Sold by {{ product.seller }}</p>
+                            {% if product.description %}
+                            <p class="description">{{ product.description }}</p>
+                            {% endif %}
+                            {% if product.stock > 0 %}
                             <a href="/add-to-cart/{{ product.id }}" class="btn-view-details">Add to Cart</a>
+                            {% else %}
+                            <span class="btn-view-details sold-out">Sold out</span>
+                            {% endif %}
                         </div>
                     </div>
                     {% endfor %}

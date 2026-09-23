@@ -4,33 +4,38 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>My Profile - CampusCart</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='shopping.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='logo.svg') }}">
 </head>
 <body>
 
-    <header>
-        <div class="logo">
-            <a href="/">Campus<span>Cart</span></a>
-        </div>
+    <header class="navbar">
+        <a href="/" class="logo">Campus<span>Cart</span></a>
         <nav class="nav-links">
             <a href="/">Home</a>
             <a href="/products">Products</a>
-            <a href="/cart">🛒 Cart</a>
-            <a href="/profile"><b>👤 Me</b></a>
-            <a href="/logout">Logout</a>
+            <a href="/cart">Cart</a>
+            <a href="/my-shop">My Shop</a>
+            <a href="/profile" class="active">Profile</a>
+            <a href="/logout">Log out</a>
         </nav>
     </header>
 
     <main class="container">
-        <h1>User Profile</h1>
 
-        <div class="profile-tabs" style="margin-bottom: 20px;">
-            <button onclick="showTab('details')">My Details</button>
-            <button onclick="showTab('selling')">Selling (Request to Sell)</button>
-            <button onclick="showTab('buying')">Buying History</button>
+        <div class="page-head">
+            <div>
+                <h1>My Profile</h1>
+                <p>Your details, your listings, and what you've bought.</p>
+            </div>
+            <a href="/my-shop" class="btn-primary">Go to My Shop</a>
         </div>
 
-        <hr>
+        <div class="profile-tabs">
+            <button class="active" onclick="showTab('details')">My Details</button>
+            <button onclick="showTab('selling')">Sell an Item</button>
+            <button onclick="showTab('buying')">Buying History</button>
+        </div>
 
         <section id="tab-details" class="tab-content">
             <h2>Personal Information</h2>
@@ -143,12 +148,17 @@
 
     <script>
         function showTab(tabName) {
-            
+
             document.getElementById('tab-details').style.display = 'none';
             document.getElementById('tab-selling').style.display = 'none';
             document.getElementById('tab-buying').style.display = 'none';
 
             document.getElementById('tab-' + tabName).style.display = 'block';
+
+            // Move the highlight onto whichever tab was just clicked.
+            document.querySelectorAll('.profile-tabs button')
+                    .forEach(button => button.classList.remove('active'));
+            event.currentTarget.classList.add('active');
         }
     </script>
 

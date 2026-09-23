@@ -513,6 +513,55 @@ def get_listings_per_day(days=7):
     connection.close()
     return rows
 
+def get_seller_orders(seller):
+    """What this seller has sold, newest first.
+
+    Returns order *lines*, not orders. One order can hold items from
+    several sellers, so a seller is shown their own items and the state
+    of the order each belongs to -- never anybody else's items."""
+
+    connection = get_connection()
+    cursor = connection.cursor()
+
+    cursor.execute("""
+        SELECT
+            order_items.id,
+            order_items.order_id,
+            order_items.quantity,
+            order_items.price,
+            products.name       AS product_name,
+            products.image_url  AS image_url,
+            orders.status       AS order_status,
+            orders.order_date   AS order_date
+        FROM order_items
+        JOIN products ON products.id = order_items.product_id
+        JOIN orders   ON orders.id   = order_items.order_id
+        WHERE products.seller = ?
+        ORDER BY orders.order_date DESC
+    """, (seller,))
+    lines = [dict(row) for row in cursor.fetchall()]
+
+    connection.close()
+    return lines
+
+def get_seller_summary(seller):
+    """Headline figures for a seller's own dashboard."""
+
+    listings = get_all_products(seller=seller)
+    lines = get_seller_orders(seller)
+
+    live = [p for p in listings if p["status"] == "Approved"]
+    sold = [line for line in lines if line["order_status"].lower() != "cancelled"]
+
+    return {
+        "listings": len(listings),
+        "live": len(live),
+        "awaiting_review": len([p for p in listings if p["status"] == "Pending"]),
+        "sold_out": len([p for p in live if p["stock"] <= 0]),
+        "units_sold": sum(line["quantity"] for line in sold),
+        "earned": round(sum(line["quantity"] * line["price"] for line in sold), 2),
+    }
+
 def get_seller_activity():
     """One row per seller: what they have listed, and where their sold
     items have got to.

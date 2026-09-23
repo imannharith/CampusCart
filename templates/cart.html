@@ -11,15 +11,37 @@
     <title>Shopping Cart - CampusCart</title>
 
     <link rel="stylesheet"
-          href="{{ url_for('static', filename='shopping.css') }}">
+          href="{{ url_for('static', filename='style.css') }}">
+
+    <link rel="icon" type="image/svg+xml"
+          href="{{ url_for('static', filename='logo.svg') }}">
 
 </head>
 
 <body>
 
+<header class="navbar">
+    <a href="/" class="logo">Campus<span>Cart</span></a>
+    <nav class="nav-links">
+        <a href="/">Home</a>
+        <a href="/products">Products</a>
+        <a href="/cart" class="active">Cart</a>
+        <a href="/my-shop">My Shop</a>
+        <a href="/profile">Profile</a>
+        <a href="/logout">Log out</a>
+    </nav>
+</header>
+
 <div class="container">
 
-    <h1>🛒 Shopping Cart</h1>
+    <div class="page-head">
+        <div>
+            <h1>Shopping Cart</h1>
+            <p>Review your items before checking out.</p>
+        </div>
+    </div>
+
+    <div class="panel">
 
     {% if cart %}
 
@@ -104,24 +126,21 @@
 
     {% else %}
 
-        <div class="empty-cart">
+        <div class="empty">
 
-            <h2>Your cart is empty</h2>
+            <strong>Your cart is empty</strong>
 
-            <p>
-                Add products to your shopping cart.
+            <span>Browse the marketplace and add something to get started.</span>
+
+            <p style="margin-top: 16px;">
+                <a href="/products" class="btn-primary">Browse products</a>
             </p>
-
-            <a href="/"
-               class="button">
-
-                Continue Shopping
-
-            </a>
 
         </div>
 
     {% endif %}
+
+    </div>
 
 </div>
 

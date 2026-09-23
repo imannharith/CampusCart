@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CampusCart | My Shop</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='logo.svg') }}">
+</head>
+
+<body>
+
+<header class="navbar">
+    <a href="/" class="logo">Campus<span>Cart</span></a>
+
+    <nav class="nav-links">
+        <a href="/">Home</a>
+        <a href="/products">Products</a>
+        <a href="/cart">Cart</a>
+        <a href="/my-shop" class="active">My Shop</a>
+        <a href="/profile">Profile</a>
+        <a href="/logout">Log out</a>
+    </nav>
+</header>
+
+<main class="container">
+
+    <div class="page-head">
+        <div>
+            <h1>My Shop</h1>
+            <p>Everything you're selling, and everything you've sold.</p>
+        </div>
+        <a href="/profile" class="btn-primary">List an item</a>
+    </div>
+
+    <section class="stats">
+        <div class="stat">
+            <p>Live listings</p>
+            <h2>{{ summary.live }}</h2>
+        </div>
+        <div class="stat">
+            <p>Awaiting review</p>
+            <h2>{{ summary.awaiting_review }}</h2>
+        </div>
+        <div class="stat">
+            <p>Units sold</p>
+            <h2>{{ summary.units_sold }}</h2>
+        </div>
+        <div class="stat">
+            <p>Earned</p>
+            <h2>RM {{ "%.2f"|format(summary.earned) }}</h2>
+        </div>
+    </section>
+
+    {% if summary.sold_out %}
+    <p class="note">
+        {{ summary.sold_out }} of your live listing(s) have sold out. Restock
+        them below, or they'll keep showing in the shop as unavailable.
+    </p>
+    {% endif %}
+
+    <section class="panel">
+
+        <h2>My Listings</h2>
+        <p>New items stay hidden from shoppers until an admin approves them.</p>
+
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th></th>
+                        <th>Item</th>
+                        <th>Category</th>
+                        <th>Price</th>
+                        <th>Stock</th>
+                        <th>Status</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in listings %}
+                    <tr>
+                        <td>
+                            {% if item.image_url %}
+                            <img class="thumb" src="{{ item.image_url }}" alt="{{ item.name }}">
+                            {% else %}
+                            <span class="thumb"></span>
+                            {% endif %}
+                        </td>
+                        <td><strong>{{ item.name }}</strong></td>
+                        <td>{{ item.category }}</td>
+                        <td>RM {{ "%.2f"|format(item.price) }}</td>
+                        <td>
+                            <span class="stock-cell">
+                                <a class="stock-btn" href="{{ url_for('seller_adjust_stock', product_id=item.id, action='decrease') }}">&minus;</a>
+                                <span>{{ item.stock }}</span>
+                                <a class="stock-btn" href="{{ url_for('seller_adjust_stock', product_id=item.id, action='increase') }}">+</a>
+                            </span>
+                        </td>
+                        <td>
+                            <span class="status {{ item.status|lower }}">{{ item.status }}</span>
+                        </td>
+                        <td>
+                            <form method="POST"
+                                  action="{{ url_for('seller_delete_listing', product_id=item.id) }}"
+                                  onsubmit="return confirm('Remove this listing?');">
+                                <button type="submit" class="remove-button">Remove</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="7">
+                            <div class="empty">
+                                <strong>Nothing listed yet</strong>
+                                <span>Head to your profile to put your first item up for sale.</span>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+    </section>
+
+    <section class="panel">
+
+        <h2>My Sales</h2>
+        <p>Items of yours that people have bought.</p>
+
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Order</th>
+                        <th>Item</th>
+                        <th>Qty</th>
+                        <th>Earned</th>
+                        <th>Date</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for line in sales %}
+                    <tr>
+                        <td><strong>#{{ line.order_id }}</strong></td>
+                        <td>{{ line.product_name }}</td>
+                        <td>{{ line.quantity }}</td>
+                        <td>RM {{ "%.2f"|format(line.quantity * line.price) }}</td>
+                        <td>{{ line.order_date }}</td>
+                        <td>
+                            <span class="status {{ line.order_status|lower }}">{{ line.order_status }}</span>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="6">
+                            <div class="empty">
+                                <strong>No sales yet</strong>
+                                <span>Sales appear here once someone buys one of your items.</span>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% if sales %}
+        <p class="note" style="margin: 18px 0 0;">
+            Order status is set by an admin. An order can hold items from
+            several sellers, so it isn't yours alone to change.
+        </p>
+        {% endif %}
+
+    </section>
+
+</main>
+
+</body>
+</html>
