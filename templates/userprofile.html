@@ -46,7 +46,8 @@
             <h2>Sell an Item on CampusCart</h2>
             <p><i>Note: Your item will be marked as <b>"Pending Admin Approval"</b> before it appears on the products page.</i></p>
             
-            <form action="/request-sell" method="POST">
+            <!-- EDITED: Added enctype for file upload -->
+            <form action="/request-sell" method="POST" enctype="multipart/form-data">
                 
                 <div style="margin-bottom: 10px;">
                     <label for="product_name">Product Name:</label><br>
@@ -78,9 +79,10 @@
                     <textarea id="description" name="description" rows="4" placeholder="Describe condition of item, meetup location, etc." required></textarea>
                 </div>
 
+                <!-- EDITED: Changed from URL input to file upload button -->
                 <div style="margin-bottom: 15px;">
-                    <label for="image_url">Product Image URL:</label><br>
-                    <input type="url" id="image_url" name="image_url" placeholder="https://images.unsplash.com/..." required>
+                    <label for="image_file">Product Image:</label><br>
+                    <input type="file" id="image_file" name="image_file" accept="image/*" required>
                 </div>
 
                 <button type="submit">Submit Request for Approval</button>
