@@ -111,10 +111,19 @@ def set_product_status(product_id, status):
     connection = get_connection()
     cursor = connection.cursor()
 
-    cursor.execute(
-        "UPDATE products SET status = ? WHERE id = ?",
-        (status, product_id)
-    )
+    # Stamp the moment it was reported, so the admin can see whether a
+    # flag is fresh or has been sitting unattended. Cleared when the
+    # product moves to any other status.
+    if status.lower() == "reported":
+        cursor.execute(
+            "UPDATE products SET status = ?, reported_at = datetime('now') WHERE id = ?",
+            (status, product_id)
+        )
+    else:
+        cursor.execute(
+            "UPDATE products SET status = ?, reported_at = NULL WHERE id = ?",
+            (status, product_id)
+        )
 
     connection.commit()
     connection.close()
@@ -503,6 +512,55 @@ def get_listings_per_day(days=7):
 
     connection.close()
     return rows
+
+def get_seller_activity():
+    """One row per seller: what they have listed, and where their sold
+    items have got to.
+
+    Two queries rather than one. Listing counts come straight from
+    products, so they are always right. Order counts have to reach
+    products through order_items, which drops any sold item whose
+    product no longer matches a row -- so those columns read zero
+    while the storefront is still selling from the hardcoded list."""
+
+    connection = get_connection()
+    cursor = connection.cursor()
+
+    cursor.execute("""
+        SELECT
+            seller,
+            COUNT(*) AS listings,
+            SUM(CASE WHEN LOWER(status) = 'pending'  THEN 1 ELSE 0 END) AS pending,
+            SUM(CASE WHEN LOWER(status) = 'approved' THEN 1 ELSE 0 END) AS approved,
+            SUM(CASE WHEN LOWER(status) = 'reported' THEN 1 ELSE 0 END) AS reported,
+            MAX(reported_at) AS last_reported
+        FROM products
+        GROUP BY seller
+    """)
+    sellers = {row["seller"]: dict(row) for row in cursor.fetchall()}
+
+    cursor.execute("""
+        SELECT
+            products.seller,
+            SUM(CASE WHEN LOWER(orders.status) = 'pending'   THEN 1 ELSE 0 END) AS awaiting,
+            SUM(CASE WHEN LOWER(orders.status) = 'shipped'   THEN 1 ELSE 0 END) AS shipped,
+            SUM(CASE WHEN LOWER(orders.status) = 'delivered' THEN 1 ELSE 0 END) AS delivered
+        FROM order_items
+        JOIN products ON products.id = order_items.product_id
+        JOIN orders   ON orders.id   = order_items.order_id
+        GROUP BY products.seller
+    """)
+    orders_by_seller = {row["seller"]: dict(row) for row in cursor.fetchall()}
+
+    connection.close()
+
+    for name, seller in sellers.items():
+        counts = orders_by_seller.get(name, {})
+        seller["awaiting"] = counts.get("awaiting", 0)
+        seller["shipped"] = counts.get("shipped", 0)
+        seller["delivered"] = counts.get("delivered", 0)
+
+    return sorted(sellers.values(), key=lambda s: (-s["reported"], s["seller"].lower()))
 
 def get_dashboard_stats():
     """Return the summary counts shown as cards on the admin dashboard."""

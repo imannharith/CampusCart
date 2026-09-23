@@ -113,6 +113,30 @@ EXPECTED_TABLES = {
     "discount_tiers", "products", "reviews", "users",
 }
 
+def ensure_columns():
+    """Add columns introduced after a database was first created.
+
+    CREATE TABLE IF NOT EXISTS silently does nothing to a table that
+    already exists, so a new column never reaches an older database
+    through init_db(). This checks for each one and adds what's
+    missing, the column-level version of missing_tables()."""
+
+    added = []
+
+    connection = get_connection()
+    cursor = connection.cursor()
+
+    cursor.execute("PRAGMA table_info(products)")
+    columns = {row["name"] for row in cursor.fetchall()}
+
+    if "reported_at" not in columns:
+        cursor.execute("ALTER TABLE products ADD COLUMN reported_at TIMESTAMP")
+        added.append("products.reported_at")
+
+    connection.commit()
+    connection.close()
+    return added
+
 def missing_tables():
     """Which of the app's tables aren't in the database yet.
 
@@ -147,6 +171,7 @@ def ensure_ready(timeout=20):
             if missing_tables():
                 init_db()
                 seed_sample_data()
+            ensure_columns()
             outcome["ready"] = True
         except Exception as error:
             outcome["error"] = error
@@ -218,7 +243,8 @@ def init_db():
         status TEXT NOT NULL DEFAULT 'Pending',
         description TEXT,
         image_url TEXT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        reported_at TIMESTAMP
     )
     """)
 

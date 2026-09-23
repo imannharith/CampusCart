@@ -129,6 +129,59 @@
 
         <div class="panel-title">
             <div>
+                <h3>Seller Activity</h3>
+                <p>What each seller has listed, and where their sold items are.</p>
+            </div>
+        </div>
+
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Seller</th>
+                        <th>Listings</th>
+                        <th>Pending</th>
+                        <th>Approved</th>
+                        <th>Awaiting</th>
+                        <th>Shipped</th>
+                        <th>Delivered</th>
+                        <th>Reported</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for s in sellers %}
+                    <tr>
+                        <td><strong>{{ s.seller }}</strong></td>
+                        <td>{{ s.listings }}</td>
+                        <td>{{ s.pending }}</td>
+                        <td>{{ s.approved }}</td>
+                        <td>{{ s.awaiting }}</td>
+                        <td>{{ s.shipped }}</td>
+                        <td>{{ s.delivered }}</td>
+                        <td>
+                            {% if s.reported %}
+                                <span class="reported-count">{{ s.reported }}</span>
+                                {% if s.last_reported %}
+                                <small class="reported-when">{{ s.last_reported }}</small>
+                                {% endif %}
+                            {% else %}
+                                0
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="8">No sellers yet.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+    </section>
+
+    <section class="panel">
+
+        <div class="panel-title">
+            <div>
                 <h3>Filter Orders</h3>
                 <p>Filter by fulfillment status.</p>
             </div>

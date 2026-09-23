@@ -329,6 +329,7 @@ def reports():
         selected_status=status,
         sales=admin.get_sales_summary(),
         top_products=admin.get_top_selling_products(),
+        sellers=admin.get_seller_activity(),
     )
 
 @app.route("/reports/status/<int:order_id>/<status>")
