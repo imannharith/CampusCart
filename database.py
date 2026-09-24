@@ -133,6 +133,81 @@ def ensure_columns():
         cursor.execute("ALTER TABLE products ADD COLUMN reported_at TIMESTAMP")
         added.append("products.reported_at")
 
+    cursor.execute("PRAGMA table_info(orders)")
+    order_columns = {row["name"] for row in cursor.fetchall()}
+
+    if "buyer_name" not in order_columns:
+        cursor.execute("ALTER TABLE orders ADD COLUMN buyer_name TEXT")
+        added.append("orders.buyer_name")
+        # No way to recover who placed an old order -- the name was
+        # only ever shown on the confirmation page, never saved. Those
+        # rows just show as unknown from here on.
+
+    cursor.execute("PRAGMA table_info(order_items)")
+    order_item_columns = {row["name"] for row in cursor.fetchall()}
+
+    if "status" not in order_item_columns:
+        cursor.execute("ALTER TABLE order_items ADD COLUMN status TEXT NOT NULL DEFAULT 'Pending'")
+        added.append("order_items.status")
+
+        # Every line item just inherited 'Pending' from the column
+        # default, which would forget that some orders were already
+        # further along. Copy each item's starting point from its
+        # order, the last place that progress was recorded.
+        cursor.execute("""
+            UPDATE order_items
+            SET status = (SELECT status FROM orders WHERE orders.id = order_items.order_id)
+        """)
+
+    if "cancelled_at" not in order_item_columns:
+        cursor.execute("ALTER TABLE order_items ADD COLUMN cancelled_at TIMESTAMP")
+        added.append("order_items.cancelled_at")
+
+        # Anything that was already Cancelled before this column
+        # existed had no moment recorded, so the 2-day countdown for
+        # tidying it off the seller's page could never start. Give it
+        # one now rather than hiding it forever or showing it forever.
+        cursor.execute("""
+            UPDATE order_items SET cancelled_at = datetime('now')
+            WHERE LOWER(status) = 'cancelled' AND cancelled_at IS NULL
+        """)
+
+    if "product_name" not in order_item_columns:
+        cursor.execute("ALTER TABLE order_items ADD COLUMN product_name TEXT")
+        added.append("order_items.product_name")
+
+        # A price was already captured at the moment of purchase, on
+        # the reasoning that a later price change shouldn't rewrite a
+        # past order. The name needs the same treatment for the same
+        # reason -- otherwise a deleted product's past sales read as
+        # 'Deleted product' instead of what was actually bought. Copy
+        # it from products now, while the link between them still
+        # exists, for every order placed before this column did.
+        cursor.execute("""
+            UPDATE order_items
+            SET product_name = (
+                SELECT name FROM products WHERE products.id = order_items.product_id
+            )
+            WHERE product_name IS NULL
+        """)
+
+    if "seller" not in order_item_columns:
+        cursor.execute("ALTER TABLE order_items ADD COLUMN seller TEXT")
+        added.append("order_items.seller")
+
+        # A seller's own sales list finds their items by this column
+        # rather than joining to products, so a deleted product can't
+        # make a past sale disappear from the seller's own history.
+        # Backfilled the same way as product_name, while the link to
+        # the product still exists.
+        cursor.execute("""
+            UPDATE order_items
+            SET seller = (
+                SELECT seller FROM products WHERE products.id = order_items.product_id
+            )
+            WHERE seller IS NULL
+        """)
+
     connection.commit()
     connection.close()
     return added
@@ -208,7 +283,8 @@ def init_db():
         discount REAL NOT NULL DEFAULT 0,
         total REAL NOT NULL,
         status TEXT NOT NULL DEFAULT 'Pending',
-        order_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        order_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        buyer_name TEXT
     )
     """)
 
@@ -218,7 +294,11 @@ def init_db():
         order_id INTEGER NOT NULL,
         product_id INTEGER NOT NULL,
         quantity INTEGER NOT NULL,
-        price REAL NOT NULL
+        price REAL NOT NULL,
+        status TEXT NOT NULL DEFAULT 'Pending',
+        cancelled_at TIMESTAMP,
+        product_name TEXT,
+        seller TEXT
     )
     """)
 

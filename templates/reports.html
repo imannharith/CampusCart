@@ -89,39 +89,78 @@
             </div>
         </div>
 
-    </section>
-
-    <section class="panel">
-
-        <div class="panel-title">
+        <div class="card">
+            <span class="icon purple">%</span>
             <div>
-                <h3>Top Selling Products</h3>
-                <p>Ranked by units sold.</p>
+                <p>CampusCart Revenue</p>
+                <h2>RM {{ "%.2f"|format(platform.commission_earned) }}</h2>
+                <small>{{ platform.commission_percent }}% of every sale</small>
             </div>
         </div>
 
-        <div class="table-container">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Product</th>
-                        <th>Units Sold</th>
-                        <th>Revenue</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for p in top_products %}
-                    <tr>
-                        <td><strong>{{ p.name }}</strong></td>
-                        <td>{{ p.units_sold }}</td>
-                        <td>RM {{ "%.2f"|format(p.revenue) }}</td>
-                    </tr>
-                    {% else %}
-                    <tr><td colspan="3">No sales yet.</td></tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+    </section>
+
+    <section class="board">
+
+        <div class="panel panel-highlight">
+
+            <div class="panel-title">
+                <div>
+                    <h3>Top Selling Products</h3>
+                    <p>Ranked by units sold.</p>
+                </div>
+            </div>
+
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Product</th>
+                            <th>Units Sold</th>
+                            <th>Revenue</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for p in top_products %}
+                        <tr>
+                            <td><strong>{{ p.name }}</strong></td>
+                            <td>{{ p.units_sold }}</td>
+                            <td>RM {{ "%.2f"|format(p.revenue) }}</td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="3">No sales yet.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
         </div>
+
+        <aside class="panel">
+
+            <div class="panel-title">
+                <div>
+                    <h3>Sold out</h3>
+                    <p>Approved, but nothing left in stock</p>
+                </div>
+            </div>
+
+            {% for product in dead_listings %}
+            <a class="action" href="{{ url_for('listings', edit=product.id) }}">
+                <div>
+                    <strong>{{ product.name }}</strong>
+                    <small>{{ product.seller }} &middot; {{ product.category }}</small>
+                </div>
+                <span>&rarr;</span>
+            </a>
+            {% else %}
+            <div class="empty-state">
+                <strong>Nothing sold out</strong>
+                <span>Every approved listing still has stock.</span>
+            </div>
+            {% endfor %}
+
+        </aside>
 
     </section>
 
@@ -189,11 +228,9 @@
 
         <form method="GET" action="{{ url_for('reports') }}" class="filters" style="grid-template-columns: 1fr auto;">
             <select name="status">
-                <option value="all" {% if selected_status == 'all' %}selected{% endif %}>All Status</option>
-                <option value="Pending" {% if selected_status == 'Pending' %}selected{% endif %}>Pending</option>
-                <option value="Shipped" {% if selected_status == 'Shipped' %}selected{% endif %}>Shipped</option>
-                <option value="Delivered" {% if selected_status == 'Delivered' %}selected{% endif %}>Delivered</option>
-                <option value="Cancelled" {% if selected_status == 'Cancelled' %}selected{% endif %}>Cancelled</option>
+                <option value="all" {% if selected_status == 'all' %}selected{% endif %}>All Orders</option>
+                <option value="Pending" {% if selected_status == 'Pending' %}selected{% endif %}>Normal</option>
+                <option value="Cancelled" {% if selected_status == 'Cancelled' %}selected{% endif %}>Cancelled by Admin</option>
             </select>
             <button type="submit">Filter</button>
         </form>
@@ -205,7 +242,7 @@
         <div class="panel-title">
             <div>
                 <h3>Orders</h3>
-                <p>{{ orders|length }} order(s) found.</p>
+                <p>Sellers ship and deliver their own items. Use Cancel here only if there's a problem with an order, like a report from a student.</p>
             </div>
         </div>
 
@@ -214,12 +251,12 @@
                 <thead>
                     <tr>
                         <th>Order #</th>
+                        <th>Buyer</th>
                         <th>Items</th>
                         <th>Subtotal</th>
                         <th>Discount</th>
                         <th>Total</th>
                         <th>Date</th>
-                        <th>Status</th>
                         <th>Action</th>
                     </tr>
                 </thead>
@@ -227,9 +264,13 @@
                     {% for order in orders %}
                     <tr>
                         <td><strong>#{{ order.id }}</strong></td>
+                        <td>{{ order.buyer_name or 'Unknown' }}</td>
                         <td>
                             {% for item in order.line_items %}
-                                {{ item.product_name or 'Deleted product' }} &times;{{ item.quantity }}{% if not loop.last %}, {% endif %}
+                                <div>
+                                    {{ item.product_name or 'Item removed' }} &times;{{ item.quantity }}
+                                    <span class="status {{ item.status|lower }}">{{ item.status }}</span>
+                                </div>
                             {% else %}
                                 No items
                             {% endfor %}
@@ -238,22 +279,14 @@
                         <td>RM {{ "%.2f"|format(order.discount) }}</td>
                         <td>RM {{ "%.2f"|format(order.total) }}</td>
                         <td>{{ order.order_date }}</td>
-                        <td>
-                            <span class="status {{ order.status|lower }}">
-                                {{ order.status }}
-                            </span>
-                        </td>
                         <td class="action-cell">
-                            {% if order.status == 'Pending' %}
-                                <a href="{{ url_for('update_order_status', order_id=order.id, status='Shipped') }}" class="view-btn">Ship</a>
-                                <a href="{{ url_for('update_order_status', order_id=order.id, status='Cancelled') }}" class="reject-btn">Cancel</a>
-                            {% elif order.status == 'Shipped' %}
-                                <a href="{{ url_for('update_order_status', order_id=order.id, status='Delivered') }}" class="approve-btn">Deliver</a>
-                                <a href="{{ url_for('update_order_status', order_id=order.id, status='Cancelled') }}" class="reject-btn">Cancel</a>
-                            {% elif order.status == 'Cancelled' %}
-                                <a href="{{ url_for('update_order_status', order_id=order.id, status='Pending') }}" class="view-btn">Reinstate</a>
+                            {% if order.status == 'Cancelled' %}
+                                <a href="{{ url_for('admin_reinstate_order', order_id=order.id) }}" class="view-btn">Reinstate</a>
                             {% else %}
-                                <span class="action-done">Completed</span>
+                                <a href="{{ url_for('admin_cancel_order', order_id=order.id) }}" class="reject-btn"
+                                   onclick="return confirm('Cancel this order? Only do this if there\'s a problem, like a report -- sellers normally handle their own orders.');">
+                                    Cancel Order
+                                </a>
                             {% endif %}
                         </td>
                     </tr>

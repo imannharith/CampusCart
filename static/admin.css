@@ -476,6 +476,16 @@ header h1 {
     box-shadow: var(--shadow), inset 0 0 0 1px var(--hairline);
 }
 
+/* A panel that reads as blue at a glance without inverting text
+   colour -- the table inside stays on the normal dark-on-light
+   scheme, only the panel chrome around it picks up the brand tint. */
+.panel-highlight {
+    background: var(--brand-wash);
+    box-shadow: var(--shadow), inset 0 0 0 1px var(--brand-line);
+}
+
+.panel-highlight .panel-title h3 { color: var(--brand-hi); }
+
 .panel-title {
     display: flex;
     justify-content: space-between;
