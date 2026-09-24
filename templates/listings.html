@@ -256,6 +256,12 @@
                             </a>
                             {% endif %}
 
+                            {% if product.status != 'Reported' %}
+                            <a href="{{ url_for('change_product_status', product_id=product.id, status='Reported') }}" class="reject-btn">
+                                Report
+                            </a>
+                            {% endif %}
+
                             <a href="{{ url_for('delete_product', product_id=product.id) }}" class="reject-btn"
                                onclick="return confirm('Delete this product?');">
                                 Delete
