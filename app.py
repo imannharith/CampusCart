@@ -183,7 +183,6 @@ def dashboard():
         approved_products=stats["approved_products"],
         total_users=database.get_user_stats()["total"],
         recent_products=recent_products,
-        dead_listings=admin.get_dead_listings(),
         chart=build_chart_days(admin.get_listings_per_day()),
     )
 
@@ -330,18 +329,31 @@ def reports():
         sales=admin.get_sales_summary(),
         top_products=admin.get_top_selling_products(),
         sellers=admin.get_seller_activity(),
+        platform=admin.get_platform_revenue(),
+        dead_listings=admin.get_dead_listings(),
     )
 
-@app.route("/reports/status/<int:order_id>/<status>")
+@app.route("/reports/cancel/<int:order_id>")
 @admin_required
-def update_order_status(order_id, status):
+def admin_cancel_order(order_id):
+    """Cancel an entire order -- only for a problem like a report, not
+    routine fulfilment. Sellers ship and deliver their own items;
+    admin only steps in when something needs overriding."""
 
-    # False means that move isn't legal from where the order is now --
-    # delivering something that was never shipped, say.
-    if not admin.update_order_status(order_id, status):
-        abort(400)
+    admin.admin_cancel_order(order_id)
 
-    return redirect(url_for("reports"))
+    # Land back on the Cancelled filter, not the unfiltered list --
+    # otherwise the page looks like nothing happened even though it
+    # did, since the dropdown resets to "All Orders" either way.
+    return redirect(url_for("reports", status="Cancelled"))
+
+@app.route("/reports/reinstate/<int:order_id>")
+@admin_required
+def admin_reinstate_order(order_id):
+
+    admin.admin_reinstate_order(order_id)
+
+    return redirect(url_for("reports", status="Pending"))
 
 @app.route("/users")
 @admin_required
@@ -481,14 +493,15 @@ def place_order():
 
     cursor.execute("""
         INSERT INTO orders
-        (user_id, subtotal, discount, total, status)
-        VALUES (?, ?, ?, ?, ?)
+        (user_id, subtotal, discount, total, status, buyer_name)
+        VALUES (?, ?, ?, ?, ?, ?)
     """, (
         user_id,
         subtotal,
         discount,
         total,
-        "Pending"
+        "Pending",
+        name
     ))
 
     order_id = cursor.lastrowid
@@ -499,15 +512,25 @@ def place_order():
 
     for product_id, item in cart.items():
 
+        # The product name and its seller are captured now, alongside
+        # the price, so this order still reads correctly even if the
+        # product is deleted later -- a seller's own sales history
+        # shouldn't depend on the product still existing to prove who
+        # sold it.
+        product = admin.get_product(product_id)
+        seller = product["seller"] if product else None
+
         cursor.execute("""
             INSERT INTO order_items
-            (order_id, product_id, quantity, price)
-            VALUES (?, ?, ?, ?)
+            (order_id, product_id, quantity, price, product_name, seller)
+            VALUES (?, ?, ?, ?, ?, ?)
         """, (
             order_id,
             product_id,
             item["quantity"],
-            item["price"]
+            item["price"],
+            item["name"],
+            seller
         ))
 
         # Worked out in SQL rather than read-then-write, so two orders
@@ -650,6 +673,29 @@ def seller_delete_listing(product_id):
         abort(403)
 
     admin.delete_product(product_id)
+
+    return redirect(url_for("seller_page"))
+
+@app.route("/my-shop/orders/status/<int:item_id>/<status>")
+def seller_update_order_status(item_id, status):
+    """A seller shipping or delivering one of their own sold items.
+
+    Ownership is the authorisation check: the line has to belong to a
+    product this seller listed, or anyone signed in could move any
+    seller's order by guessing an item id."""
+
+    user = current_user()
+
+    if user is None:
+        return redirect(url_for('login'))
+
+    item = admin.get_order_item(item_id)
+
+    if item is None or item["seller"] != user["fullname"]:
+        abort(403)
+
+    if not admin.update_order_item_status(item_id, status):
+        abort(400)
 
     return redirect(url_for("seller_page"))
 

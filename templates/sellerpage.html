@@ -49,6 +49,12 @@
         <div class="stat">
             <p>Earned</p>
             <h2>RM {{ "%.2f"|format(summary.earned) }}</h2>
+            {% if summary.gross_sales %}
+            <small style="display:block; margin-top:4px; color:var(--text-3);">
+                RM {{ "%.2f"|format(summary.gross_sales) }} in sales, minus
+                {{ summary.commission_percent }}% platform fee (RM {{ "%.2f"|format(summary.commission_paid) }})
+            </small>
+            {% endif %}
         </div>
     </section>
 
@@ -134,28 +140,46 @@
                 <thead>
                     <tr>
                         <th>Order</th>
+                        <th>Buyer</th>
                         <th>Item</th>
                         <th>Qty</th>
-                        <th>Earned</th>
+                        <th>Sale Amount</th>
                         <th>Date</th>
                         <th>Status</th>
+                        <th>Action</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for line in sales %}
                     <tr>
                         <td><strong>#{{ line.order_id }}</strong></td>
-                        <td>{{ line.product_name }}</td>
+                        <td>{{ line.buyer_name or 'Unknown' }}</td>
+                        <td>{{ line.product_name or 'Item removed' }}</td>
                         <td>{{ line.quantity }}</td>
-                        <td>RM {{ "%.2f"|format(line.quantity * line.price) }}</td>
+                        <td>RM {{ "%.2f"|format(line.actual_amount) }}</td>
                         <td>{{ line.order_date }}</td>
                         <td>
-                            <span class="status {{ line.order_status|lower }}">{{ line.order_status }}</span>
+                            <span class="status {{ line.status|lower }}">{{ line.status }}</span>
+                        </td>
+                        <td class="action-cell">
+                            {% if line.status == 'Pending' %}
+                                <a class="btn-ship" href="{{ url_for('seller_update_order_status', item_id=line.id, status='Shipped') }}">Mark Shipped</a>
+                                <a class="btn-cancel" href="{{ url_for('seller_update_order_status', item_id=line.id, status='Cancelled') }}"
+                                   onclick="return confirm('Cancel this sale? It will go back into your stock.');">Cancel</a>
+                            {% elif line.status == 'Shipped' %}
+                                <a class="btn-deliver" href="{{ url_for('seller_update_order_status', item_id=line.id, status='Delivered') }}">Mark Delivered</a>
+                                <a class="btn-cancel" href="{{ url_for('seller_update_order_status', item_id=line.id, status='Cancelled') }}"
+                                   onclick="return confirm('Cancel this sale? It will go back into your stock.');">Cancel</a>
+                            {% elif line.status == 'Cancelled' %}
+                                <a class="btn-reinstate" href="{{ url_for('seller_update_order_status', item_id=line.id, status='Pending') }}">Reinstate</a>
+                            {% else %}
+                                <span class="action-done">Completed</span>
+                            {% endif %}
                         </td>
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="6">
+                        <td colspan="8">
                             <div class="empty">
                                 <strong>No sales yet</strong>
                                 <span>Sales appear here once someone buys one of your items.</span>
@@ -169,8 +193,9 @@
 
         {% if sales %}
         <p class="note" style="margin: 18px 0 0;">
-            Order status is set by an admin. An order can hold items from
-            several sellers, so it isn't yours alone to change.
+            Pack and send items yourself -- mark them Shipped once they're on
+            their way, then Delivered once the buyer has them. Admin only
+            steps in on a reported order.
         </p>
         {% endif %}
 

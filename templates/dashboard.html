@@ -139,66 +139,6 @@
 
                 </div>
 
-                <div class="panel">
-
-                    <div class="panel-title">
-                        <div>
-                            <h3>Sold out</h3>
-                            <p>Approved, but nothing left in stock</p>
-                        </div>
-                    </div>
-
-                    {% for product in dead_listings %}
-                    <a class="action" href="{{ url_for('listings', edit=product.id) }}">
-                        <div>
-                            <strong>{{ product.name }}</strong>
-                            <small>{{ product.seller }} &middot; {{ product.category }}</small>
-                        </div>
-                        <span>&rarr;</span>
-                    </a>
-                    {% else %}
-                    <div class="empty-state">
-                        <strong>Nothing sold out</strong>
-                        <span>Every approved listing still has stock.</span>
-                    </div>
-                    {% endfor %}
-
-                </div>
-
-                <div class="panel">
-
-                    <div class="panel-title">
-                        <div>
-                            <h3>Quick actions</h3>
-                        </div>
-                    </div>
-
-                    <a href="{{ url_for('listings') }}" class="action">
-                        <div>
-                            <strong>Manage listings</strong>
-                            <small>Review student products</small>
-                        </div>
-                        <span>&rarr;</span>
-                    </a>
-
-                    <a href="{{ url_for('users') }}" class="action">
-                        <div>
-                            <strong>Manage users</strong>
-                            <small>View registered accounts</small>
-                        </div>
-                        <span>&rarr;</span>
-                    </a>
-
-                    <a href="{{ url_for('reports') }}" class="action">
-                        <div>
-                            <strong>Order reports</strong>
-                            <small>View orders and sales</small>
-                        </div>
-                        <span>&rarr;</span>
-                    </a>
-
-                </div>
-
             </aside>
 
         </section>

@@ -704,6 +704,59 @@ tbody td strong { color: var(--text); font-weight: 600; }
 }
 
 /* ---------------------------------------------------------------
+   Row actions (seller-owned order fulfilment)
+   --------------------------------------------------------------- */
+
+.action-cell {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.action-cell a,
+.action-cell button {
+    display: inline-flex;
+    align-items: center;
+    padding: 5px 11px;
+    border: 0;
+    border-radius: var(--r-badge);
+    font: inherit;
+    font-size: 12.5px;
+    font-weight: 600;
+    text-decoration: none;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.btn-ship,
+.btn-reinstate {
+    background: var(--brand-wash);
+    color: var(--brand-hi);
+}
+
+.btn-ship:hover,
+.btn-reinstate:hover { background: var(--brand); color: #fff; }
+
+.btn-deliver {
+    background: var(--ok-wash);
+    color: var(--ok);
+}
+
+.btn-deliver:hover { background: var(--ok); color: #fff; }
+
+.btn-cancel {
+    background: var(--bad-wash);
+    color: var(--bad);
+}
+
+.btn-cancel:hover { background: var(--bad); color: #fff; }
+
+.action-done {
+    font-size: 12.5px;
+    color: var(--text-3);
+}
+
+/* ---------------------------------------------------------------
    Stat cards
    --------------------------------------------------------------- */
 
