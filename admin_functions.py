@@ -191,8 +191,7 @@ def get_low_stock_products(threshold=3):
 
 def get_dead_listings():
     """Approved products with nothing left in stock. They still show up
-    in the shop, so a buyer can open one and find it unbuyable -- an
-    admin should restock or unlist them."""
+    in the shop, so a buyer can open one and find it unbuyable."""
 
     connection = get_connection()
     cursor = connection.cursor()
@@ -801,13 +800,7 @@ def get_platform_revenue():
 
 def get_seller_activity():
     """One row per seller: what they have listed, and where their sold
-    items have got to.
-
-    Two queries rather than one. Listing counts come straight from
-    products, so they are always right. Order counts group by
-    order_items.seller, captured when each order was placed, rather
-    than by joining to products -- so a seller's sales history stays
-    correct even for a product that's since been deleted."""
+    items have got to."""
 
     connection = get_connection()
     cursor = connection.cursor()
