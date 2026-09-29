@@ -1,20 +1,40 @@
 """
 Admin & Management Functions
 -----------------------------
-Python functions backing the admin dashboard, product management,
-and order management pages: products, categories, stock, discount
-tiers, reviews, and sales information.
+Every database function behind the admin panel (and the seller's
+My Shop page), grouped in the same order as the admin menu:
+
+    1. Listings     2. Users     3. Reports
+    4. My Shop      5. Dashboard 6. Moderation
 
 Every function opens its own short-lived connection via
-database.get_connection() and closes it before returning, which
-keeps things simple and avoids leaving connections open between
-requests.
+get_connection() and closes it before returning, which keeps things
+simple and avoids leaving connections open between requests.
 """
 
+import database
 from database import get_connection
 
-def get_all_products(category=None, status=None, search=None, seller=None):
-    """Return products, optionally filtered by category, status, seller,
+
+def rows(sql, params=()):
+    """Run a SELECT and hand back plain dicts. Shared by every section."""
+    connection = get_connection()
+    cursor = connection.cursor()
+    cursor.execute(sql, params)
+    result = [dict(row) for row in cursor.fetchall()]
+    connection.close()
+    return result
+
+
+# ====================================================================
+# 1. LISTINGS
+# Admin > Listings page: products, approval status, stock,
+# categories, discount tiers and reviews.
+# ====================================================================
+
+
+def get_all_products(category=None, status=None, search=None, seller_id=None, available_only=False):
+    """Return products, optionally filtered by category, status, seller account ID,
     and/or a case-insensitive search on the product name."""
 
     connection = get_connection()
@@ -31,13 +51,16 @@ def get_all_products(category=None, status=None, search=None, seller=None):
         query += " AND LOWER(status) = LOWER(?)"
         params.append(status)
 
+    if available_only:
+        query += " AND NOT EXISTS (SELECT 1 FROM users WHERE users.id = products.seller_id AND account_status = 'Suspended')"
+
     if search:
         query += " AND LOWER(name) LIKE LOWER(?)"
         params.append(f"%{search}%")
 
-    if seller:
-        query += " AND seller = ?"
-        params.append(seller)
+    if seller_id is not None:
+        query += " AND seller_id = ?"
+        params.append(seller_id)
 
     query += " ORDER BY id DESC"
 
@@ -46,6 +69,7 @@ def get_all_products(category=None, status=None, search=None, seller=None):
 
     connection.close()
     return products
+
 
 def get_product(product_id):
     """Return a single product as a dict, or None if not found."""
@@ -59,8 +83,9 @@ def get_product(product_id):
     connection.close()
     return dict(row) if row else None
 
+
 def add_product(name, seller, category, price, stock, status="Pending",
-                description=None, image_url=None):
+                description=None, image_url=None, seller_id=None):
     """Insert a new product and return its new id."""
 
     connection = get_connection()
@@ -68,9 +93,9 @@ def add_product(name, seller, category, price, stock, status="Pending",
 
     cursor.execute("""
         INSERT INTO products (name, seller, category, price, stock, status,
-                              description, image_url, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
-    """, (name, seller, category, price, stock, status, description, image_url))
+                              description, image_url, seller_id, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+    """, (name, seller, category, price, stock, status, description, image_url, seller_id))
 
     connection.commit()
     new_id = cursor.lastrowid
@@ -78,20 +103,27 @@ def add_product(name, seller, category, price, stock, status="Pending",
     connection.close()
     return new_id
 
-def update_product(product_id, name, seller, category, price, stock):
+
+def update_product(product_id, name, seller_id, category, price, stock):
     """Update a product's core details."""
 
     connection = get_connection()
     cursor = connection.cursor()
 
+    if seller_id is not None:
+        cursor.execute('SELECT id FROM users WHERE id = ?', (seller_id,))
+        if cursor.fetchone() is None:
+            connection.close()
+            raise ValueError('Seller account does not exist.')
     cursor.execute("""
-        UPDATE products
-        SET name = ?, seller = ?, category = ?, price = ?, stock = ?
-        WHERE id = ?
-    """, (name, seller, category, price, stock, product_id))
+        UPDATE products SET seller_id = ?,
+            seller = COALESCE((SELECT fullname FROM users WHERE id = ?), seller),
+            name = ?, category = ?, price = ?, stock = ? WHERE id = ?
+    """, (seller_id, seller_id, name, category, price, stock, product_id))
 
     connection.commit()
     connection.close()
+
 
 def delete_product(product_id):
     """Delete a product and its reviews.
@@ -110,6 +142,7 @@ def delete_product(product_id):
 
     connection.commit()
     connection.close()
+
 
 def set_product_status(product_id, status):
     """Approve, reject, or flag a product as reported.
@@ -135,6 +168,7 @@ def set_product_status(product_id, status):
     connection.commit()
     connection.close()
 
+
 def update_stock(product_id, new_stock):
     """Directly set a product's stock level."""
 
@@ -148,6 +182,7 @@ def update_stock(product_id, new_stock):
 
     connection.commit()
     connection.close()
+
 
 def adjust_stock(product_id, amount):
     """Increase (positive amount) or decrease (negative amount) stock,
@@ -174,6 +209,7 @@ def adjust_stock(product_id, amount):
     connection.close()
     return new_stock
 
+
 def get_low_stock_products(threshold=3):
     """Return products at or below a stock threshold, for restock alerts."""
 
@@ -189,22 +225,6 @@ def get_low_stock_products(threshold=3):
     connection.close()
     return products
 
-def get_dead_listings():
-    """Approved products with nothing left in stock. They still show up
-    in the shop, so a buyer can open one and find it unbuyable."""
-
-    connection = get_connection()
-    cursor = connection.cursor()
-
-    cursor.execute("""
-        SELECT * FROM products
-        WHERE stock <= 0 AND LOWER(status) = 'approved'
-        ORDER BY name ASC
-    """)
-    products = [dict(row) for row in cursor.fetchall()]
-
-    connection.close()
-    return products
 
 def get_all_categories():
     """Return a sorted list of distinct category names in use."""
@@ -217,6 +237,7 @@ def get_all_categories():
 
     connection.close()
     return categories
+
 
 def rename_category(old_name, new_name):
     """Rename a category across every product that uses it.
@@ -236,6 +257,7 @@ def rename_category(old_name, new_name):
     connection.close()
     return updated
 
+
 def get_all_discount_tiers():
     """Spend thresholds and what each one earns, biggest threshold
     first so the first tier a subtotal clears is the one that applies."""
@@ -248,6 +270,7 @@ def get_all_discount_tiers():
 
     connection.close()
     return tiers
+
 
 def add_discount_tier(min_subtotal, discount_percent):
     """Create a spend tier. Returns its new id, or None if a tier
@@ -271,6 +294,7 @@ def add_discount_tier(min_subtotal, discount_percent):
     connection.close()
     return new_id
 
+
 def delete_discount_tier(tier_id):
     connection = get_connection()
     cursor = connection.cursor()
@@ -279,6 +303,7 @@ def delete_discount_tier(tier_id):
 
     connection.commit()
     connection.close()
+
 
 def get_all_reviews():
     """Return every review, joined with the product name it belongs to."""
@@ -297,6 +322,7 @@ def get_all_reviews():
     connection.close()
     return reviews
 
+
 def get_reviews_for_product(product_id):
     connection = get_connection()
     cursor = connection.cursor()
@@ -309,6 +335,7 @@ def get_reviews_for_product(product_id):
 
     connection.close()
     return reviews
+
 
 def add_review(product_id, reviewer, rating, comment=""):
     connection = get_connection()
@@ -325,6 +352,7 @@ def add_review(product_id, reviewer, rating, comment=""):
     connection.close()
     return new_id
 
+
 def delete_review(review_id):
     connection = get_connection()
     cursor = connection.cursor()
@@ -333,6 +361,7 @@ def delete_review(review_id):
 
     connection.commit()
     connection.close()
+
 
 def get_average_rating(product_id):
     """Return the average rating for a product, rounded to 1 decimal,
@@ -353,6 +382,42 @@ def get_average_rating(product_id):
         return None
     return round(row["avg_rating"], 1)
 
+
+# ====================================================================
+# 2. USERS
+# Admin > Users page: one account's full record, and suspending
+# or reactivating it (every change is logged with a reason).
+# ====================================================================
+
+
+def user_details(user_id):
+    users = rows('SELECT id, fullname, email, role, created_at, account_status FROM users WHERE id = ?', (user_id,))
+    if not users:
+        return None
+    return dict(user=users[0],
+                listings=rows('SELECT * FROM products WHERE seller_id = ? ORDER BY id DESC', (user_id,)),
+                orders=rows('SELECT * FROM orders WHERE user_id = ? AND account_linked = 1 ORDER BY id DESC', (user_id,)),
+                reports=rows('SELECT * FROM listing_reports WHERE seller_id = ? OR reporter_id = ? ORDER BY id DESC', (user_id, user_id)),
+                history=rows('SELECT * FROM account_actions WHERE user_id = ? ORDER BY id DESC', (user_id,)))
+
+
+def change_account(user_id, action, reason, actor):
+    state = {'Suspend': 'Suspended', 'Reactivate': 'Active'}[action]
+    database.atomic([
+        ('''INSERT INTO account_actions (user_id, action, reason, admin_email)
+            SELECT id, ?, ?, ? FROM users WHERE id = ? AND account_status != ?''',
+         [action, reason, actor, user_id, state]),
+        ('UPDATE users SET account_status = ? WHERE id = ?', [state, user_id]),
+    ])
+
+
+# ====================================================================
+# 3. REPORTS
+# Admin > Reports page: orders, sales numbers, platform revenue
+# and what each seller is doing.
+# ====================================================================
+
+
 def get_all_orders(status=None):
     """Return orders, optionally filtered by status, newest first."""
 
@@ -371,6 +436,7 @@ def get_all_orders(status=None):
 
     connection.close()
     return orders
+
 
 def get_order_items(order_id):
     """Return the line items for a single order.
@@ -403,6 +469,265 @@ def get_order_items(order_id):
     connection.close()
     return items
 
+
+def admin_cancel_order(order_id):
+    """Cancel every still-outstanding line in an order -- an admin's
+    response to a problem like a report, not routine fulfilment.
+
+    Only Pending or Shipped lines are touched. A Delivered item is
+    already in the buyer's hands, so cancelling the order must not
+    hand its stock back as if it were still on the shelf; reversing a
+    completed handover is a returns process, not this. Returns True if
+    anything was cancelled."""
+
+    connection = get_connection()
+    cursor = connection.cursor()
+
+    cursor.execute(
+        "SELECT id, status, product_id, quantity FROM order_items WHERE order_id = ?",
+        (order_id,)
+    )
+    items = [dict(row) for row in cursor.fetchall()]
+
+    if not items:
+        connection.close()
+        return False
+
+    changed = False
+
+    for item in items:
+        if item["status"].lower() in ("pending", "shipped"):
+            cursor.execute(
+                "UPDATE products SET stock = MAX(0, stock + ?) WHERE id = ?",
+                (item["quantity"], item["product_id"])
+            )
+            cursor.execute(
+                "UPDATE order_items SET status = 'Cancelled', cancelled_at = datetime('now') WHERE id = ?",
+                (item["id"],)
+            )
+            changed = True
+
+    if changed:
+        cursor.execute("UPDATE orders SET status = 'Cancelled' WHERE id = ?", (order_id,))
+
+    connection.commit()
+    connection.close()
+    return changed
+
+
+def admin_reinstate_order(order_id):
+    """Undo an admin cancellation -- puts every cancelled line in the
+    order back to Pending and takes its stock back out. Returns True
+    if anything changed."""
+
+    connection = get_connection()
+    cursor = connection.cursor()
+
+    cursor.execute(
+        "SELECT id, status, product_id, quantity FROM order_items WHERE order_id = ?",
+        (order_id,)
+    )
+    items = [dict(row) for row in cursor.fetchall()]
+
+    if not items:
+        connection.close()
+        return False
+
+    changed = False
+
+    for item in items:
+        if item["status"].lower() == "cancelled":
+            cursor.execute(
+                "UPDATE products SET stock = MAX(0, stock + ?) WHERE id = ?",
+                (-item["quantity"], item["product_id"])
+            )
+            cursor.execute(
+                "UPDATE order_items SET status = 'Pending', cancelled_at = NULL WHERE id = ?",
+                (item["id"],)
+            )
+            changed = True
+
+    cursor.execute("UPDATE orders SET status = 'Pending' WHERE id = ?", (order_id,))
+
+    connection.commit()
+    connection.close()
+    return changed
+
+
+def get_sales_summary():
+    """Return overall sales figures for the dashboard/reports page."""
+
+    connection = get_connection()
+    cursor = connection.cursor()
+
+    cursor.execute("SELECT COUNT(*) AS total_orders FROM orders")
+    total_orders = cursor.fetchone()["total_orders"]
+
+    cursor.execute(
+        "SELECT COALESCE(SUM(total), 0) AS total_revenue FROM orders "
+        "WHERE LOWER(status) != 'cancelled'"
+    )
+    total_revenue = cursor.fetchone()["total_revenue"]
+
+    cursor.execute(
+        "SELECT COALESCE(SUM(discount), 0) AS total_discount FROM orders"
+    )
+    total_discount = cursor.fetchone()["total_discount"]
+
+    avg_order_value = (total_revenue / total_orders) if total_orders else 0
+
+    connection.close()
+
+    return {
+        "total_orders": total_orders,
+        "total_revenue": round(total_revenue, 2),
+        "total_discount_given": round(total_discount, 2),
+        "average_order_value": round(avg_order_value, 2),
+    }
+
+
+def get_top_selling_products(limit=5):
+    """Return the best-selling products by total quantity sold.
+
+    Grouped by order_items.product_id with the name falling back to
+    the snapshot taken at purchase, so a deleted product's past sales
+    still count here instead of dropping out of the ranking. Cancelled
+    lines are excluded -- they were never actually sold."""
+
+    connection = get_connection()
+    cursor = connection.cursor()
+
+    cursor.execute("""
+        SELECT
+            order_items.product_id AS id,
+            COALESCE(order_items.product_name, products.name) AS name,
+            SUM(order_items.quantity) AS units_sold,
+            SUM(order_items.quantity * order_items.price) AS revenue
+        FROM order_items
+        LEFT JOIN products ON products.id = order_items.product_id
+        WHERE LOWER(order_items.status) != 'cancelled'
+        GROUP BY order_items.product_id
+        ORDER BY units_sold DESC
+        LIMIT ?
+    """, (limit,))
+    top_products = [dict(row) for row in cursor.fetchall()]
+
+    connection.close()
+    return top_products
+
+
+def get_dead_listings():
+    """Approved products with nothing left in stock. They still show up
+    in the shop, so a buyer can open one and find it unbuyable."""
+
+    connection = get_connection()
+    cursor = connection.cursor()
+
+    cursor.execute("""
+        SELECT * FROM products
+        WHERE stock <= 0 AND LOWER(status) = 'approved'
+        ORDER BY name ASC
+    """)
+    products = [dict(row) for row in cursor.fetchall()]
+
+    connection.close()
+    return products
+
+
+# CampusCart's cut of every sale, whatever the seller listed it for.
+# One number, changed in one place if the rate ever changes.
+PLATFORM_COMMISSION_PERCENT = 5
+
+
+def _actual_revenue(quantity, price, order_subtotal, order_discount):
+    """What one line actually contributed to what the buyer paid, once
+    the order's discount is shared out across every line by its slice
+    of the subtotal -- a discount code or spend tier applies to the
+    whole cart, and an order can hold items from several sellers, so
+    the saving has to be split rather than landing on whichever item
+    happens to be first."""
+
+    line_total = quantity * price
+
+    if not order_subtotal:
+        return line_total
+
+    share_of_cart = line_total / order_subtotal
+    return line_total - (share_of_cart * order_discount)
+
+
+def get_platform_revenue():
+    """CampusCart's own commission earnings across the whole
+    marketplace -- the platform's data, not any one seller's.
+
+    Based on what buyers actually paid, with each order's discount
+    shared out across its lines, not the sticker price -- otherwise
+    the commission would be charged on money a discount meant nobody
+    ever collected. Cancelled lines are excluded, since nothing was
+    actually sold."""
+
+    connection = get_connection()
+    cursor = connection.cursor()
+
+    cursor.execute("""
+        SELECT
+            order_items.quantity,
+            order_items.price,
+            orders.subtotal AS order_subtotal,
+            orders.discount AS order_discount
+        FROM order_items
+        JOIN orders ON orders.id = order_items.order_id
+        WHERE LOWER(order_items.status) != 'cancelled'
+    """)
+    rows = cursor.fetchall()
+
+    connection.close()
+
+    gross = sum(
+        _actual_revenue(row["quantity"], row["price"], row["order_subtotal"], row["order_discount"])
+        for row in rows
+    )
+    commission = round(gross * PLATFORM_COMMISSION_PERCENT / 100, 2)
+
+    return {
+        "gross_sales": round(gross, 2),
+        "commission_percent": PLATFORM_COMMISSION_PERCENT,
+        "commission_earned": commission,
+    }
+
+
+def get_seller_activity():
+    """Account-scoped activity; unlinked legacy names are explicitly separate."""
+    connection = get_connection()
+    cursor = connection.cursor()
+    sellers = {}
+    for table, fields in [
+        ('products', """COUNT(*) AS listings,
+            SUM(status = 'Pending') AS pending, SUM(status = 'Approved') AS approved,
+            SUM(status = 'Reported') AS reported, MAX(reported_at) AS last_reported"""),
+        ('order_items', """SUM(status = 'Pending') AS awaiting,
+            SUM(status = 'Shipped') AS shipped, SUM(status = 'Delivered') AS delivered"""),
+    ]:
+        cursor.execute(f"""SELECT seller_id, COALESCE(
+            (SELECT fullname FROM users WHERE id = seller_id), MAX(seller), 'Unknown seller') AS seller,
+            {fields} FROM {table} GROUP BY seller_id, CASE WHEN seller_id IS NULL THEN seller END""")
+        for row in cursor.fetchall():
+            row = dict(row)
+            key = ('account', row['seller_id']) if row['seller_id'] is not None else ('legacy', row['seller'])
+            entry = sellers.setdefault(key, dict(listings=0, pending=0, approved=0, reported=0,
+                                                 awaiting=0, shipped=0, delivered=0, last_reported=None))
+            entry.update(row)
+    connection.close()
+    return sorted(sellers.values(), key=lambda seller: (-seller['reported'], seller['seller'].lower()))
+
+
+# ====================================================================
+# 4. MY SHOP (SELLER SIDE)
+# The seller's own shop page: their sales, their earnings, and
+# moving their own order lines along (Pending > Shipped > Delivered).
+# ====================================================================
+
+
 # Which statuses an order is allowed to move to from where it is now.
 # 'Delivered' is the end of the road: the goods are with the buyer, so
 # taking them back is a returns process rather than an status flip.
@@ -417,27 +742,19 @@ ORDER_ITEM_TRANSITIONS = {
     "cancelled": {"pending"},
 }
 
+
 def get_order_item(item_id):
-    """One order line, with the product it belongs to and who sells
-    it -- what a seller-scoped route needs to check ownership before
-    letting someone touch it."""
+    """Return an order line with its original seller account ID and snapshots."""
 
     connection = get_connection()
     cursor = connection.cursor()
 
-    cursor.execute("""
-        SELECT
-            order_items.*,
-            products.seller      AS seller,
-            products.name        AS product_name
-        FROM order_items
-        JOIN products ON products.id = order_items.product_id
-        WHERE order_items.id = ?
-    """, (item_id,))
+    cursor.execute('SELECT * FROM order_items WHERE id = ?', (item_id,))
     row = cursor.fetchone()
 
     connection.close()
     return dict(row) if row else None
+
 
 def update_order_item_status(item_id, status):
     """Move one order line to a new status. Returns True if applied,
@@ -494,172 +811,15 @@ def update_order_item_status(item_id, status):
     connection.close()
     return True
 
-def admin_cancel_order(order_id):
-    """Cancel every still-outstanding line in an order -- an admin's
-    response to a problem like a report, not routine fulfilment.
 
-    Only Pending or Shipped lines are touched. A Delivered item is
-    already in the buyer's hands, so cancelling the order must not
-    hand its stock back as if it were still on the shelf; reversing a
-    completed handover is a returns process, not this. Returns True if
-    anything was cancelled."""
-
-    connection = get_connection()
-    cursor = connection.cursor()
-
-    cursor.execute(
-        "SELECT id, status, product_id, quantity FROM order_items WHERE order_id = ?",
-        (order_id,)
-    )
-    items = [dict(row) for row in cursor.fetchall()]
-
-    if not items:
-        connection.close()
-        return False
-
-    changed = False
-
-    for item in items:
-        if item["status"].lower() in ("pending", "shipped"):
-            cursor.execute(
-                "UPDATE products SET stock = MAX(0, stock + ?) WHERE id = ?",
-                (item["quantity"], item["product_id"])
-            )
-            cursor.execute(
-                "UPDATE order_items SET status = 'Cancelled', cancelled_at = datetime('now') WHERE id = ?",
-                (item["id"],)
-            )
-            changed = True
-
-    if changed:
-        cursor.execute("UPDATE orders SET status = 'Cancelled' WHERE id = ?", (order_id,))
-
-    connection.commit()
-    connection.close()
-    return changed
-
-def admin_reinstate_order(order_id):
-    """Undo an admin cancellation -- puts every cancelled line in the
-    order back to Pending and takes its stock back out. Returns True
-    if anything changed."""
-
-    connection = get_connection()
-    cursor = connection.cursor()
-
-    cursor.execute(
-        "SELECT id, status, product_id, quantity FROM order_items WHERE order_id = ?",
-        (order_id,)
-    )
-    items = [dict(row) for row in cursor.fetchall()]
-
-    if not items:
-        connection.close()
-        return False
-
-    changed = False
-
-    for item in items:
-        if item["status"].lower() == "cancelled":
-            cursor.execute(
-                "UPDATE products SET stock = MAX(0, stock + ?) WHERE id = ?",
-                (-item["quantity"], item["product_id"])
-            )
-            cursor.execute(
-                "UPDATE order_items SET status = 'Pending', cancelled_at = NULL WHERE id = ?",
-                (item["id"],)
-            )
-            changed = True
-
-    cursor.execute("UPDATE orders SET status = 'Pending' WHERE id = ?", (order_id,))
-
-    connection.commit()
-    connection.close()
-    return changed
-
-def get_sales_summary():
-    """Return overall sales figures for the dashboard/reports page."""
-
-    connection = get_connection()
-    cursor = connection.cursor()
-
-    cursor.execute("SELECT COUNT(*) AS total_orders FROM orders")
-    total_orders = cursor.fetchone()["total_orders"]
-
-    cursor.execute(
-        "SELECT COALESCE(SUM(total), 0) AS total_revenue FROM orders "
-        "WHERE LOWER(status) != 'cancelled'"
-    )
-    total_revenue = cursor.fetchone()["total_revenue"]
-
-    cursor.execute(
-        "SELECT COALESCE(SUM(discount), 0) AS total_discount FROM orders"
-    )
-    total_discount = cursor.fetchone()["total_discount"]
-
-    avg_order_value = (total_revenue / total_orders) if total_orders else 0
-
-    connection.close()
-
-    return {
-        "total_orders": total_orders,
-        "total_revenue": round(total_revenue, 2),
-        "total_discount_given": round(total_discount, 2),
-        "average_order_value": round(avg_order_value, 2),
-    }
-
-def get_top_selling_products(limit=5):
-    """Return the best-selling products by total quantity sold.
-
-    Grouped by order_items.product_id with the name falling back to
-    the snapshot taken at purchase, so a deleted product's past sales
-    still count here instead of dropping out of the ranking. Cancelled
-    lines are excluded -- they were never actually sold."""
-
-    connection = get_connection()
-    cursor = connection.cursor()
-
-    cursor.execute("""
-        SELECT
-            order_items.product_id AS id,
-            COALESCE(order_items.product_name, products.name) AS name,
-            SUM(order_items.quantity) AS units_sold,
-            SUM(order_items.quantity * order_items.price) AS revenue
-        FROM order_items
-        LEFT JOIN products ON products.id = order_items.product_id
-        WHERE LOWER(order_items.status) != 'cancelled'
-        GROUP BY order_items.product_id
-        ORDER BY units_sold DESC
-        LIMIT ?
-    """, (limit,))
-    top_products = [dict(row) for row in cursor.fetchall()]
-
-    connection.close()
-    return top_products
-
-def get_listings_per_day(days=7):
-
-    connection = get_connection()
-    cursor = connection.cursor()
-
-    cursor.execute("""
-       SELECT DATE(created_at) AS day, COUNT(*) AS listings
-       FROM products
-       WHERE created_at >= datetime('now', ?)
-       GROUP BY DATE(created_at)
-    """, (f"-{days} days",))
-    rows = [dict(row) for row in cursor.fetchall()]
-
-    connection.close()
-    return rows
-
-def get_seller_orders(seller, cancelled_max_age_days=2):
+def get_seller_orders(seller_id, cancelled_max_age_days=2):
     """What this seller has sold, newest first.
 
     Returns order *lines*, not orders. One order can hold items from
     several sellers, so a seller is shown their own items and the
     state of each -- never anybody else's.
 
-    Matched by order_items.seller, captured when the order was placed,
+    Matched by order_items.seller_id, captured when the order was placed,
     rather than by joining to products -- so a sale a seller made
     doesn't vanish from their own history just because the product was
     deleted afterwards. product_name is the same kind of snapshot.
@@ -688,14 +848,14 @@ def get_seller_orders(seller, cancelled_max_age_days=2):
         FROM order_items
         LEFT JOIN products ON products.id = order_items.product_id
         JOIN orders ON orders.id = order_items.order_id
-        WHERE order_items.seller = ?
+        WHERE order_items.seller_id = ?
           AND NOT (
               LOWER(order_items.status) = 'cancelled'
               AND order_items.cancelled_at IS NOT NULL
               AND order_items.cancelled_at < datetime('now', ?)
           )
         ORDER BY orders.order_date DESC
-    """, (seller, f"-{cancelled_max_age_days} days"))
+    """, (seller_id, f"-{cancelled_max_age_days} days"))
     lines = [dict(row) for row in cursor.fetchall()]
 
     connection.close()
@@ -708,27 +868,8 @@ def get_seller_orders(seller, cancelled_max_age_days=2):
 
     return lines
 
-# CampusCart's cut of every sale, whatever the seller listed it for.
-# One number, changed in one place if the rate ever changes.
-PLATFORM_COMMISSION_PERCENT = 5
 
-def _actual_revenue(quantity, price, order_subtotal, order_discount):
-    """What one line actually contributed to what the buyer paid, once
-    the order's discount is shared out across every line by its slice
-    of the subtotal -- a discount code or spend tier applies to the
-    whole cart, and an order can hold items from several sellers, so
-    the saving has to be split rather than landing on whichever item
-    happens to be first."""
-
-    line_total = quantity * price
-
-    if not order_subtotal:
-        return line_total
-
-    share_of_cart = line_total / order_subtotal
-    return line_total - (share_of_cart * order_discount)
-
-def get_seller_summary(seller):
+def get_seller_summary(seller_id):
     """Headline figures for a seller's own dashboard.
 
     'gross_sales' is what buyers actually paid for this seller's
@@ -738,8 +879,8 @@ def get_seller_summary(seller):
     to them, whether that's because of the platform's cut or a
     discount the buyer redeemed."""
 
-    listings = get_all_products(seller=seller)
-    lines = get_seller_orders(seller)
+    listings = get_all_products(seller_id=seller_id)
+    lines = get_seller_orders(seller_id)
 
     live = [p for p in listings if p["status"] == "Approved"]
     sold = [line for line in lines if line["status"].lower() != "cancelled"]
@@ -759,86 +900,12 @@ def get_seller_summary(seller):
         "earned": round(gross - commission, 2),
     }
 
-def get_platform_revenue():
-    """CampusCart's own commission earnings across the whole
-    marketplace -- the platform's data, not any one seller's.
 
-    Based on what buyers actually paid, with each order's discount
-    shared out across its lines, not the sticker price -- otherwise
-    the commission would be charged on money a discount meant nobody
-    ever collected. Cancelled lines are excluded, since nothing was
-    actually sold."""
+# ====================================================================
+# 5. DASHBOARD
+# Admin > Dashboard: the headline cards and the listings chart.
+# ====================================================================
 
-    connection = get_connection()
-    cursor = connection.cursor()
-
-    cursor.execute("""
-        SELECT
-            order_items.quantity,
-            order_items.price,
-            orders.subtotal AS order_subtotal,
-            orders.discount AS order_discount
-        FROM order_items
-        JOIN orders ON orders.id = order_items.order_id
-        WHERE LOWER(order_items.status) != 'cancelled'
-    """)
-    rows = cursor.fetchall()
-
-    connection.close()
-
-    gross = sum(
-        _actual_revenue(row["quantity"], row["price"], row["order_subtotal"], row["order_discount"])
-        for row in rows
-    )
-    commission = round(gross * PLATFORM_COMMISSION_PERCENT / 100, 2)
-
-    return {
-        "gross_sales": round(gross, 2),
-        "commission_percent": PLATFORM_COMMISSION_PERCENT,
-        "commission_earned": commission,
-    }
-
-def get_seller_activity():
-    """One row per seller: what they have listed, and where their sold
-    items have got to."""
-
-    connection = get_connection()
-    cursor = connection.cursor()
-
-    cursor.execute("""
-        SELECT
-            seller,
-            COUNT(*) AS listings,
-            SUM(CASE WHEN LOWER(status) = 'pending'  THEN 1 ELSE 0 END) AS pending,
-            SUM(CASE WHEN LOWER(status) = 'approved' THEN 1 ELSE 0 END) AS approved,
-            SUM(CASE WHEN LOWER(status) = 'reported' THEN 1 ELSE 0 END) AS reported,
-            MAX(reported_at) AS last_reported
-        FROM products
-        GROUP BY seller
-    """)
-    sellers = {row["seller"]: dict(row) for row in cursor.fetchall()}
-
-    cursor.execute("""
-        SELECT
-            seller,
-            SUM(CASE WHEN LOWER(status) = 'pending'   THEN 1 ELSE 0 END) AS awaiting,
-            SUM(CASE WHEN LOWER(status) = 'shipped'   THEN 1 ELSE 0 END) AS shipped,
-            SUM(CASE WHEN LOWER(status) = 'delivered' THEN 1 ELSE 0 END) AS delivered
-        FROM order_items
-        WHERE seller IS NOT NULL
-        GROUP BY seller
-    """)
-    orders_by_seller = {row["seller"]: dict(row) for row in cursor.fetchall()}
-
-    connection.close()
-
-    for name, seller in sellers.items():
-        counts = orders_by_seller.get(name, {})
-        seller["awaiting"] = counts.get("awaiting", 0)
-        seller["shipped"] = counts.get("shipped", 0)
-        seller["delivered"] = counts.get("delivered", 0)
-
-    return sorted(sellers.values(), key=lambda s: (-s["reported"], s["seller"].lower()))
 
 def get_dashboard_stats():
     """Return the summary counts shown as cards on the admin dashboard."""
@@ -872,3 +939,64 @@ def get_dashboard_stats():
         "reported_products": reported_products,
         "approved_products": approved_products,
     }
+
+
+def get_listings_per_day(days=7):
+
+    connection = get_connection()
+    cursor = connection.cursor()
+
+    cursor.execute("""
+       SELECT DATE(created_at) AS day, COUNT(*) AS listings
+       FROM products
+       WHERE created_at >= datetime('now', ?)
+       GROUP BY DATE(created_at)
+    """, (f"-{days} days",))
+    rows = [dict(row) for row in cursor.fetchall()]
+
+    connection.close()
+    return rows
+
+
+# ====================================================================
+# 6. MODERATION
+# Admin > Moderation page: students report a listing, an admin
+# removes it or dismisses the report. Also decides whether a listing
+# may be shown at all (approved, and its seller is not suspended).
+# ====================================================================
+
+
+def submit_report(product_id, reporter_id, reporter_name, reason, evidence):
+    # The first report remembers the publication state; later reports inherit it.
+    database.atomic([
+        ('''INSERT INTO listing_reports
+            (product_id, product_name, seller_id, reporter_id, reporter_name, reason, evidence, previous_status)
+            SELECT id, name, seller_id, ?, ?, ?, ?, COALESCE(
+                (SELECT previous_status FROM listing_reports WHERE product_id = products.id AND status = 'Open' ORDER BY id LIMIT 1), status)
+            FROM products WHERE id = ? AND status IN ('Approved', 'Pending', 'Reported')
+            AND NOT EXISTS (SELECT 1 FROM listing_reports WHERE product_id = products.id AND reporter_id IS ? AND status = 'Open')''',
+         [reporter_id, reporter_name, reason, evidence, product_id, reporter_id]),
+        ('''UPDATE products SET status = 'Reported', reported_at = COALESCE(reported_at, CURRENT_TIMESTAMP)
+            WHERE id = ? AND EXISTS (SELECT 1 FROM listing_reports WHERE product_id = products.id AND status = 'Open')''', [product_id]),
+    ])
+    saved = rows("SELECT id FROM listing_reports WHERE product_id = ? AND reporter_id IS ? AND status = 'Open' ORDER BY id DESC LIMIT 1",
+                 (product_id, reporter_id))
+    return saved[0]['id'] if saved else None
+
+
+def resolve_reports(product_id, decision, reason, actor):
+    # Resolve the whole listing once, including all students' open reports.
+    database.atomic([
+        ('''UPDATE products SET status = CASE WHEN ? = 'Removed' THEN 'Removed' ELSE
+                COALESCE((SELECT previous_status FROM listing_reports WHERE product_id = products.id AND status = 'Open' ORDER BY id LIMIT 1), 'Pending') END,
+            reported_at = NULL WHERE id = ? AND EXISTS
+                (SELECT 1 FROM listing_reports WHERE product_id = products.id AND status = 'Open')''', [decision, product_id]),
+        ('''UPDATE listing_reports SET status = ?, decision_reason = ?, decided_by = ?, resolved_at = CURRENT_TIMESTAMP
+            WHERE product_id = ? AND status = 'Open' ''', [decision, reason, actor, product_id]),
+    ])
+
+
+def available(product):
+    if not product or product['status'] != 'Approved':
+        return False
+    return not rows("SELECT id FROM users WHERE id = ? AND account_status = 'Suspended'", (product.get('seller_id'),))

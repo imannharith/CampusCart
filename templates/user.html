@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CampusCart - Manage Users</title>
+    <title>CampusCart - {% if detail_view %}{{ user.fullname }}{% else %}Manage Users{% endif %}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='admin.css') }}">
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='logo.svg') }}">
 </head>
@@ -19,7 +19,9 @@
         <a href="{{ url_for('dashboard') }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7.5" height="7.5" rx="1.5"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="1.5"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="1.5"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1.5"/></svg>Dashboard</a>
         <a href="{{ url_for('listings') }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 8.2 12 4l8.5 4.2v7.6L12 20l-8.5-4.2z"/><path d="m3.5 8.2 8.5 4.3 8.5-4.3M12 12.5V20"/></svg>Listings</a>
         <a href="{{ url_for('users') }}" class="active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9.5" cy="8" r="3.3"/><path d="M3.8 19.6a5.7 5.7 0 0 1 11.4 0"/><path d="M16.4 5.4a3.3 3.3 0 0 1 0 5.2M17.6 14.6a5.7 5.7 0 0 1 2.6 5"/></svg>Users</a>
-        <a href="{{ url_for('reports') }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4v16h16"/><path d="M8.4 20v-5.5M12.8 20v-9.5M17.2 20v-3.5"/></svg>Reports</a>
+            <a href="{{ url_for('reports') }}" class="{{ 'active' if request.endpoint == 'reports' else '' }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4v16h16"/><path d="M8.4 20v-5.5M12.8 20v-9.5M17.2 20v-3.5"/></svg>Reports</a>
+            <a href="{{ url_for('moderation_queue') }}" class="{{ 'active' if request.endpoint == 'moderation_queue' else '' }}"><span class="moderation-nav-icon" aria-hidden="true">!</span>Moderation</a>
+
     </nav>
 
     <div class="sidebar-bottom">
@@ -38,7 +40,28 @@
 
 </aside>
 
-<main class="main">
+<main class="main{% if detail_view %} moderation-main{% endif %}">
+
+{% if detail_view %}
+{% for message in get_flashed_messages() %}<div class="moderation-notice" role="status">{{ message }}</div>{% endfor %}
+
+<header><div><a href="{{ url_for('users') }}">← All users</a><h1>{{ user.fullname }}</h1><p class="subtitle">Account #{{ user.id }} · {{ user.email }} · Joined {{ user.created_at[:10] }}</p></div><span class="status {{ 'rejected' if user.account_status == 'Suspended' else 'approved' }}">{{ user.account_status }}</span></header>
+<section class="panel moderation-section"><h2>Account access</h2>
+<p>Suspension blocks sign-in, ends access from existing sessions, and hides this account’s linked listings from the shop. Reactivation restores access.</p>
+{% if protected or user.role == 'admin' %}<p>Administrator accounts cannot be suspended here.</p>{% else %}
+<form method="post" action="{{ url_for('user_status', user_id=user.id) }}" class="moderation-form">
+<input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+<label for="reason">Reason for {{ 'reactivation' if user.account_status == 'Suspended' else 'suspension' }}</label>
+<textarea id="reason" name="reason" required minlength="3" maxlength="1000" rows="3" placeholder="Explain this decision for the admin history."></textarea>
+<button name="action" value="{{ 'Reactivate' if user.account_status == 'Suspended' else 'Suspend' }}" class="{{ 'moderation-primary' if user.account_status == 'Suspended' else 'moderation-danger' }}">{{ 'Reactivate account' if user.account_status == 'Suspended' else 'Suspend account' }}</button>
+</form>{% endif %}</section>
+<section class="panel"><div class="panel-title"><div><h2>Listings</h2><p>Older listings are linked only when the seller name matches a single account.</p></div></div>
+<div class="table-container"><table><thead><tr><th>Listing</th><th>Status</th><th>Stock</th><th>Action</th></tr></thead><tbody>{% for item in listings %}<tr><td>{{ item.name }}</td><td>{{ item.status }}</td><td>{{ item.stock }}</td><td><a class="view-btn" href="{{ url_for('listings', view=item.id) }}">View listing</a></td></tr>{% else %}<tr><td colspan="4">No linked listings.</td></tr>{% endfor %}</tbody></table></div></section>
+<section class="panel"><div class="panel-title"><div><h2>Purchases</h2><p>Verified account-linked orders. Older orders with unverified ownership remain in sales reports.</p></div></div>
+<div class="table-container"><table><thead><tr><th>Order</th><th>Date</th><th>Total</th><th>Status</th></tr></thead><tbody>{% for order in orders %}<tr><td>#{{ order.id }}</td><td>{{ order.order_date }}</td><td>RM {{ '%.2f'|format(order.total) }}</td><td>{{ order.status }}</td></tr>{% else %}<tr><td colspan="4">No verified purchases yet.</td></tr>{% endfor %}</tbody></table></div></section>
+<section class="panel"><div class="panel-title"><h2>Reports involving this account</h2></div><div class="table-container"><table><thead><tr><th>Listing</th><th>Involvement</th><th>Reason</th><th>Status</th></tr></thead><tbody>{% for report in reports %}<tr><td><a href="{{ url_for('moderation_queue', status='All', product=report.product_id) }}">{{ report.product_name }}</a></td><td>{{ 'Submitted report' if report.reporter_id == user.id else 'Listing owner' }}</td><td>{{ report.reason }}</td><td>{{ report.status }}</td></tr>{% else %}<tr><td colspan="4">No reports involving this account.</td></tr>{% endfor %}</tbody></table></div></section>
+<section class="panel moderation-section"><h2>Account history</h2>{% for event in history %}<article class="moderation-history"><strong>{{ event.action }}</strong><p>{{ event.reason }}</p><small>{{ event.admin_email }} · {{ event.created_at }} UTC</small></article>{% else %}<p>No account actions recorded.</p>{% endfor %}</section>
+{% else %}
 
     <header>
 
@@ -65,18 +88,18 @@
         <div class="card">
             <span class="icon purple">S</span>
             <div>
-                <p>Students</p>
-                <h2>{{ user_stats.students }}</h2>
-                <small>Buying accounts</small>
+                <p>Selling</p>
+                <h2>{{ user_stats.selling }}</h2>
+                <small>Have listed at least one item</small>
             </div>
         </div>
 
         <div class="card">
             <span class="icon blue">L</span>
             <div>
-                <p>Sellers</p>
-                <h2>{{ user_stats.sellers }}</h2>
-                <small>Can list products</small>
+                <p>Suspended</p>
+                <h2>{{ user_stats.suspended }}</h2>
+                <small>Blocked from signing in</small>
             </div>
         </div>
 
@@ -122,19 +145,21 @@
             <table>
                 <thead>
                     <tr>
+                        <th>Account ID</th>
                         <th>Name</th>
                         <th>Email</th>
-                        <th>Role</th>
-                        <th>Joined</th>
+                        <th>Joined</th><th>Status</th><th>Action</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for user in users %}
                     <tr>
+                        <td><code>#{{ user.id }}</code></td>
                         <td><strong>{{ user.fullname }}</strong></td>
                         <td>{{ user.email }}</td>
-                        <td><span class="category-tag">{{ user.role|capitalize }}</span></td>
                         <td>{{ (user.created_at or '')[:10] }}</td>
+                        <td><span class="status {{ 'rejected' if user.account_status == 'Suspended' else 'approved' }}">{{ user.account_status }}</span></td>
+                        <td><a class="view-btn" href="{{ url_for('user_detail', user_id=user.id) }}">View account</a></td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -147,13 +172,14 @@
                 <span>Try a different name or email, or clear the search.</span>
             {% else %}
                 <strong>No accounts yet</strong>
-                <span>Registered students and sellers will appear here.</span>
+                <span>Registered students will appear here.</span>
             {% endif %}
         </div>
         {% endif %}
 
     </section>
 
+{% endif %}
 </main>
 
 </body>

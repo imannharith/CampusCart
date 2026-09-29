@@ -20,19 +20,36 @@
             <a href="/" class="active">Home</a>
             <a href="/products">Products</a>
             <a href="/cart">Cart</a>
-            <a href="/my-shop">My Shop</a>
+            <a href="/messages">Messages{% if unread_messages %} <span class="nav-badge" title="Unread messages">{{ unread_messages }}</span>{% endif %}</a>
+            <a href="/my-shop">My Shop{% if orders_to_ship %} <span class="nav-badge" title="Orders waiting to be shipped">{{ orders_to_ship }}</span>{% endif %}</a>
             <a href="/profile">Profile</a>
+            {% include "_bell.html" %}
             <a href="/logout">Log out</a>
         </nav>
     </header>
 
     <section class="hero">
-        <h1>Buy & Sell Campus Essentials Easily</h1>
-        <p>The dedicated platform for university students to get study gear and essentials on a budget.</p>
+        <div class="hero-copy">
+            <p class="eyebrow">Your campus, in one place</p>
+            <h1>Find useful things<br><em>from people nearby.</em></h1>
+            <p>Shop trusted student listings, clear out what you no longer need, and keep every purchase close to campus.</p>
+            <div class="hero-actions">
+                <a href="/products" class="btn-primary">Browse products</a>
+                <a href="/my-shop" class="hero-link">Sell an item <span>→</span></a>
+            </div>
+        </div>
+        <div class="hero-note">
+            <span class="hero-note-mark">✦</span>
+            <strong>Made for student life</strong>
+            <span>Books, gadgets, apparel and more.</span>
+        </div>
     </section>
 
     <main class="container">
-        <h2>Latest Products</h2>
+        <div class="section-heading">
+            <div><p class="eyebrow">Fresh on the marketplace</p><h2>Latest products</h2></div>
+            <a href="/products" class="view-all-link">View all products <span>→</span></a>
+        </div>
 
         <div class="product-grid">
 
@@ -50,10 +67,16 @@
                         <p class="price">RM {{ "%.2f"|format(product.price) }}</p>
                         <p class="stock">Stock: {{ product.stock }} units</p>
                         <p class="seller">Sold by {{ product.seller }}</p>
+                        <a href="{{ url_for('report_listing', product_id=product.id) }}">Report listing</a>
                         {% if product.description %}
                         <p class="description">{{ product.description }}</p>
                         {% endif %}
-                        {% if product.stock > 0 %}
+                        {% if product.seller_id and not (current_account and product.seller_id == current_account.id) %}
+                        <a href="{{ url_for('message_seller', product_id=product.id) }}" class="btn-message">Message seller</a>
+                        {% endif %}
+                        {% if current_account and product.seller_id == current_account.id %}
+                        <span class="btn-add-cart sold-out">Your listing</span>
+                        {% elif product.stock > 0 %}
                         <a href="/add-to-cart/{{ product.id }}" class="btn-add-cart" style="text-align:center; display:block; text-decoration:none;">Add to Cart</a>
                         {% else %}
                         <span class="btn-add-cart sold-out">Sold out</span>

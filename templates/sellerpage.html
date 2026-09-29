@@ -17,8 +17,10 @@
         <a href="/">Home</a>
         <a href="/products">Products</a>
         <a href="/cart">Cart</a>
-        <a href="/my-shop" class="active">My Shop</a>
+        <a href="/messages">Messages{% if unread_messages %} <span class="nav-badge" title="Unread messages">{{ unread_messages }}</span>{% endif %}</a>
+        <a href="/my-shop" class="active">My Shop{% if orders_to_ship %} <span class="nav-badge" title="Orders waiting to be shipped">{{ orders_to_ship }}</span>{% endif %}</a>
         <a href="/profile">Profile</a>
+        {% include "_bell.html" %}
         <a href="/logout">Log out</a>
     </nav>
 </header>
@@ -30,7 +32,7 @@
             <h1>My Shop</h1>
             <p>Everything you're selling, and everything you've sold.</p>
         </div>
-        <a href="/profile" class="btn-primary">List an item</a>
+        <a href="#sell" class="btn-primary">List an item</a>
     </div>
 
     <section class="stats">
@@ -119,7 +121,7 @@
                         <td colspan="7">
                             <div class="empty">
                                 <strong>Nothing listed yet</strong>
-                                <span>Head to your profile to put your first item up for sale.</span>
+                                <span>Use <a href="#sell">Sell an Item</a> below to put your first item up for sale.</span>
                             </div>
                         </td>
                     </tr>
@@ -127,6 +129,63 @@
                 </tbody>
             </table>
         </div>
+
+    </section>
+
+    <section class="panel" id="sell">
+
+        <h2>Sell an Item</h2>
+        <p>Your item goes to an admin for approval before it appears in the shop.</p>
+
+        {% for message in get_flashed_messages() %}
+        <p class="note">{{ message }}</p>
+        {% endfor %}
+
+        <form action="/request-sell" method="POST" enctype="multipart/form-data" class="form-grid">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+            <div class="form-row">
+                <label for="product_name">Product name</label>
+                <input type="text" id="product_name" name="product_name" maxlength="120"
+                       placeholder="e.g. Used FX-570EX Calculator" required>
+            </div>
+
+            <div class="form-row">
+                <label for="category">Category</label>
+                <select id="category" name="category" required>
+                    <option value="books">Books &amp; Notes</option>
+                    <option value="electronics">Electronics &amp; Gadgets</option>
+                    <option value="fashion">Apparel &amp; Fashion</option>
+                    <option value="accessories">Room &amp; Study Accessories</option>
+                </select>
+            </div>
+
+            <div class="form-row">
+                <label for="price">Price (RM)</label>
+                <input type="number" step="0.01" min="0.01" id="price" name="price" placeholder="50.00" required>
+            </div>
+
+            <div class="form-row">
+                <label for="stock">Quantity</label>
+                <input type="number" id="stock" name="stock" value="1" min="1" required>
+            </div>
+
+            <div class="form-row">
+                <label for="description">Description</label>
+                <textarea id="description" name="description" rows="4" maxlength="1000"
+                          placeholder="Condition of the item, what's included, etc." required></textarea>
+            </div>
+
+            <div class="form-row">
+                <label for="image_file">Photo</label>
+                <input type="file" id="image_file" name="image_file" accept=".jpg,.jpeg,.png,image/jpeg,image/png" required>
+                <small>JPG or PNG, up to 5 MB.</small>
+            </div>
+
+            <div>
+                <button type="submit" class="btn-primary">Submit for approval</button>
+            </div>
+        </form>
 
     </section>
 

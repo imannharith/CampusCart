@@ -26,8 +26,10 @@
         <a href="/">Home</a>
         <a href="/products">Products</a>
         <a href="/cart" class="active">Cart</a>
-        <a href="/my-shop">My Shop</a>
+        <a href="/messages">Messages{% if unread_messages %} <span class="nav-badge" title="Unread messages">{{ unread_messages }}</span>{% endif %}</a>
+        <a href="/my-shop">My Shop{% if orders_to_ship %} <span class="nav-badge" title="Orders waiting to be shipped">{{ orders_to_ship }}</span>{% endif %}</a>
         <a href="/profile">Profile</a>
+        {% include "_bell.html" %}
         <a href="/logout">Log out</a>
     </nav>
 </header>

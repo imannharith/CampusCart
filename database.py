@@ -129,6 +129,11 @@ def ensure_columns():
     cursor.execute("PRAGMA table_info(products)")
     columns = {row["name"] for row in cursor.fetchall()}
 
+    for column in ('removal_reason', 'removed_by', 'removed_at'):
+        if column not in columns:
+            cursor.execute(f"ALTER TABLE products ADD COLUMN {column} TEXT")
+            added.append(f"products.{column}")
+
     if "reported_at" not in columns:
         cursor.execute("ALTER TABLE products ADD COLUMN reported_at TIMESTAMP")
         added.append("products.reported_at")
@@ -210,6 +215,10 @@ def ensure_columns():
 
     connection.commit()
     connection.close()
+    ensure_moderation_schema()
+    ensure_marketplace_schema()
+    ensure_messaging_schema()
+    ensure_notifications_schema()
     return added
 
 def missing_tables():
@@ -388,7 +397,7 @@ def get_all_users(search=None):
     connection = get_connection()
     cursor = connection.cursor()
 
-    query = "SELECT id, fullname, email, role, created_at FROM users WHERE 1=1"
+    query = "SELECT id, fullname, email, role, created_at, account_status FROM users WHERE 1=1"
     params = []
 
     if search:
@@ -413,11 +422,12 @@ def get_user_stats():
     cursor.execute("SELECT COUNT(*) AS c FROM users")
     total = cursor.fetchone()["c"]
 
-    cursor.execute("SELECT COUNT(*) AS c FROM users WHERE LOWER(role) = 'student'")
-    students = cursor.fetchone()["c"]
+    # Every student can buy and sell, so "selling" means has listed something.
+    cursor.execute("SELECT COUNT(DISTINCT seller_id) AS c FROM products WHERE seller_id IS NOT NULL")
+    selling = cursor.fetchone()["c"]
 
-    cursor.execute("SELECT COUNT(*) AS c FROM users WHERE LOWER(role) = 'seller'")
-    sellers = cursor.fetchone()["c"]
+    cursor.execute("SELECT COUNT(*) AS c FROM users WHERE account_status = 'Suspended'")
+    suspended = cursor.fetchone()["c"]
 
     cursor.execute(
         "SELECT COUNT(*) AS c FROM users WHERE created_at >= datetime('now', '-7 days')"
@@ -428,8 +438,8 @@ def get_user_stats():
 
     return {
         "total": total,
-        "students": students,
-        "sellers": sellers,
+        "selling": selling,
+        "suspended": suspended,
         "this_week": this_week,
     }
 
@@ -483,7 +493,217 @@ def seed_sample_data():
     connection.commit()
     connection.close()
 
+
+
+def atomic(statements):
+    """libSQL batch executes these statements in one transaction."""
+    return _get_client().batch(statements)
+
+
+def ensure_moderation_schema():
+    connection = get_connection()
+    cursor = connection.cursor()
+    for table, column, definition in [
+        ("users", "account_status", "TEXT NOT NULL DEFAULT 'Active'"),
+        ("products", "seller_id", "INTEGER"),
+        ("orders", "account_linked", "INTEGER NOT NULL DEFAULT 0"),
+    ]:
+        cursor.execute(f"PRAGMA table_info({table})")
+        if column not in {row["name"] for row in cursor.fetchall()}:
+            cursor.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
+    cursor.execute("""CREATE TABLE IF NOT EXISTS account_actions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL,
+        action TEXT NOT NULL, reason TEXT NOT NULL, admin_email TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)""")
+    cursor.execute("""CREATE TABLE IF NOT EXISTS listing_reports (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, product_id INTEGER NOT NULL,
+        product_name TEXT NOT NULL, seller_id INTEGER, reporter_id INTEGER,
+        reporter_name TEXT NOT NULL, reason TEXT NOT NULL, evidence TEXT NOT NULL DEFAULT '',
+        previous_status TEXT NOT NULL DEFAULT 'Approved',
+        status TEXT NOT NULL DEFAULT 'Open', created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        decision_reason TEXT, decided_by TEXT, resolved_at TEXT)""")
+    cursor.execute("""CREATE UNIQUE INDEX IF NOT EXISTS one_open_report_per_user
+        ON listing_reports(product_id, reporter_id) WHERE status = 'Open'""")
+    cursor.execute("""INSERT INTO listing_reports
+        (product_id, product_name, seller_id, reporter_name, reason, previous_status, created_at)
+        SELECT id, name, seller_id, 'Unknown (legacy report)',
+        'This listing was flagged before report details were recorded.', 'Pending',
+        COALESCE(reported_at, CURRENT_TIMESTAMP) FROM products
+        WHERE status = 'Reported' AND NOT EXISTS (
+            SELECT 1 FROM listing_reports WHERE product_id = products.id)""")
+    connection.commit()
+    connection.close()
+
+
+def ensure_marketplace_schema():
+    connection = get_connection()
+    cursor = connection.cursor()
+    for table, column, definition in [
+        ('order_items', 'seller_id', 'INTEGER'),
+        ('orders', 'checkout_token', 'TEXT'),
+    ]:
+        cursor.execute(f'PRAGMA table_info({table})')
+        if column not in {row['name'] for row in cursor.fetchall()}:
+            cursor.execute(f'ALTER TABLE {table} ADD COLUMN {column} {definition}')
+    cursor.execute('CREATE UNIQUE INDEX IF NOT EXISTS order_checkout_token ON orders(checkout_token)')
+    cursor.execute('CREATE TABLE IF NOT EXISTS schema_migrations (name TEXT PRIMARY KEY)')
+    connection.commit()
+    connection.close()
+    # Backfill only once: a future signup must never claim an old listing by name.
+    atomic([
+        ("""UPDATE products SET seller_id = (SELECT id FROM users WHERE fullname = products.seller)
+            WHERE seller_id IS NULL AND (SELECT COUNT(*) FROM users WHERE fullname = products.seller) = 1
+            AND NOT EXISTS (SELECT 1 FROM schema_migrations WHERE name = 'seller_accounts_v1')""", []),
+        ("""UPDATE order_items SET seller_id = (SELECT id FROM users WHERE fullname = order_items.seller)
+            WHERE seller_id IS NULL AND (SELECT COUNT(*) FROM users WHERE fullname = order_items.seller) = 1
+            AND NOT EXISTS (SELECT 1 FROM schema_migrations WHERE name = 'seller_accounts_v1')""", []),
+        ("""UPDATE listing_reports SET seller_id = (SELECT seller_id FROM products WHERE id = listing_reports.product_id)
+            WHERE seller_id IS NULL AND NOT EXISTS (SELECT 1 FROM schema_migrations WHERE name = 'seller_accounts_v1')""", []),
+        ("INSERT OR IGNORE INTO schema_migrations(name) VALUES ('seller_accounts_v1')", []),
+        # Consolidate any legacy duplicate cart entries before adding uniqueness.
+        ("""UPDATE cart SET quantity = (SELECT SUM(MAX(other.quantity, 1)) FROM cart other
+            WHERE other.user_id = cart.user_id AND other.product_id = cart.product_id)
+            WHERE id IN (SELECT MIN(id) FROM cart GROUP BY user_id, product_id)
+            AND NOT EXISTS (SELECT 1 FROM schema_migrations WHERE name = 'account_carts_v1')""", []),
+        ("DELETE FROM cart WHERE id NOT IN (SELECT MIN(id) FROM cart GROUP BY user_id, product_id)", []),
+        ('CREATE UNIQUE INDEX IF NOT EXISTS cart_account_product ON cart(user_id, product_id)', []),
+        ("INSERT OR IGNORE INTO schema_migrations(name) VALUES ('account_carts_v1')", []),
+    ])
+
+
+def ensure_messaging_schema():
+    """Buyer-seller chat. One conversation per buyer, seller and item, so a
+    student asking about two listings from the same seller gets two threads.
+    product_name is kept on the conversation so the thread still says what
+    it was about after the listing is deleted."""
+    connection = get_connection()
+    cursor = connection.cursor()
+    cursor.execute("""CREATE TABLE IF NOT EXISTS conversations (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        buyer_id INTEGER NOT NULL,
+        seller_id INTEGER NOT NULL,
+        product_id INTEGER,
+        product_name TEXT,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        last_message_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)""")
+    cursor.execute("""CREATE UNIQUE INDEX IF NOT EXISTS one_conversation_per_item
+        ON conversations(buyer_id, seller_id, IFNULL(product_id, 0))""")
+    cursor.execute("""CREATE TABLE IF NOT EXISTS messages (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        conversation_id INTEGER NOT NULL,
+        sender_id INTEGER NOT NULL,
+        body TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        read_at TEXT)""")
+    cursor.execute('CREATE INDEX IF NOT EXISTS messages_in_conversation ON messages(conversation_id, id)')
+    connection.commit()
+    connection.close()
+
+
+def ensure_notifications_schema():
+    """The bell in the top bar. link is the page the notification opens;
+    read_at stays empty until the student has seen it."""
+    connection = get_connection()
+    cursor = connection.cursor()
+    cursor.execute("""CREATE TABLE IF NOT EXISTS notifications (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        text TEXT NOT NULL,
+        link TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        read_at TEXT)""")
+    cursor.execute('CREATE INDEX IF NOT EXISTS notifications_for_user ON notifications(user_id, id)')
+    connection.commit()
+    connection.close()
+
+
+def get_cart(user_id):
+    connection = get_connection()
+    cursor = connection.cursor()
+    cursor.execute("""SELECT cart.product_id, cart.quantity,
+        COALESCE(products.name, 'Deleted listing') AS name,
+        COALESCE(products.price, 0) AS price, products.seller, products.seller_id,
+        products.stock, products.status FROM cart LEFT JOIN products ON products.id = cart.product_id
+        WHERE cart.user_id = ? ORDER BY cart.id""", (user_id,))
+    cart = {row['product_id']: dict(row) for row in cursor.fetchall()}
+    connection.close()
+    return cart
+
+
+def remove_owned_cart_items(user_id):
+    """Remove legacy cart rows for listings owned by the current account."""
+    atomic([("""DELETE FROM cart WHERE user_id = ? AND EXISTS
+        (SELECT 1 FROM products WHERE products.id = cart.product_id AND products.seller_id = ?)""",
+        [user_id, user_id])])
+
+
+def add_cart_item(user_id, product_id, existing_only=False):
+    # A single upsert prevents two requests from losing an increment or exceeding stock.
+    atomic([("""INSERT INTO cart(user_id, product_id, quantity)
+        SELECT ?, id, 1 FROM products WHERE id = ? AND status = 'Approved' AND stock > 0
+        AND seller_id IS NOT ?
+        AND NOT EXISTS (SELECT 1 FROM users WHERE id = products.seller_id AND account_status = 'Suspended')
+        AND (? = 0 OR EXISTS (SELECT 1 FROM cart WHERE user_id = ? AND product_id = products.id))
+        ON CONFLICT(user_id, product_id) DO UPDATE SET quantity = cart.quantity + 1
+        WHERE cart.quantity < (SELECT stock FROM products WHERE id = excluded.product_id)""",
+        [user_id, product_id, user_id, int(existing_only), user_id])])
+
+
+def decrease_cart_item(user_id, product_id):
+    atomic([
+        ('UPDATE cart SET quantity = quantity - 1 WHERE user_id = ? AND product_id = ?', [user_id, product_id]),
+        ('DELETE FROM cart WHERE user_id = ? AND product_id = ? AND quantity <= 0', [user_id, product_id]),
+    ])
+
+
+def remove_cart_item(user_id, product_id):
+    atomic([('DELETE FROM cart WHERE user_id = ? AND product_id = ?', [user_id, product_id])])
+
+
+def checkout_cart(user_id, cart, pricing, buyer_name):
+    """Commit the checked cart, order, stock and cart removal as one transaction.
+
+    The first statement only creates an order if the entire snapshot still matches.
+    Every later statement depends on that order, so stale/duplicate requests do nothing.
+    """
+    from uuid import uuid4
+    token = uuid4().hex
+    guards = ['(SELECT COUNT(*) FROM cart WHERE user_id = ?) = ?',
+              "EXISTS (SELECT 1 FROM users WHERE id = ? AND account_status = 'Active')"]
+    args = [user_id, pricing['subtotal'], pricing['discount'], pricing['total'], buyer_name, token,
+            user_id, len(cart), user_id]
+    for product_id, item in cart.items():
+        guards.append("""EXISTS (SELECT 1 FROM cart c JOIN products p ON p.id = c.product_id
+            WHERE c.user_id = ? AND c.product_id = ? AND c.quantity = ? AND p.price = ?
+            AND p.seller_id IS ? AND p.name = ? AND p.seller = ?
+            AND p.status = 'Approved' AND p.stock >= c.quantity AND c.quantity > 0
+            AND p.seller_id IS NOT ?
+            AND NOT EXISTS (SELECT 1 FROM users WHERE id = p.seller_id AND account_status = 'Suspended'))""")
+        args.extend([user_id, product_id, item['quantity'], item['price'], item['seller_id'], item['name'], item['seller'], user_id])
+    if not cart:
+        return None
+    statements = [("""INSERT INTO orders (user_id, subtotal, discount, total, status, buyer_name, account_linked, checkout_token)
+        SELECT ?, ?, ?, ?, 'Pending', ?, 1, ? WHERE """ + ' AND '.join(guards), args)]
+    for product_id, item in cart.items():
+        statements.extend([
+            ("""INSERT INTO order_items (order_id, product_id, quantity, price, product_name, seller, seller_id)
+                SELECT id, ?, ?, ?, ?, ?, ? FROM orders WHERE checkout_token = ?""",
+             [product_id, item['quantity'], item['price'], item['name'], item['seller'], item['seller_id'], token]),
+            ("""UPDATE products SET stock = stock - ? WHERE id = ?
+                AND EXISTS (SELECT 1 FROM orders WHERE checkout_token = ?)""", [item['quantity'], product_id, token]),
+        ])
+    statements.append(('DELETE FROM cart WHERE user_id = ? AND EXISTS (SELECT 1 FROM orders WHERE checkout_token = ?)', [user_id, token]))
+    atomic(statements)
+    connection = get_connection()
+    cursor = connection.cursor()
+    cursor.execute('SELECT id FROM orders WHERE checkout_token = ?', (token,))
+    order = cursor.fetchone()
+    connection.close()
+    return order['id'] if order else None
+
+
 if __name__ == "__main__":
     init_db()
+    ensure_columns()
     seed_sample_data()
     print("Database created successfully!")

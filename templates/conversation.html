@@ -1,0 +1,130 @@
+{% if conversation %}
+    {% set other = conversation.seller_name if conversation.buyer_id == current_account.id else conversation.buyer_name %}
+    {% set about = conversation.product_name or 'General chat' %}
+    {% set send_to = url_for('conversation', conversation_id=conversation.id) %}
+    {% set updates = url_for('conversation_updates', conversation_id=conversation.id) %}
+{% else %}
+    {% set other = product.seller %}
+    {% set about = product.name %}
+    {% set send_to = url_for('message_seller', product_id=product.id) %}
+    {% set updates = '' %}
+{% endif %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CampusCart | Chat with {{ other }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='logo.svg') }}">
+</head>
+
+<body>
+
+<header class="navbar">
+    <a href="/" class="logo">Campus<span>Cart</span></a>
+
+    <nav class="nav-links">
+        <a href="/">Home</a>
+        <a href="/products">Products</a>
+        <a href="/cart">Cart</a>
+        <a href="/messages" class="active">Messages{% if unread_messages %} <span class="nav-badge" title="Unread messages">{{ unread_messages }}</span>{% endif %}</a>
+        <a href="/my-shop">My Shop{% if orders_to_ship %} <span class="nav-badge" title="Orders waiting to be shipped">{{ orders_to_ship }}</span>{% endif %}</a>
+        <a href="/profile">Profile</a>
+        {% include "_bell.html" %}
+        <a href="/logout">Log out</a>
+    </nav>
+</header>
+
+<main class="container chat-page">
+
+    <a class="back-link" href="/messages">&larr; All messages</a>
+
+    <section class="panel chat">
+
+        <header class="chat-head">
+            <span class="inbox-avatar">{{ other[:1] | upper }}</span>
+            <div>
+                <h1>{{ other }}</h1>
+                <p>About: {{ about }}{% if product %} &middot; RM {{ "%.2f"|format(product.price) }}{% endif %}</p>
+            </div>
+        </header>
+
+        <div class="chat-log" id="chat-log" data-updates="{{ updates }}" data-last="{{ messages[-1].id if messages else 0 }}">
+            {% for message in messages %}
+            <div class="bubble{% if message.sender_id == current_account.id %} mine{% endif %}">
+                <p>{{ message.body }}</p>
+                <time>{{ message.created_at | chat_time }}</time>
+            </div>
+            {% else %}
+            <p class="chat-empty">Say hello, or ask {{ other }} anything about this item.</p>
+            {% endfor %}
+            <span id="latest"></span>
+        </div>
+
+        <form class="composer" method="post" action="{{ send_to }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            {% if error %}<p class="composer-error">{{ error }}</p>{% endif %}
+            <label for="body" class="sr-only">Message</label>
+            <textarea id="body" name="body" rows="2" maxlength="1000" required
+                      placeholder="Write a message&hellip;"></textarea>
+            <button type="submit" class="btn-primary">Send</button>
+        </form>
+
+    </section>
+
+</main>
+
+<script>
+(function () {
+    var log = document.getElementById('chat-log');
+    var box = document.getElementById('body');
+    log.scrollTop = log.scrollHeight;
+
+    // Enter sends, Shift+Enter starts a new line.
+    box.addEventListener('keydown', function (event) {
+        if (event.key === 'Enter' && !event.shiftKey) {
+            event.preventDefault();
+            if (box.value.trim()) box.form.submit();
+        }
+    });
+
+    var updates = log.dataset.updates;
+    if (!updates) return;
+    var last = Number(log.dataset.last);
+
+    function check() {
+        if (document.hidden) return;
+        fetch(updates + '?after=' + last)
+            .then(function (response) { return response.ok ? response.json() : null; })
+            .then(function (data) {
+                if (!data || !data.messages.length) return;
+                var empty = log.querySelector('.chat-empty');
+                if (empty) empty.remove();
+                var anchor = document.getElementById('latest');
+                data.messages.forEach(function (message) {
+                    var bubble = document.createElement('div');
+                    bubble.className = 'bubble' + (message.mine ? ' mine' : '');
+                    var text = document.createElement('p');
+                    text.textContent = message.body;
+                    var time = document.createElement('time');
+                    time.textContent = message.time;
+                    bubble.append(text, time);
+                    log.insertBefore(bubble, anchor);
+                    last = message.id;
+                });
+                log.scrollTop = log.scrollHeight;
+            })
+            .catch(function () {});
+    }
+
+    // Every 5 seconds while the chat is on screen, and straight away when
+    // the student comes back to it (the browser pauses checks meanwhile).
+    setInterval(check, 5000);
+    document.addEventListener('visibilitychange', check);
+    window.addEventListener('focus', check);
+})();
+</script>
+
+</body>
+</html>
