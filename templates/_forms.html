@@ -1,10 +1,15 @@
 {# A button that sends a small form instead of following a link.
    Anything that changes data goes through a form like this, carrying the
    page's secret token, so another website can't trigger it for you.
+
+   If a confirm message is given, the browser asks "Are you sure?" first;
+   the message sits in data-confirm, and the onsubmit only reads it.
+
    Import with:  {% import "_forms.html" as forms with context %} #}
-{% macro post_button(url, label, class_="", confirm=None, title=None) -%}
-<form method="post" action="{{ url }}" class="inline-form"{% if confirm %} onsubmit='return confirm({{ confirm|tojson }});'{% endif %}>
+{% macro post_button(url, label, class_="", confirm="", title="") -%}
+<form method="post" action="{{ url }}" class="inline-form" data-confirm="{{ confirm }}"
+      onsubmit="return !this.dataset.confirm || confirm(this.dataset.confirm);">
     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-    <button type="submit" class="{{ class_ }}"{% if title %} aria-label="{{ title }}"{% endif %}>{{ label }}</button>
+    <button type="submit" class="{{ class_ }}" aria-label="{{ title or label }}">{{ label }}</button>
 </form>
 {%- endmacro %}
