@@ -1,0 +1,68 @@
+{% extends "_settings_base.html" %}
+{% from "_settings_icons.html" import icon, tile, page_head %}
+{% block title %}Data & Privacy{% endblock %}
+{% block content %}
+{{ page_head('privacy', 'Data & Privacy', 'What CampusCart keeps about you, and how to switch your account off.') }}
+
+<section class="panel settings-panel privacy-facts">
+    <div class="privacy-fact">
+        {{ icon('privacy') }}
+        <div><strong>What we keep</strong><span>Your name, email, listings, orders, messages and reviews.</span></div>
+    </div>
+    <div class="privacy-fact">
+        {{ icon('eye') }}
+        <div><strong>Who sees your phone and address</strong><span>Only the seller of something you bought, while they send it.</span></div>
+    </div>
+    <div class="privacy-fact">
+        {{ icon('security') }}
+        <div><strong>Your password</strong><span>Never stored as it is, only a scrambled version.</span></div>
+    </div>
+</section>
+
+{% if error %}<p class="note note-error" role="alert">{{ error }}</p>{% endif %}
+{% if open_orders %}
+<p class="note">You have {{ open_orders }} order item(s) still on the way. You can deactivate or delete
+   your account once they're delivered or cancelled.</p>
+{% endif %}
+
+<div class="privacy-actions">
+    <section class="panel danger-zone tone-amber">
+        <div class="danger-head">{{ icon('pause') }}<h2>Deactivate account</h2></div>
+        <p>Take a break. Your listings leave the shop and you're logged out. Nothing is deleted:
+           log in again whenever you like and everything comes back.</p>
+        <form method="post" class="form-grid settings-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <input type="hidden" name="action" value="deactivate">
+            <div class="form-row">
+                <label for="deactivate-password">Your password</label>
+                <input type="password" id="deactivate-password" name="password" autocomplete="current-password" required>
+            </div>
+            <div>
+                <button type="submit" class="btn-cancel">Deactivate my account</button>
+            </div>
+        </form>
+    </section>
+
+    <section class="panel danger-zone tone-rose">
+        <div class="danger-head">{{ icon('trash') }}<h2>Delete account</h2></div>
+        <p><strong>This can't be undone.</strong> Your name, email and password are wiped, your listings are removed,
+           and you can never log in again. Orders stay on record for the other person in each sale, as "Deleted user".</p>
+        <form method="post" class="form-grid settings-form"
+              onsubmit="return confirm('Delete your CampusCart account for good? This cannot be undone.');">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <input type="hidden" name="action" value="delete">
+            <div class="form-row">
+                <label for="delete-password">Your password</label>
+                <input type="password" id="delete-password" name="password" autocomplete="current-password" required>
+            </div>
+            <div class="form-row">
+                <label for="delete-confirm">Type <strong>DELETE</strong> to confirm</label>
+                <input type="text" id="delete-confirm" name="confirm" autocomplete="off" required>
+            </div>
+            <div>
+                <button type="submit" class="remove-button">Delete my account</button>
+            </div>
+        </form>
+    </section>
+</div>
+{% endblock %}

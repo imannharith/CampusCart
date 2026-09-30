@@ -1,0 +1,30 @@
+{% extends "_settings_base.html" %}
+{% from "_settings_icons.html" import icon, page_head %}
+{% block title %}{{ topic.title }}{% endblock %}
+{% block back %}{{ url_for('help_center') }}{% endblock %}
+{% block back_label %}Help Center{% endblock %}
+{% block content %}
+{{ page_head(key, topic.title, 'Click a question to see its answer.') }}
+
+{# Switch between the Buyer and Seller questions without going back #}
+<nav class="faq-switch" aria-label="Help topics">
+    <a href="{{ url_for('help_topic', topic='buying') }}"{% if key == 'buying' %} class="active" aria-current="page"{% endif %}>Buyer FAQ</a>
+    <a href="{{ url_for('help_topic', topic='selling') }}"{% if key == 'selling' %} class="active" aria-current="page"{% endif %}>Seller FAQ</a>
+</nav>
+
+{# Each question is a <details> box: clicking it opens the answer at once. #}
+<div class="faq-list">
+    {% for question, answer in topic.faqs %}
+    <details class="faq">
+        <summary><span class="faq-num">{{ '%02d' % loop.index }}</span><span class="faq-q">{{ question }}</span></summary>
+        <p>{{ answer }}</p>
+    </details>
+    {% endfor %}
+</div>
+
+<a class="help-callout" href="{{ url_for('contact_us') }}">
+    {{ icon('chat') }}
+    <span><strong>Still stuck?</strong> Send us a message and an admin will reply.</span>
+    <span class="arrow">{{ icon('arrow') }}</span>
+</a>
+{% endblock %}

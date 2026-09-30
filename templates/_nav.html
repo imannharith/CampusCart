@@ -1,6 +1,10 @@
 {# The shopper's top menu, shared by every page so a link is only ever added once.
    request.endpoint is the name of the page being shown, used to highlight it. #}
 {% set here = request.endpoint %}
+{# Light or dark mode (Settings > Theme Mode): style.css switches every colour
+   when <html data-theme="dark">. Set here, at the top of every page, before
+   the page is drawn. #}
+<script>document.documentElement.dataset.theme = "{{ theme or 'light' }}";</script>
 <nav class="nav-links">
     <a href="/"{% if here == 'home' %} class="active"{% endif %}>Home</a>
     <a href="/products"{% if here == 'product_catalog' %} class="active"{% endif %}>Products</a>
@@ -10,5 +14,10 @@
     <a href="/my-shop"{% if here == 'seller_page' %} class="active"{% endif %}>My Shop{% if orders_to_ship %} <span class="nav-badge" title="Orders waiting to be shipped">{{ orders_to_ship }}</span>{% endif %}</a>
     <a href="/profile"{% if here == 'profile' %} class="active"{% endif %}>Profile</a>
     {% include "_bell.html" %}
+    {% if current_account %}
+    <a href="/settings" class="nav-icon{% if here and here.startswith(('settings', 'help_', 'contact_us', 'data_privacy')) %} active{% endif %}" title="Settings" aria-label="Settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1.08-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1.08 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    </a>
+    {% endif %}
     <a href="/logout">Log out</a>
 </nav>

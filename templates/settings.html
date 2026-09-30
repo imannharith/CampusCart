@@ -1,210 +1,99 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CampusCart | Settings</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='shopping.css') }}">
-    <style>
-        :root {
-            --bg-color: #f8f9fa;
-            --card-bg: #ffffff;
-            --text-color: #333333;
-            --border-color: #e0e0e0;
-            --hover-bg: #f1f3f5;
-        }
+{% extends "_settings_base.html" %}
+{% from "_settings_icons.html" import icon, tile %}
+{% block title %}Settings{% endblock %}
+{% block content %}
+<header class="settings-heading">
+    <p class="eyebrow">Your CampusCart</p>
+    <h1 class="settings-title">Settings</h1>
+    <p>Manage your account, preferences and support.</p>
+</header>
 
-        body.dark-mode {
-            --bg-color: #121212;
-            --card-bg: #1e1e1e;
-            --text-color: #f1f1f1;
-            --border-color: #333333;
-            --hover-bg: #2a2a2a;
-        }
+{# Who you're signed in as, at a glance #}
+<section class="settings-identity" aria-label="Your account">
+    <span class="identity-avatar" aria-hidden="true">{{ (current_account.fullname or '?')[0]|upper }}</span>
+    <div class="identity-text">
+        <strong>{{ current_account.fullname }}</strong>
+        <span>{{ current_account.email }}</span>
+        <small>Member since {{ current_account.created_at|day }}</small>
+    </div>
+    <a class="identity-edit" href="{{ url_for('settings_profile') }}">{{ icon('profile') }} Edit profile</a>
+</section>
 
-        body {
-            background-color: var(--bg-color);
-            color: var(--text-color);
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 0;
-            transition: background-color 0.3s, color 0.3s;
-        }
+<div class="settings-overview">
+<section class="settings-card" aria-labelledby="account-settings-title">
+    <div class="settings-group-heading">
+        <h2 id="account-settings-title">Account &amp; preferences</h2>
+        <p>The details that make this account yours.</p>
+    </div>
+    <div class="settings-list">
+        <!-- 1. Edit Profile -->
+        <a class="settings-btn" href="{{ url_for('settings_profile') }}">
+            {{ tile('profile') }}
+            <span class="settings-label">Edit Profile
+                <small>Your name and email</small></span>
+            <span class="arrow">{{ icon('arrow') }}</span>
+        </a>
 
-        .settings-container {
-            max-width: 650px;
-            margin: 40px auto;
-            padding: 20px;
-        }
+        <!-- 2. Login & Security -->
+        <a class="settings-btn" href="{{ url_for('settings_security') }}">
+            {{ tile('security') }}
+            <span class="settings-label">Login &amp; Security
+                <small>Change your password</small></span>
+            <span class="arrow">{{ icon('arrow') }}</span>
+        </a>
 
-        .settings-card {
-            background-color: var(--card-bg);
-            border: 1px solid var(--border-color);
-            border-radius: 12px;
-            padding: 25px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-        }
+        <!-- 3. Theme Mode: the switch saves your choice on your account -->
+        <form method="post" action="{{ url_for('settings_theme') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <input type="hidden" name="theme" value="{{ 'light' if theme == 'dark' else 'dark' }}">
+            {# The whole row is the switch's label, so clicking anywhere on it flips the theme. #}
+            <label class="settings-btn settings-toggle">
+                {{ tile('theme') }}
+                <span class="settings-label">Theme Mode
+                    <small>Now using {{ theme }} mode</small></span>
+                <span class="switch theme-switch">
+                    <input type="checkbox" id="theme-toggle" aria-label="Dark mode" {% if theme == 'dark' %}checked{% endif %}
+                           onchange="document.documentElement.dataset.theme = this.checked ? 'dark' : 'light'; this.form.submit();">
+                    <span class="slider">
+                        <span class="switch-sun">{{ icon('sun') }}</span>
+                        <span class="switch-moon">{{ icon('moon') }}</span>
+                    </span>
+                </span>
+            </label>
+        </form>
+    </div>
+</section>
 
-        .settings-title {
-            margin-top: 0;
-            margin-bottom: 20px;
-            font-size: 1.8rem;
-            border-bottom: 2px solid var(--border-color);
-            padding-bottom: 10px;
-        }
+<section class="settings-card" aria-labelledby="help-settings-title">
+    <div class="settings-group-heading">
+        <h2 id="help-settings-title">Help &amp; privacy</h2>
+        <p>Get a hand or take control of your data.</p>
+    </div>
+    <div class="settings-list">
+        <!-- 4. Help Center -->
+        <a class="settings-btn" href="{{ url_for('help_center') }}">
+            {{ tile('help') }}
+            <span class="settings-label">Help Center
+                <small>Answers about buying and selling</small></span>
+            <span class="arrow">{{ icon('arrow') }}</span>
+        </a>
 
-        .settings-list {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
+        <!-- 5. Contact Us -->
+        <a class="settings-btn" href="{{ url_for('contact_us') }}">
+            {{ tile('contact') }}
+            <span class="settings-label">Contact Us
+                <small>Chat with the CampusCart team</small></span>
+            <span class="arrow">{{ icon('arrow') }}</span>
+        </a>
 
-        .settings-btn {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            width: 100%;
-            padding: 15px 20px;
-            background-color: var(--card-bg);
-            color: var(--text-color);
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            font-size: 1rem;
-            font-weight: 600;
-            cursor: pointer;
-            text-align: left;
-            transition: background-color 0.2s, border-color 0.2s;
-        }
-
-        .settings-btn:hover {
-            background-color: var(--hover-bg);
-        }
-
-        .arrow {
-            font-size: 1.2rem;
-            color: #888;
-        }
-
-        .toggle-container {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        /* Switch Toggle Styling */
-        .switch {
-            position: relative;
-            display: inline-block;
-            width: 46px;
-            height: 24px;
-        }
-
-        .switch input {
-            opacity: 0;
-            width: 0;
-            height: 0;
-        }
-
-        .slider {
-            position: absolute;
-            cursor: pointer;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background-color: #ccc;
-            transition: .4s;
-            border-radius: 24px;
-        }
-
-        .slider:before {
-            position: absolute;
-            content: "";
-            height: 18px;
-            width: 18px;
-            left: 3px;
-            bottom: 3px;
-            background-color: white;
-            transition: .4s;
-            border-radius: 50%;
-        }
-
-        input:checked + .slider {
-            background-color: #2196F3;
-        }
-
-        input:checked + .slider:before {
-            transform: translateX(22px);
-        }
-    </style>
-</head>
-<body>
-
-    <header>
-        <div class="logo">
-            <a href="/">Campus<span>Cart</span></a>
-        </div>
-        <nav class="nav-links">
-            <a href="/">Home</a>
-            <a href="/products">Products</a>
-            <a href="/cart">🛒 Cart</a>
-            <a href="/profile"><b>👤 Me</b></a>
-            <a href="/logout">Logout</a>
-        </nav>
-    </header>
-
-    <main class="settings-container">
-        <div class="settings-card">
-            <h1 class="settings-title">Settings</h1>
-
-            <div class="settings-list">
-                <!-- 1. Edit Profile Button -->
-                <button class="settings-btn" onclick="javascript:void(0);">
-                    <span>✏️ Edit Profile</span>
-                    <span class="arrow">&rsaquo;</span>
-                </button>
-
-                <!-- 2. Login & Security Button -->
-                <button class="settings-btn" onclick="javascript:void(0);">
-                    <span>🔒 Login & Security</span>
-                    <span class="arrow">&rsaquo;</span>
-                </button>
-
-                <!-- 3. Theme Mode Switcher -->
-                <div class="settings-btn" style="cursor: default;">
-                    <span>🌙 Theme Mode (Light / Dark)</span>
-                    <div class="toggle-container">
-                        <label class="switch">
-                            <input type="checkbox" id="theme-toggle" onchange="toggleTheme()">
-                            <span class="slider"></span>
-                        </label>
-                    </div>
-                </div>
-
-                <!-- 4. Help Center Button -->
-                <button class="settings-btn" onclick="javascript:void(0);">
-                    <span>❓ Help Center</span>
-                    <span class="arrow">&rsaquo;</span>
-                </button>
-
-                <!-- 5. Contact Us Button -->
-                <button class="settings-btn" onclick="javascript:void(0);">
-                    <span>📞 Contact Us</span>
-                    <span class="arrow">&rsaquo;</span>
-                </button>
-
-                <!-- 6. Data & Privacy Button -->
-                <button class="settings-btn" onclick="javascript:void(0);">
-                    <span>🛡️ Data & Privacy</span>
-                    <span class="arrow">&rsaquo;</span>
-                </button>
-            </div>
-        </div>
-    </main>
-
-    <script>
-        function toggleTheme() {
-            const body = document.body;
-            body.classList.toggle('dark-mode');
-        }
-    </script>
-
-</body>
-</html>
+        <!-- 6. Data & Privacy -->
+        <a class="settings-btn" href="{{ url_for('data_privacy') }}">
+            {{ tile('privacy') }}
+            <span class="settings-label">Data &amp; Privacy
+                <small>Deactivate or delete your account</small></span>
+            <span class="arrow">{{ icon('arrow') }}</span>
+        </a>
+    </div>
+</section>
+</div>
+{% endblock %}

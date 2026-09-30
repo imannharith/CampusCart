@@ -1,0 +1,44 @@
+{% extends "_settings_base.html" %}
+{% from "_settings_icons.html" import icon, page_head %}
+{% block title %}Login & Security{% endblock %}
+{% block content %}
+{{ page_head('security', 'Login & Security', "Change the password you log in with. Pick one you don't use anywhere else.") }}
+
+<div class="settings-split">
+    <section class="panel settings-panel">
+        {% if error %}<p class="note note-error" role="alert">{{ error }}</p>{% endif %}
+
+        <form method="post" class="form-grid settings-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <div class="form-row">
+                <label for="current_password">Current password</label>
+                <input type="password" id="current_password" name="current_password" autocomplete="current-password" required>
+            </div>
+            <div class="form-row">
+                <label for="new_password">New password</label>
+                <input type="password" id="new_password" name="new_password" autocomplete="new-password"
+                       minlength="8" maxlength="128" placeholder="At least 8 characters" required>
+            </div>
+            <div class="form-row">
+                <label for="confirm_password">Type the new password again</label>
+                <input type="password" id="confirm_password" name="confirm_password" autocomplete="new-password" required>
+            </div>
+            <div class="settings-actions">
+                <button type="submit" class="btn-primary">Change password</button>
+                <a class="settings-cancel" href="{{ url_for('settings') }}">Cancel</a>
+            </div>
+        </form>
+    </section>
+
+    <aside class="settings-aside tone-violet">
+        <h2>A strong password</h2>
+        <ul class="check-list">
+            <li>{{ icon('check') }} At least 8 characters (longer is better)</li>
+            <li>{{ icon('check') }} Not your name, student ID or birthday</li>
+            <li>{{ icon('check') }} Not one you use for other sites</li>
+            <li>{{ icon('check') }} A short sentence is easy to remember and hard to guess</li>
+        </ul>
+        <p>CampusCart never stores your actual password, only a scrambled version of it.</p>
+    </aside>
+</div>
+{% endblock %}

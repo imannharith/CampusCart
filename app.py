@@ -57,7 +57,11 @@ def moderation_context():
             'unread_messages': shop.unread_message_count(account['id']) if account else 0,
             'notifications': shop.latest_notifications(account['id']) if account else [],
             'unread_notifications': shop.unread_notification_count(account['id']) if account else 0,
-            'orders_to_ship': shop.orders_to_ship(account['id']) if account else 0}
+            'orders_to_ship': shop.orders_to_ship(account['id']) if account else 0,
+            # Light or dark mode (Settings > Theme), applied by _nav.html.
+            'theme': (account['theme'] if account and 'theme' in account.keys() else None) or 'light',
+            # The red number on Support in the admin menu.
+            'support_unread': admin.support_unread_count() if accounts.is_admin() else 0}
 
 
 # How times look on every page (they're stored in UTC, shown in Malaysia time).
@@ -798,6 +802,8 @@ def login():
             return render_template("login.html", error=error), 403 if "suspended" in error else 200
 
         accounts.log_in(user, remember=bool(remember))
+        if user["reactivated"]:
+            shop.notify(user["id"], "Welcome back! Your account is active again and your listings are back in the shop.", "/my-shop")
 
         return redirect(url_for("home"))
 
@@ -860,6 +866,8 @@ def user_status(user_id):
         abort(404)
     if accounts.is_admin_email(details['user']['email']) or details['user']['role'] == 'admin':
         abort(403, 'Administrator accounts cannot be suspended here.')
+    if details['user']['account_status'] == 'Deleted':
+        abort(400, 'This student deleted their account.')
     action = request.form.get('action')
     if action not in {'Suspend', 'Reactivate'}:
         abort(400)
@@ -916,6 +924,148 @@ def report_listing(product_id):
         return render_template('report_listing.html', product=product, submitted=True, is_admin=is_admin, report_id=report_id)
     return render_template('report_listing.html', product=product, submitted=False, is_admin=is_admin)
 
+
+# ======================================================================
+# SETTINGS (the gear in the top menu)
+# ======================================================================
+
+@app.route("/settings")
+@accounts.shopper_required
+def settings():
+    return render_template("settings.html")
+
+
+@app.route("/settings/profile", methods=["GET", "POST"])
+@accounts.shopper_required
+def settings_profile():
+    """Edit Profile: your name and email."""
+    user = accounts.current_user()
+    if request.method == "POST":
+        fullname = request.form.get("fullname", "").strip()
+        email = request.form.get("email", "").strip().lower()
+        error = accounts.check_profile_update(user, fullname, email, request.form.get("password", ""))
+        if error:
+            return render_template("settings_profile.html", error=error, form=request.form), 400
+        accounts.update_profile(user, fullname, email)
+        flash("Your profile has been updated.")
+        return redirect(url_for("settings_profile"))
+    return render_template("settings_profile.html", form=dict(user))
+
+
+@app.route("/settings/security", methods=["GET", "POST"])
+@accounts.shopper_required
+def settings_security():
+    """Login & Security: change your password."""
+    user = accounts.current_user()
+    if request.method == "POST":
+        new = request.form.get("new_password", "")
+        error = accounts.check_password_change(user, request.form.get("current_password", ""),
+                                               new, request.form.get("confirm_password", ""))
+        if error:
+            return render_template("settings_security.html", error=error), 400
+        accounts.change_password(user, new)
+        flash("Your password has been changed.")
+        return redirect(url_for("settings_security"))
+    return render_template("settings_security.html")
+
+
+@app.route("/settings/theme", methods=["POST"])
+@accounts.shopper_required
+def settings_theme():
+    """Theme Mode: light or dark, saved on your account."""
+    accounts.set_theme(accounts.current_user(), request.form.get("theme"))
+    return redirect(url_for("settings"))
+
+
+@app.route("/settings/help")
+@accounts.shopper_required
+def help_center():
+    """Help Center: pick Buying or Selling."""
+    return render_template("help_center.html", topics=shop.HELP_TOPICS)
+
+
+@app.route("/settings/help/<topic>")
+@accounts.shopper_required
+def help_topic(topic):
+    """The 10 questions and answers for buying or for selling."""
+    if topic not in shop.HELP_TOPICS:
+        abort(404)
+    return render_template("help_topic.html", topic=shop.HELP_TOPICS[topic], key=topic,
+                           other=[(key, value["title"]) for key, value in shop.HELP_TOPICS.items() if key != topic])
+
+
+@app.route("/settings/contact", methods=["GET", "POST"])
+@accounts.shopper_required
+def contact_us():
+    """Contact Us: chat with the CampusCart admins."""
+    user = accounts.current_user()
+    if request.method == "POST":
+        body = shop.clean_message(request.form.get("body"))
+        if body is None:
+            return render_template("contact_us.html", messages=shop.support_thread(user["id"]),
+                                   error="Write a message first (up to 1,000 characters)."), 400
+        shop.send_support_message(user["id"], body)
+        return redirect(url_for("contact_us", _anchor="latest"))
+    shop.mark_support_read(user["id"])
+    return render_template("contact_us.html", messages=shop.support_thread(user["id"]))
+
+
+@app.route("/settings/privacy", methods=["GET", "POST"])
+@accounts.shopper_required
+def data_privacy():
+    """Data & Privacy: deactivate (undo by logging in) or delete for good."""
+    user = accounts.current_user()
+    if request.method == "POST":
+        action = request.form.get("action")
+        if action not in {"deactivate", "delete"}:
+            abort(400)
+        error = accounts.check_account_closing(user, request.form.get("password", ""),
+                                               request.form.get("confirm", ""), deleting=action == "delete")
+        if error:
+            return render_template("data_privacy.html", error=error, failed=action,
+                                   open_orders=accounts.open_orders(user["id"])), 400
+        if action == "deactivate":
+            accounts.deactivate_account(user)
+            return render_template("login.html", error="Your account is deactivated. Log in again any time to switch it back on.")
+        accounts.delete_account(user)
+        return render_template("login.html", error="Your account has been deleted. Thank you for using CampusCart.")
+    return render_template("data_privacy.html", open_orders=accounts.open_orders(user["id"]))
+
+
+# ======================================================================
+# ADMIN > SUPPORT (answering Contact Us messages)
+# ======================================================================
+
+@app.route("/support")
+@accounts.admin_required
+def support_inbox():
+    return render_template("support.html", threads=admin.support_inbox(), student=None)
+
+
+@app.route("/support/<int:user_id>", methods=["GET", "POST"])
+@accounts.admin_required
+def support_thread(user_id):
+    details = admin.user_details(user_id)
+    if details is None:
+        abort(404)
+    if request.method == "POST":
+        body = shop.clean_message(request.form.get("body"))
+        if body is not None:
+            admin.reply_to_student(user_id, session["user"], body)
+            shop.notify(user_id, "CampusCart support replied to your message.", "/settings/contact")
+        return redirect(url_for("support_thread", user_id=user_id, _anchor="latest"))
+    admin.mark_support_read_by_admin(user_id)
+    return render_template("support.html", threads=admin.support_inbox(), student=details["user"],
+                           messages=shop.support_thread(user_id))
+
+
+
+@app.errorhandler(500)
+def server_error(error):
+    """Shown if something still breaks (e.g. Turso is really down) -- a
+    friendly page with a Try again button, instead of plain grey text.
+    The full error is still printed in the terminal running app.py."""
+    return render_template("error.html"), 500
 
 if __name__ == "__main__":
     # Debug mode shows an in-browser console that can run code, so it is
