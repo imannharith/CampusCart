@@ -280,6 +280,7 @@ def ensure_columns():
     ensure_messaging_schema()
     ensure_notifications_schema()
     ensure_reviews_schema()
+    ensure_settings_schema()
     admin.sync_order_status()
     return added
 
@@ -416,6 +417,28 @@ def ensure_reviews_schema():
         if column not in have:
             cursor.execute(f'ALTER TABLE reviews ADD COLUMN {column} {definition}')
     cursor.execute('CREATE UNIQUE INDEX IF NOT EXISTS one_review_per_purchase ON reviews(order_item_id)')
+    connection.commit()
+    connection.close()
+
+
+def ensure_settings_schema():
+    """Settings: each student's light/dark choice, and Contact Us -- a chat
+    between one student and the admins. from_admin says which side wrote each
+    message; admin_email says which admin replied."""
+    connection = database.get_connection()
+    cursor = connection.cursor()
+    cursor.execute('PRAGMA table_info(users)')
+    if 'theme' not in {row['name'] for row in cursor.fetchall()}:
+        cursor.execute("ALTER TABLE users ADD COLUMN theme TEXT NOT NULL DEFAULT 'light'")
+    cursor.execute("""CREATE TABLE IF NOT EXISTS support_messages (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        from_admin INTEGER NOT NULL DEFAULT 0,
+        admin_email TEXT,
+        body TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        read_at TEXT)""")
+    cursor.execute('CREATE INDEX IF NOT EXISTS support_for_user ON support_messages(user_id, id)')
     connection.commit()
     connection.close()
 

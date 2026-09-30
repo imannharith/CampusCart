@@ -14,6 +14,9 @@ import os
 import urllib.error
 import urllib.request
 
+import asyncio
+
+import aiohttp
 import libsql_client
 from dotenv import load_dotenv
 
@@ -30,6 +33,36 @@ def _get_client():
         auth_token = os.environ["TURSO_AUTH_TOKEN"]
         _client = libsql_client.create_client_sync(url=url, auth_token=auth_token)
     return _client
+
+
+# Errors that mean "the connection to Turso broke" -- never "your SQL is
+# wrong" (those still show up straight away, as they should).
+_CONNECTION_ERRORS = (aiohttp.ClientError, asyncio.TimeoutError, ConnectionError)
+
+
+def _reset_client():
+    """Throw away the broken connection; the next query opens a new one."""
+    global _client
+    old, _client = _client, None
+    if old is not None:
+        try:
+            old.close()
+        except Exception:
+            pass
+
+
+def _run(work):
+    """Run work(client) against Turso.
+
+    The app keeps one connection open, but Turso closes connections that sit
+    idle. After a quiet spell the first query would then fail with "Server
+    disconnected" and the page would show Internal Server Error. Instead,
+    open a fresh connection and try once more -- the student never notices."""
+    try:
+        return work(_get_client())
+    except _CONNECTION_ERRORS:
+        _reset_client()
+        return work(_get_client())
 
 class _CompatRow:
 
@@ -54,17 +87,16 @@ class _CompatRow:
         return self._row.asdict().keys()
 
 class _CompatCursor:
-    def __init__(self, client):
-        self._client = client
+    def __init__(self):
         self._result = None
 
     def execute(self, sql, params=()):
-        self._result = self._client.execute(sql, list(params))
+        self._result = _run(lambda client: client.execute(sql, list(params)))
         return self
 
     def executemany(self, sql, seq_of_params):
         for params in seq_of_params:
-            self._client.execute(sql, list(params))
+            _run(lambda client: client.execute(sql, list(params)))
         return self
 
     def fetchone(self):
@@ -87,11 +119,12 @@ class _CompatCursor:
         return self._result.rows_affected if self._result is not None else -1
 
 class _CompatConnection:
-    def __init__(self, client):
-        self._client = client
+    """Looks like a sqlite3 connection to the rest of the code. It holds no
+    client of its own: every query asks _run() for the current one, so a
+    reconnect is picked up everywhere at once."""
 
     def cursor(self):
-        return _CompatCursor(self._client)
+        return _CompatCursor()
 
     def commit(self):
         pass
@@ -100,7 +133,7 @@ class _CompatConnection:
         pass
 
 def get_connection():
-    return _CompatConnection(_get_client())
+    return _CompatConnection()
 
 def check_reachable(timeout=8):
     """The libsql client has no timeout of its own and blocks forever
@@ -122,4 +155,4 @@ def check_reachable(timeout=8):
 
 def atomic(statements):
     """libSQL batch executes these statements in one transaction."""
-    return _get_client().batch(statements)
+    return _run(lambda client: client.batch(statements))

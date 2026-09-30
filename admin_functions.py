@@ -5,7 +5,7 @@ Every database function behind the admin panel, grouped in the same
 order as the admin menu:
 
     1. Listings     2. Users     3. Reports
-    4. Dashboard    5. Moderation
+    4. Dashboard    5. Moderation     6. Support (Contact Us messages)
 
 The student side of the site (cart, orders, reviews, messages, My Shop,
 notifications) is in shop_functions.py.
@@ -61,7 +61,7 @@ def get_all_products(category=None, status=None, search=None, seller_id=None, av
         params.append(status)
 
     if available_only:
-        query += " AND NOT EXISTS (SELECT 1 FROM users WHERE users.id = products.seller_id AND account_status = 'Suspended')"
+        query += " AND NOT EXISTS (SELECT 1 FROM users WHERE users.id = products.seller_id AND account_status != 'Active')"
 
     if search:
         query += " AND LOWER(name) LIKE LOWER(?)"
@@ -944,7 +944,7 @@ def resolve_reports(product_id, decision, reason, actor):
 def available(product):
     if not product or product['status'] != 'Approved':
         return False
-    return not rows("SELECT id FROM users WHERE id = ? AND account_status = 'Suspended'", (product.get('seller_id'),))
+    return not rows("SELECT id FROM users WHERE id = ? AND account_status != 'Active'", (product.get('seller_id'),))
 
 
 def has_open_reports(product_id):
@@ -965,3 +965,37 @@ def get_listing_reports(status="All", product_id=None):
         query += " AND product_id = ?"
         args.append(product_id)
     return rows(query + " ORDER BY id DESC", args)
+
+
+# ====================================================================
+# 6. SUPPORT
+# Admin > Support: messages students send from Settings > Contact Us, and
+# the admins' replies. Any admin can answer any student.
+# ====================================================================
+
+
+def support_inbox():
+    """One row per student who has written in, newest conversation first,
+    with how many of their messages no admin has read yet."""
+    return rows("""SELECT u.id AS user_id, u.fullname, u.email,
+            m.body AS last_body, m.from_admin AS last_from_admin, m.created_at AS last_at,
+            (SELECT COUNT(*) FROM support_messages x
+                WHERE x.user_id = u.id AND x.from_admin = 0 AND x.read_at IS NULL) AS unread
+        FROM support_messages m JOIN users u ON u.id = m.user_id
+        WHERE m.id = (SELECT MAX(id) FROM support_messages WHERE user_id = m.user_id)
+        ORDER BY m.id DESC""")
+
+
+def support_unread_count():
+    """The red number on Support in the admin menu."""
+    return rows("SELECT COUNT(*) AS n FROM support_messages WHERE from_admin = 0 AND read_at IS NULL")[0]["n"]
+
+
+def mark_support_read_by_admin(user_id):
+    database.atomic([("""UPDATE support_messages SET read_at = CURRENT_TIMESTAMP
+        WHERE user_id = ? AND from_admin = 0 AND read_at IS NULL""", [user_id])])
+
+
+def reply_to_student(user_id, admin_email, body):
+    database.atomic([("""INSERT INTO support_messages (user_id, from_admin, admin_email, body)
+        SELECT id, 1, ?, ? FROM users WHERE id = ?""", [admin_email, body, user_id])])

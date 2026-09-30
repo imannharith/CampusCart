@@ -1,0 +1,36 @@
+{# The frame every Settings page shares: the top menu, a way back to
+   Settings, and the page's own content in the middle. Each page fills in
+   {% block title %} and {% block content %}. #}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CampusCart | {% block title %}Settings{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='logo.svg') }}">
+</head>
+
+<body>
+
+<header class="navbar">
+    <a href="/" class="logo">Campus<span>Cart</span></a>
+    {% include "_nav.html" %}
+</header>
+
+<main class="container settings-container{% if request.endpoint == 'settings' %} settings-home{% endif %}">
+
+    {% if request.endpoint != 'settings' %}
+    <a class="back-link" href="{% block back %}{{ url_for('settings') }}{% endblock %}">&larr; {% block back_label %}Settings{% endblock %}</a>
+    {% endif %}
+
+    {% for message in get_flashed_messages() %}
+    <p class="note note-ok" role="status">{{ message }}</p>
+    {% endfor %}
+
+    {% block content %}{% endblock %}
+
+</main>
+
+</body>
+</html>

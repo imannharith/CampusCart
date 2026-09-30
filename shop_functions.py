@@ -6,6 +6,7 @@ pages a student sees -- grouped in the same order as the top menu:
 
     1. Shopping (Home, Products, Cart, Checkout)     2. My Orders & Reviews
     3. Messages     4. My Shop     5. Notifications
+    6. Help Center & Contact Us (from the Settings page)
 
 The admin panel's functions are in admin_functions.py; signing up and
 logging in are in accounts.py.
@@ -128,7 +129,7 @@ def add_cart_item(user_id, product_id, existing_only=False):
     database.atomic([("""INSERT INTO cart(user_id, product_id, quantity)
         SELECT ?, id, 1 FROM products WHERE id = ? AND status = 'Approved' AND stock > 0
         AND seller_id IS NOT ?
-        AND NOT EXISTS (SELECT 1 FROM users WHERE id = products.seller_id AND account_status = 'Suspended')
+        AND NOT EXISTS (SELECT 1 FROM users WHERE id = products.seller_id AND account_status != 'Active')
         AND (? = 0 OR EXISTS (SELECT 1 FROM cart WHERE user_id = ? AND product_id = products.id))
         ON CONFLICT(user_id, product_id) DO UPDATE SET quantity = cart.quantity + 1
         WHERE cart.quantity < (SELECT stock FROM products WHERE id = excluded.product_id)""",
@@ -163,7 +164,7 @@ def checkout_cart(user_id, cart, pricing, buyer_name, phone, address):
             AND p.seller_id IS ? AND p.name = ? AND p.seller = ?
             AND p.status = 'Approved' AND p.stock >= c.quantity AND c.quantity > 0
             AND p.seller_id IS NOT ?
-            AND NOT EXISTS (SELECT 1 FROM users WHERE id = p.seller_id AND account_status = 'Suspended'))""")
+            AND NOT EXISTS (SELECT 1 FROM users WHERE id = p.seller_id AND account_status != 'Active'))""")
         args.extend([user_id, product_id, item['quantity'], item['price'], item['seller_id'], item['name'], item['seller'], user_id])
     if not cart:
         return None
@@ -822,3 +823,103 @@ def notify_review_left(order_item_id):
         notify(review['seller_id'],
              f"{review['reviewer']} gave {review['product_name']} {review['rating']} out of 5 stars.",
              f"/products/{review['product_id']}/reviews")
+
+
+# ====================================================================
+# 6. HELP CENTER & CONTACT US
+# Settings > Help Center: answers to the questions buyers and sellers ask
+# most. Settings > Contact Us: one chat between a student and the admins.
+# ====================================================================
+
+
+# Each topic is one page of the Help Center. Clicking a question opens its
+# answer straight away (it's an HTML <details> box, so no waiting or loading).
+HELP_TOPICS = {
+    "buying": {
+        "title": "Buying on CampusCart",
+        "intro": "Finding things, paying, orders and reviews.",
+        "faqs": [
+            ("How do I buy something?",
+             "Press Add to Cart on any item, open your Cart, then Proceed to Checkout. Enter your name, "
+             "phone number and address and press Place Order. The seller is told straight away."),
+            ("How do I pay the seller?",
+             "CampusCart doesn't take money online. Agree how to pay with the seller in Messages -- "
+             "usually cash or DuitNow when you meet. It's safest to pay once you've seen the item."),
+            ("Where can I see what I've ordered?",
+             "Open My Orders in the top menu. Every item shows where it is: Pending (the seller hasn't sent "
+             "it yet), Shipped, Delivered or Cancelled. The bell tells you whenever that changes."),
+            ("Why do items in one order have different statuses?",
+             "Each seller sends their own items. If you bought from two sellers, one may have shipped "
+             "while the other hasn't yet -- the order's own status follows along."),
+            ("How do discounts work?",
+             "They're automatic. When your cart reaches a minimum spend, a percentage comes off. You'll see "
+             "the discount on the checkout page before you place the order."),
+            ("Can I cancel an order?",
+             "Ask the seller in Messages. A seller can cancel an item any time before it's delivered, and "
+             "you'll get a notification when they do."),
+            ("Can I ask a question before I buy?",
+             "Yes -- press Message seller on any item. Your chats are under Messages, and a red number "
+             "shows when the seller replies."),
+            ("Who sees my phone number and address?",
+             "Only the seller of the items you bought, and only while they still need to send them. "
+             "Other students never see them."),
+            ("How do I leave a review?",
+             "Once an item is marked Delivered, a Rate this item button appears next to it in My Orders. "
+             "You can rate each purchase once, from 1 to 5 stars, with an optional comment."),
+            ("A listing looks fake or wrong. What do I do?",
+             "Press Report listing under the item and say what's wrong. An admin checks it and can take "
+             "it down. You can also tell us through Contact Us."),
+        ],
+    },
+    "selling": {
+        "title": "Selling on CampusCart",
+        "intro": "Listing items, sales, fees and ratings.",
+        "faqs": [
+            ("How do I sell something?",
+             "Go to My Shop and fill in Sell an Item: name, category, price, how many you have, a "
+             "description and a photo. Press Submit for approval."),
+            ("Why isn't my item in the shop yet?",
+             "Every new item is checked by an admin first. It stays Pending until then, and the bell tells "
+             "you when it's approved (or not, with the reason)."),
+            ("What kind of photo can I upload?",
+             "A JPG or PNG up to 5 MB -- the kind your phone or laptop normally saves. Other files, or "
+             "anything renamed to look like a photo, are refused."),
+            ("Does CampusCart take a cut?",
+             "Yes, 5% of each sale. The Earned card in My Shop shows what you keep after the fee."),
+            ("How do I know someone bought my item?",
+             "The bell tells you, and My Shop gets a red number for every order waiting to be sent. My Sales "
+             "shows the buyer's name, phone number and address."),
+            ("How do I mark an item as sent?",
+             "In My Sales press Mark Shipped when it's on its way, then Mark Delivered once the buyer has it. "
+             "The buyer is told each time, and can review it after it's delivered."),
+            ("Can I cancel a sale?",
+             "Yes, while it's Pending or Shipped press Cancel. The item goes back into your stock and the "
+             "buyer is told. Press Reinstate if you cancelled by mistake."),
+            ("How do I change the stock or take an item down?",
+             "Use the - and + buttons next to the item in My Listings, or press Remove. An item that "
+             "has been reported can't be removed until an admin has looked at the report."),
+            ("My listing was rejected or removed. Why?",
+             "The notification you got includes the admin's reason. If you think it's a mistake, send us a "
+             "message through Contact Us."),
+            ("How do ratings work?",
+             "Buyers can rate an item after it's delivered. Each item shows its average, and your seller "
+             "rating (the average of all your items) is at the top of My Shop."),
+        ],
+    },
+}
+
+
+def support_thread(user_id):
+    """This student's Contact Us chat with the admins, oldest first."""
+    return rows('SELECT * FROM support_messages WHERE user_id = ? ORDER BY id', (user_id,))
+
+
+def send_support_message(user_id, body):
+    database.atomic([('INSERT INTO support_messages (user_id, from_admin, body) VALUES (?, 0, ?)',
+                      [user_id, body])])
+
+
+def mark_support_read(user_id):
+    """The student has now seen the admins' replies."""
+    database.atomic([("""UPDATE support_messages SET read_at = CURRENT_TIMESTAMP
+        WHERE user_id = ? AND from_admin = 1 AND read_at IS NULL""", [user_id])])

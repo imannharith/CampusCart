@@ -1,0 +1,23 @@
+{% extends "_settings_base.html" %}
+{% from "_settings_icons.html" import icon, tile, page_head %}
+{% block title %}Help Center{% endblock %}
+{% block content %}
+{{ page_head('help', 'Help Center', 'Pick a topic to see the questions students ask most.') }}
+
+<div class="help-topics">
+    {% for key, topic in topics.items() %}
+    <a class="help-topic" href="{{ url_for('help_topic', topic=key) }}">
+        {{ tile(key, 'lg') }}
+        <strong>{{ 'Buyer FAQ' if key == 'buying' else 'Seller FAQ' }}</strong>
+        <span>{{ topic.intro }}</span>
+        <small><span>{{ topic.faqs|length }} questions</span>{{ icon('arrow') }}</small>
+    </a>
+    {% endfor %}
+</div>
+
+<a class="help-callout" href="{{ url_for('contact_us') }}">
+    {{ icon('chat') }}
+    <span><strong>Can't find your answer?</strong> Send us a message and an admin will reply.</span>
+    <span class="arrow">{{ icon('arrow') }}</span>
+</a>
+{% endblock %}
