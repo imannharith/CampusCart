@@ -7,6 +7,9 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
+{% import "_forms.html" as forms with context %}
+{% import "_stars.html" as rate with context %}
+
 
     <header class="navbar">
         <a href="/" class="logo">Campus<span>Cart</span></a>
@@ -16,16 +19,7 @@
             <button type="submit">Search</button>
         </form>
 
-        <nav class="nav-links">
-            <a href="/" class="active">Home</a>
-            <a href="/products">Products</a>
-            <a href="/cart">Cart</a>
-            <a href="/messages">Messages{% if unread_messages %} <span class="nav-badge" title="Unread messages">{{ unread_messages }}</span>{% endif %}</a>
-            <a href="/my-shop">My Shop{% if orders_to_ship %} <span class="nav-badge" title="Orders waiting to be shipped">{{ orders_to_ship }}</span>{% endif %}</a>
-            <a href="/profile">Profile</a>
-            {% include "_bell.html" %}
-            <a href="/logout">Log out</a>
-        </nav>
+        {% include "_nav.html" %}
     </header>
 
     <section class="hero">
@@ -65,6 +59,7 @@
                         <span class="category-tag">{{ product.category | capitalize }}</span>
                         <h3>{{ product.name }}</h3>
                         <p class="price">RM {{ "%.2f"|format(product.price) }}</p>
+                        {{ rate.card(product.id, ratings.get(product.id)) }}
                         <p class="stock">Stock: {{ product.stock }} units</p>
                         <p class="seller">Sold by {{ product.seller }}</p>
                         <a href="{{ url_for('report_listing', product_id=product.id) }}">Report listing</a>
@@ -77,7 +72,7 @@
                         {% if current_account and product.seller_id == current_account.id %}
                         <span class="btn-add-cart sold-out">Your listing</span>
                         {% elif product.stock > 0 %}
-                        <a href="/add-to-cart/{{ product.id }}" class="btn-add-cart" style="text-align:center; display:block; text-decoration:none;">Add to Cart</a>
+                        {{ forms.post_button(url_for('add_to_cart', product_id=product.id), 'Add to Cart', 'btn-add-cart') }}
                         {% else %}
                         <span class="btn-add-cart sold-out">Sold out</span>
                         {% endif %}

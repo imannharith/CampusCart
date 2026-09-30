@@ -25,8 +25,13 @@
 
         <h2>Customer Information</h2>
 
+        {% if error %}
+        <p class="form-error" role="alert">{{ error }}</p>
+        {% endif %}
+
         <form action="{{ url_for('place_order') }}"
               method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
 
             <label for="name">
                 Full Name
@@ -37,6 +42,8 @@
                 id="name"
                 name="name"
                 placeholder="Enter your full name"
+                value="{{ (form or {}).get('name', '') }}"
+                maxlength="80"
                 required
             >
 
@@ -48,7 +55,9 @@
                 type="tel"
                 id="phone"
                 name="phone"
-                placeholder="Enter your phone number"
+                placeholder="e.g. 012-345 6789"
+                value="{{ (form or {}).get('phone', '') }}"
+                maxlength="20"
                 required
             >
 
@@ -60,8 +69,10 @@
                 id="address"
                 name="address"
                 placeholder="Enter your delivery address"
+                maxlength="300"
                 required
-            ></textarea>
+            >{{ (form or {}).get('address', '') }}</textarea>
+            <small>The seller uses this to send your items.</small>
 
 
             <h2>Order Summary</h2>

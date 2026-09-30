@@ -1,94 +1,108 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-
     <meta charset="UTF-8">
-
-    <meta name="viewport"
-          content="width=device-width, initial-scale=1.0">
-
-    <title>My Orders - CampusCart</title>
-
-    <link rel="stylesheet"
-          href="{{ url_for('static', filename='shopping.css') }}">
-
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CampusCart | My Orders</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='logo.svg') }}">
 </head>
 
 <body>
+{% import "_stars.html" as rate %}
 
-<div class="container">
+<header class="navbar">
+    <a href="/" class="logo">Campus<span>Cart</span></a>
+    {% include "_nav.html" %}
+</header>
 
-    <h1>My Orders</h1>
+<main class="container">
 
-    {% if orders %}
+    <div class="page-head">
+        <div>
+            <h1>My Orders</h1>
+            <p>Everything you've bought. Each seller sends their own items, so each item has its own status.</p>
+        </div>
+        <a href="/products" class="btn-primary">Keep shopping</a>
+    </div>
 
-        {% for order in orders %}
+    {% for order in orders %}
+    <section class="panel order-panel">
 
-            <div class="order-card">
-
-                <div class="order-header">
-
-                    <h2>
-                        Order #{{ order["id"] }}
-                    </h2>
-
-                    <span class="order-status">
-                        {{ order["status"] }}
-                    </span>
-
-                </div>
-
-                <p>
-                    Order Date:
-                    {{ order["order_date"] }}
-                </p>
-
-                <p>
-                    Subtotal:
-                    RM {{ "%.2f"|format(order["subtotal"]) }}
-                </p>
-
-                <p>
-                    Discount:
-                    RM {{ "%.2f"|format(order["discount"]) }}
-                </p>
-
-                <h3>
-                    Total:
-                    RM {{ "%.2f"|format(order["total"]) }}
-                </h3>
-
+        <div class="order-top">
+            <div>
+                <h2>Order #{{ order.id }}</h2>
+                <p>{{ order.order_date|chat_time }}</p>
             </div>
-
-        {% endfor %}
-
-    {% else %}
-
-        <div class="empty-cart">
-
-            <h2>No Orders Yet</h2>
-
-            <p>
-                You haven't placed any orders.
-            </p>
-
-            <a href="/" class="button">
-                Start Shopping
-            </a>
-
+            <span class="status {{ order.status|lower }}">{{ order.status }}</span>
         </div>
 
-    {% endif %}
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Item</th>
+                        <th>Seller</th>
+                        <th>Qty</th>
+                        <th>Price</th>
+                        <th>Status</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in order["items"] %}
+                    <tr>
+                        <td><strong>{{ item.product_name or 'Item removed' }}</strong></td>
+                        <td>{{ item.seller or 'Unknown' }}</td>
+                        <td>{{ item.quantity }}</td>
+                        <td>RM {{ "%.2f"|format(item.price * item.quantity) }}</td>
+                        <td><span class="status {{ item.status|lower }}">{{ item.status }}</span></td>
+                        <td class="order-actions">
+                            {# Once it has arrived you can rate it -- once. #}
+                            {% set my_review = my_reviews.get(item.id) %}
+                            {% if my_review and item.product_status == 'Approved' %}
+                            <a class="you-rated" href="{{ url_for('product_reviews', product_id=item.product_id, _anchor='review-%d' % my_review.id) }}"
+                               >You rated {{ rate.stars(my_review.rating) }}</a>
+                            {% elif my_review %}
+                            <span class="you-rated">You rated {{ rate.stars(my_review.rating) }}</span>
+                            {% elif item.status == 'Delivered' %}
+                            <a class="btn-primary btn-small" href="{{ url_for('write_review', item_id=item.id) }}">Rate this item</a>
+                            {% elif item.status in ['Pending', 'Shipped'] %}
+                            <span class="rate-later" title="The seller marks it Delivered once you have it">You can rate this once it's delivered</span>
+                            {% endif %}
+                            {% if item.product_status == 'Approved' and item.seller_id and item.seller_id != current_account.id %}
+                            <a class="btn-message" href="{{ url_for('message_seller', product_id=item.product_id) }}">Message seller</a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
 
-    <br>
+        <div class="order-totals">
+            {% if order.discount %}
+            <span>Subtotal RM {{ "%.2f"|format(order.subtotal) }}</span>
+            <span>Discount &minus;RM {{ "%.2f"|format(order.discount) }}</span>
+            {% endif %}
+            <strong>Total RM {{ "%.2f"|format(order.total) }}</strong>
+        </div>
 
-    <a href="/" class="button">
-        Continue Shopping
-    </a>
+        {% if order.address %}
+        <p class="order-ship">Sending to {{ order.buyer_name }}, {{ order.phone }} &middot; {{ order.address }}</p>
+        {% endif %}
 
-</div>
+    </section>
+    {% else %}
+    <section class="panel">
+        <div class="empty">
+            <strong>No orders yet</strong>
+            <span>Things you buy will show up here, with where each one is.</span>
+        </div>
+    </section>
+    {% endfor %}
+
+</main>
 
 </body>
-
 </html>

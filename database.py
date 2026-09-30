@@ -219,6 +219,8 @@ def ensure_columns():
     ensure_marketplace_schema()
     ensure_messaging_schema()
     ensure_notifications_schema()
+    ensure_reviews_schema()
+    sync_order_status()
     return added
 
 def missing_tables():
@@ -378,14 +380,15 @@ def create_user(fullname, email, password_hash, role):
     cursor.execute("""
         INSERT INTO users (fullname, email, password_hash, role)
         VALUES (?, ?, ?, ?)
-    """, (fullname, email, password_hash, role))
+    """, (fullname, email.strip().lower(), password_hash, role))
     connection.commit()
     connection.close()
 
 def get_user_by_email(email):
+    # Emails are compared ignoring capitals: Farah@... and farah@... are one person.
     connection = get_connection()
     cursor = connection.cursor()
-    cursor.execute("SELECT * FROM users WHERE email = ?", (email,))
+    cursor.execute("SELECT * FROM users WHERE LOWER(email) = LOWER(?)", ((email or "").strip(),))
     user = cursor.fetchone()
     connection.close()
     return user
@@ -541,6 +544,9 @@ def ensure_marketplace_schema():
     for table, column, definition in [
         ('order_items', 'seller_id', 'INTEGER'),
         ('orders', 'checkout_token', 'TEXT'),
+        # Where the seller sends the item, typed in at checkout.
+        ('orders', 'phone', 'TEXT'),
+        ('orders', 'address', 'TEXT'),
     ]:
         cursor.execute(f'PRAGMA table_info({table})')
         if column not in {row['name'] for row in cursor.fetchall()}:
@@ -617,6 +623,42 @@ def ensure_notifications_schema():
     connection.close()
 
 
+def ensure_reviews_schema():
+    """Reviews are tied to one purchase (order_item_id), so only a buyer can
+    leave one and only once. product_name is kept so a review still reads
+    correctly after the listing is deleted."""
+    connection = get_connection()
+    cursor = connection.cursor()
+    cursor.execute('PRAGMA table_info(reviews)')
+    have = {row['name'] for row in cursor.fetchall()}
+    for column, definition in [('reviewer_id', 'INTEGER'), ('order_item_id', 'INTEGER'), ('product_name', 'TEXT')]:
+        if column not in have:
+            cursor.execute(f'ALTER TABLE reviews ADD COLUMN {column} {definition}')
+    cursor.execute('CREATE UNIQUE INDEX IF NOT EXISTS one_review_per_purchase ON reviews(order_item_id)')
+    connection.commit()
+    connection.close()
+
+
+# Each seller moves their own items along, so an order's overall status is
+# worked out from its items rather than set by hand:
+#   every item cancelled                    -> Cancelled
+#   every item left has been delivered      -> Delivered
+#   at least one item shipped or delivered  -> Shipped
+#   otherwise                               -> Pending
+ORDER_STATUS_FROM_ITEMS = """CASE
+    WHEN NOT EXISTS (SELECT 1 FROM order_items i WHERE i.order_id = orders.id AND i.status != 'Cancelled') THEN 'Cancelled'
+    WHEN NOT EXISTS (SELECT 1 FROM order_items i WHERE i.order_id = orders.id AND i.status NOT IN ('Delivered', 'Cancelled')) THEN 'Delivered'
+    WHEN EXISTS (SELECT 1 FROM order_items i WHERE i.order_id = orders.id AND i.status IN ('Shipped', 'Delivered')) THEN 'Shipped'
+    ELSE 'Pending' END"""
+
+
+def sync_order_status(order_id=None):
+    """Bring one order's status (or every order's, with no id) in line with its items."""
+    atomic([(f"""UPDATE orders SET status = {ORDER_STATUS_FROM_ITEMS}
+        WHERE (? IS NULL OR id = ?) AND EXISTS (SELECT 1 FROM order_items WHERE order_id = orders.id)""",
+             [order_id, order_id])])
+
+
 def get_cart(user_id):
     connection = get_connection()
     cursor = connection.cursor()
@@ -660,7 +702,7 @@ def remove_cart_item(user_id, product_id):
     atomic([('DELETE FROM cart WHERE user_id = ? AND product_id = ?', [user_id, product_id])])
 
 
-def checkout_cart(user_id, cart, pricing, buyer_name):
+def checkout_cart(user_id, cart, pricing, buyer_name, phone, address):
     """Commit the checked cart, order, stock and cart removal as one transaction.
 
     The first statement only creates an order if the entire snapshot still matches.
@@ -670,7 +712,7 @@ def checkout_cart(user_id, cart, pricing, buyer_name):
     token = uuid4().hex
     guards = ['(SELECT COUNT(*) FROM cart WHERE user_id = ?) = ?',
               "EXISTS (SELECT 1 FROM users WHERE id = ? AND account_status = 'Active')"]
-    args = [user_id, pricing['subtotal'], pricing['discount'], pricing['total'], buyer_name, token,
+    args = [user_id, pricing['subtotal'], pricing['discount'], pricing['total'], buyer_name, phone, address, token,
             user_id, len(cart), user_id]
     for product_id, item in cart.items():
         guards.append("""EXISTS (SELECT 1 FROM cart c JOIN products p ON p.id = c.product_id
@@ -682,8 +724,8 @@ def checkout_cart(user_id, cart, pricing, buyer_name):
         args.extend([user_id, product_id, item['quantity'], item['price'], item['seller_id'], item['name'], item['seller'], user_id])
     if not cart:
         return None
-    statements = [("""INSERT INTO orders (user_id, subtotal, discount, total, status, buyer_name, account_linked, checkout_token)
-        SELECT ?, ?, ?, ?, 'Pending', ?, 1, ? WHERE """ + ' AND '.join(guards), args)]
+    statements = [("""INSERT INTO orders (user_id, subtotal, discount, total, status, buyer_name, phone, address, account_linked, checkout_token)
+        SELECT ?, ?, ?, ?, 'Pending', ?, ?, ?, 1, ? WHERE """ + ' AND '.join(guards), args)]
     for product_id, item in cart.items():
         statements.extend([
             ("""INSERT INTO order_items (order_id, product_id, quantity, price, product_name, seller, seller_id)

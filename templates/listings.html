@@ -9,6 +9,9 @@
 </head>
 
 <body>
+{% import "_forms.html" as forms with context %}
+{% import "_stars.html" as rate %}
+
 
 <aside class="sidebar">
 
@@ -27,14 +30,12 @@
     <div class="sidebar-bottom">
 
         <div class="admin-user">
-            <div class="avatar">A</div>
-            <div>
-                <strong>Administrator</strong>
-                <small>CampusCart Admin</small>
+            <div class="avatar">{{ (session.get('user') or 'A')[0]|upper }}</div>
+            <div class="admin-who">
+                <strong title="{{ session.get('user', '') }}">{{ session.get('user', 'Administrator') }}</strong>
+                <small>Signed in as admin</small>
             </div>
         </div>
-
-        <a href="#">Settings</a>
         <a href="{{ url_for('logout') }}">Logout</a>
     </div>
 
@@ -52,6 +53,10 @@
         </div>
 
 </header>
+
+    {% for kind, message in get_flashed_messages(with_categories=true) %}
+    <div class="moderation-notice{% if kind == 'error' %} error{% endif %}" role="status">{{ message }}</div>
+    {% endfor %}
 
     {% if review_product %}
     <section class="panel listing-review" id="listing-details" aria-labelledby="listing-details-title" tabindex="-1">
@@ -83,20 +88,21 @@
                     <div><dt>Seller</dt><dd>{{ review_product.seller or 'Not provided' }}</dd></div>
                     <div><dt>Category</dt><dd>{{ review_product.category or 'Not provided' }}</dd></div>
                     <div><dt>Stock</dt><dd>{{ review_product.stock }} unit(s)</dd></div>
-                    <div><dt>Submitted</dt><dd>{{ review_product.created_at or 'Not available' }}</dd></div>
+                    <div><dt>Submitted</dt><dd>{{ review_product.created_at|when }}</dd></div>
+                    <div><dt>Rating</dt><dd>{% if review_rating.count %}{{ rate.stars(review_rating.average) }} {{ review_rating.average }} from {{ review_rating.count }} review{{ 's' if review_rating.count != 1 }}{% else %}No reviews yet{% endif %}</dd></div>
                 </dl>
                 <h3 class="listing-review-description-title">Description</h3>
                 <p class="listing-review-description">{{ (review_product.description or '')|trim or 'No description provided.' }}</p>
                 {% if review_product.status == 'Removed' %}
                 <p>This listing has been removed from sale. Its details and history are preserved.</p>
-                {% if review_product.removal_reason %}<p><strong>Removal reason:</strong> {{ review_product.removal_reason }}</p><small>{{ review_product.removed_by }} · {{ review_product.removed_at }} UTC</small>{% endif %}
+                {% if review_product.removal_reason %}<p><strong>Removal reason:</strong> {{ review_product.removal_reason }}</p><small>{{ review_product.removed_by }} · {{ review_product.removed_at|when }}</small>{% endif %}
                 <a class="view-btn" href="{{ url_for('moderation_queue', product=review_product.id, status='All') }}">View report history</a>
                 {% endif %}
                 <div class="listing-review-actions" aria-label="Listing actions">
                     {% if review_product.status == 'Reported' %}<a class="view-btn" href="{{ url_for('moderation_queue', product=review_product.id) }}">Read reports and history</a>{% endif %}
                     {% if review_product.status == 'Pending' %}
-                    <a href="{{ url_for('change_product_status', product_id=review_product.id, status='Approved') }}" class="approve-btn">Approve listing</a>
-                    <a href="{{ url_for('change_product_status', product_id=review_product.id, status='Rejected') }}" class="reject-btn">Reject listing</a>
+                    {{ forms.post_button(url_for('change_product_status', product_id=review_product.id, status='Approved'), 'Approve listing', 'approve-btn') }}
+                    {{ forms.post_button(url_for('change_product_status', product_id=review_product.id, status='Rejected'), 'Reject listing', 'reject-btn') }}
                     {% endif %}
                     <a href="{{ url_for('listings', edit=review_product.id, category=selected_category, status=selected_status, search=search) }}" class="view-btn">Edit listing</a>
                     {% if review_product.status in ['Approved', 'Pending'] %}
@@ -179,6 +185,7 @@
             action="{{ url_for('edit_product', product_id=edit_product.id) }}"
             class="form-grid"
         >
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
             <input type="text" name="name" placeholder="Product name" required
                    value="{{ edit_product.name }}">
 
@@ -310,9 +317,9 @@
 
                         <td>
                             <div class="stock-cell">
-                                <a href="{{ url_for('adjust_product_stock', product_id=product.id, action='decrease') }}" class="stock-btn">−</a>
+                                {{ forms.post_button(url_for('adjust_product_stock', product_id=product.id, action='decrease'), '−', 'stock-btn', title='One less in stock') }}
                                 <span>{{ product.stock }}</span>
-                                <a href="{{ url_for('adjust_product_stock', product_id=product.id, action='increase') }}" class="stock-btn">+</a>
+                                {{ forms.post_button(url_for('adjust_product_stock', product_id=product.id, action='increase'), '+', 'stock-btn', title='One more in stock') }}
                             </div>
                         </td>
 
@@ -362,6 +369,7 @@
         </div>
 
         <form method="POST" action="{{ url_for('rename_category') }}" class="filters" style="margin-top: 16px;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
             <select name="old_name">
                 {% for cat in categories %}
                 <option value="{{ cat }}">{{ cat }}</option>
@@ -385,6 +393,7 @@
         </div>
 
         <form method="POST" action="{{ url_for('add_tier') }}" class="filters">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
             <input type="number" step="0.01" min="0" name="min_subtotal" placeholder="Spend at least (RM)" required>
             <input type="number" step="0.01" min="0" max="100" name="discount_percent" placeholder="Discount %" required>
             <button type="submit">Add Tier</button>
@@ -405,10 +414,7 @@
                         <td><strong>RM {{ "%.2f"|format(t.min_subtotal) }}</strong></td>
                         <td>{{ t.discount_percent }}%</td>
                         <td class="action-cell">
-                            <a href="{{ url_for('delete_tier', tier_id=t.id) }}" class="reject-btn"
-                               onclick="return confirm('Delete this tier?');">
-                                Delete
-                            </a>
+                            {{ forms.post_button(url_for('delete_tier', tier_id=t.id), 'Delete', 'reject-btn', confirm='Delete this tier?') }}
                         </td>
                     </tr>
                     {% else %}
@@ -424,8 +430,8 @@
 
         <div class="panel-title">
             <div>
-                <h3>Product Reviews</h3>
-                <p>Moderate student reviews.</p>
+                <h3 id="product-reviews">Product Reviews</h3>
+                <p>What buyers said after their item was delivered. Delete anything rude, fake or off-topic.</p>
             </div>
         </div>
 
@@ -437,6 +443,7 @@
                         <th>Reviewer</th>
                         <th>Rating</th>
                         <th>Comment</th>
+                        <th>Date</th>
                         <th>Action</th>
                     </tr>
                 </thead>
@@ -444,18 +451,18 @@
                     {% for r in reviews %}
                     <tr>
                         <td><strong>{{ r.product_name or 'Deleted product' }}</strong></td>
-                        <td>{{ r.reviewer }}</td>
-                        <td>{{ r.rating }} / 5</td>
-                        <td>{{ r.comment }}</td>
+                        <td>
+                            {% if r.reviewer_id %}<a href="{{ url_for('user_detail', user_id=r.reviewer_id) }}">{{ r.reviewer }}</a>{% else %}{{ r.reviewer }}{% endif %}
+                        </td>
+                        <td class="nowrap">{{ rate.stars(r.rating) }} {{ r.rating }}/5</td>
+                        <td>{{ r.comment or '—' }}</td>
+                        <td class="nowrap">{{ r.review_date|day }}</td>
                         <td class="action-cell">
-                            <a href="{{ url_for('delete_review', review_id=r.id) }}" class="reject-btn"
-                               onclick="return confirm('Delete this review?');">
-                                Delete
-                            </a>
+                            {{ forms.post_button(url_for('delete_review', review_id=r.id), 'Delete', 'reject-btn', confirm='Delete this review?') }}
                         </td>
                     </tr>
                     {% else %}
-                    <tr><td colspan="5">No reviews yet.</td></tr>
+                    <tr><td colspan="6">No reviews yet. Buyers can rate an item once it has been delivered to them.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>

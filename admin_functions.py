@@ -312,45 +312,15 @@ def get_all_reviews():
     cursor = connection.cursor()
 
     cursor.execute("""
-        SELECT reviews.*, products.name AS product_name
+        SELECT reviews.*, COALESCE(products.name, reviews.product_name) AS product_name
         FROM reviews
         LEFT JOIN products ON products.id = reviews.product_id
-        ORDER BY reviews.review_date DESC
+        ORDER BY reviews.id DESC
     """)
     reviews = [dict(row) for row in cursor.fetchall()]
 
     connection.close()
     return reviews
-
-
-def get_reviews_for_product(product_id):
-    connection = get_connection()
-    cursor = connection.cursor()
-
-    cursor.execute(
-        "SELECT * FROM reviews WHERE product_id = ? ORDER BY review_date DESC",
-        (product_id,)
-    )
-    reviews = [dict(row) for row in cursor.fetchall()]
-
-    connection.close()
-    return reviews
-
-
-def add_review(product_id, reviewer, rating, comment=""):
-    connection = get_connection()
-    cursor = connection.cursor()
-
-    cursor.execute("""
-        INSERT INTO reviews (product_id, reviewer, rating, comment)
-        VALUES (?, ?, ?, ?)
-    """, (product_id, reviewer, rating, comment))
-
-    connection.commit()
-    new_id = cursor.lastrowid
-
-    connection.close()
-    return new_id
 
 
 def delete_review(review_id):
@@ -361,26 +331,6 @@ def delete_review(review_id):
 
     connection.commit()
     connection.close()
-
-
-def get_average_rating(product_id):
-    """Return the average rating for a product, rounded to 1 decimal,
-    or None if it has no reviews yet."""
-
-    connection = get_connection()
-    cursor = connection.cursor()
-
-    cursor.execute(
-        "SELECT AVG(rating) AS avg_rating FROM reviews WHERE product_id = ?",
-        (product_id,)
-    )
-    row = cursor.fetchone()
-
-    connection.close()
-
-    if row is None or row["avg_rating"] is None:
-        return None
-    return round(row["avg_rating"], 1)
 
 
 # ====================================================================
@@ -459,6 +409,9 @@ def get_order_items(order_id):
             order_items.price,
             order_items.status,
             order_items.cancelled_at,
+            order_items.seller,
+            order_items.seller_id,
+            products.status AS product_status,
             COALESCE(order_items.product_name, products.name) AS product_name
         FROM order_items
         LEFT JOIN products ON products.id = order_items.product_id
@@ -507,11 +460,9 @@ def admin_cancel_order(order_id):
             )
             changed = True
 
-    if changed:
-        cursor.execute("UPDATE orders SET status = 'Cancelled' WHERE id = ?", (order_id,))
-
     connection.commit()
     connection.close()
+    database.sync_order_status(order_id)
     return changed
 
 
@@ -547,10 +498,9 @@ def admin_reinstate_order(order_id):
             )
             changed = True
 
-    cursor.execute("UPDATE orders SET status = 'Pending' WHERE id = ?", (order_id,))
-
     connection.commit()
     connection.close()
+    database.sync_order_status(order_id)
     return changed
 
 
@@ -769,7 +719,7 @@ def update_order_item_status(item_id, status):
     cursor = connection.cursor()
 
     cursor.execute(
-        "SELECT status, product_id, quantity FROM order_items WHERE id = ?",
+        "SELECT status, product_id, quantity, order_id FROM order_items WHERE id = ?",
         (item_id,)
     )
     row = cursor.fetchone()
@@ -781,6 +731,10 @@ def update_order_item_status(item_id, status):
     if status.lower() not in ORDER_ITEM_TRANSITIONS.get(row["status"].lower(), set()):
         connection.close()
         return False
+
+    # Always saved as "Shipped", never "shipped", so the order's status
+    # can be worked out from its items.
+    status = status.capitalize()
 
     was_cancelled = row["status"].lower() == "cancelled"
     now_cancelled = status.lower() == "cancelled"
@@ -809,6 +763,7 @@ def update_order_item_status(item_id, status):
 
     connection.commit()
     connection.close()
+    database.sync_order_status(row["order_id"])
     return True
 
 
@@ -843,6 +798,8 @@ def get_seller_orders(seller_id, cancelled_max_age_days=2):
             products.image_url  AS image_url,
             orders.order_date   AS order_date,
             orders.buyer_name    AS buyer_name,
+            orders.phone         AS buyer_phone,
+            orders.address       AS buyer_address,
             orders.subtotal      AS order_subtotal,
             orders.discount      AS order_discount
         FROM order_items
@@ -946,11 +903,12 @@ def get_listings_per_day(days=7):
     connection = get_connection()
     cursor = connection.cursor()
 
+    # Grouped by the Malaysian day (UTC + 8 hours), the same days the chart labels.
     cursor.execute("""
-       SELECT DATE(created_at) AS day, COUNT(*) AS listings
+       SELECT DATE(created_at, '+8 hours') AS day, COUNT(*) AS listings
        FROM products
        WHERE created_at >= datetime('now', ?)
-       GROUP BY DATE(created_at)
+       GROUP BY DATE(created_at, '+8 hours')
     """, (f"-{days} days",))
     rows = [dict(row) for row in cursor.fetchall()]
 

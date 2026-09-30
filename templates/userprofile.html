@@ -11,16 +11,7 @@
 
     <header class="navbar">
         <a href="/" class="logo">Campus<span>Cart</span></a>
-        <nav class="nav-links">
-            <a href="/">Home</a>
-            <a href="/products">Products</a>
-            <a href="/cart">Cart</a>
-            <a href="/messages">Messages{% if unread_messages %} <span class="nav-badge" title="Unread messages">{{ unread_messages }}</span>{% endif %}</a>
-            <a href="/my-shop">My Shop{% if orders_to_ship %} <span class="nav-badge" title="Orders waiting to be shipped">{{ orders_to_ship }}</span>{% endif %}</a>
-            <a href="/profile" class="active">Profile</a>
-            {% include "_bell.html" %}
-            <a href="/logout">Log out</a>
-        </nav>
+        {% include "_nav.html" %}
     </header>
 
     <main class="container">
@@ -42,34 +33,46 @@
             <h2>Personal Information</h2>
             <p><strong>Name:</strong> {{ user.fullname }}</p>
             <p><strong>Email:</strong> {{ user.email }}</p>
-            <p><strong>Member since:</strong> {{ user.created_at }}</p>
-            <p><strong>Account Status:</strong> <span style="color: green;">Active</span></p>
+            <p><strong>Member since:</strong> {{ user.created_at|day }}</p>
+            <p><strong>Account Status:</strong> <span class="status {{ 'approved' if user.account_status == 'Active' else 'rejected' }}">{{ user.account_status }}</span></p>
         </section>
 
 
         <section id="tab-buying" class="tab-content" style="display: none;">
             <h2>My Buying Activity</h2>
-            <p>Want to buy more items? <a href="/products"><button>Go to Product Catalog</button></a></p>
+            <p>Your most recent orders. <a href="/orders">See every order and item &rarr;</a></p>
 
-            <h3>Recent Orders</h3>
-            <table border="1" cellpadding="8" cellspacing="0">
-                <thead>
-                    <tr>
-                        <th>Order ID</th>
-                        <th>Total</th>
-                        <th>Status</th>
-                        <th>Action</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td>#ORD-1001</td>
-                        <td>RM 25.00</td>
-                        <td><span style="color: green;">Completed</span></td>
-                        <td><a href="/products"><button>Buy Again</button></a></td>
-                    </tr>
-                </tbody>
-            </table>
+            {% if recent_orders %}
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Order</th>
+                            <th>Date</th>
+                            <th>Items</th>
+                            <th>Total</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for order in recent_orders %}
+                        <tr>
+                            <td><strong>#{{ order.id }}</strong></td>
+                            <td>{{ order.order_date|chat_time }}</td>
+                            <td>{{ order.item_count or 0 }}</td>
+                            <td>RM {{ "%.2f"|format(order.total) }}</td>
+                            <td><span class="status {{ order.status|lower }}">{{ order.status }}</span></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="empty">
+                <strong>No orders yet</strong>
+                <span><a href="/products">Browse the shop</a> to find something.</span>
+            </div>
+            {% endif %}
         </section>
 
     </main>

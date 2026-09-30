@@ -20,14 +20,12 @@
     <div class="sidebar-bottom">
 
         <div class="admin-user">
-            <div class="avatar">A</div>
-            <div>
-                <strong>Administrator</strong>
-                <small>CampusCart Admin</small>
+            <div class="avatar">{{ (session.get('user') or 'A')[0]|upper }}</div>
+            <div class="admin-who">
+                <strong title="{{ session.get('user', '') }}">{{ session.get('user', 'Administrator') }}</strong>
+                <small>Signed in as admin</small>
             </div>
         </div>
-
-        <a href="#">Settings</a>
         <a href="{{ url_for('logout') }}">Logout</a>
     </div>
 
@@ -40,8 +38,8 @@
 <section class="panel moderation-section"><form method="get" class="moderation-filter"><label for="status">Show reports</label><select id="status" name="status">{% for state in ['Open', 'Dismissed', 'Removed', 'All'] %}<option {{ 'selected' if state == selected_status else '' }}>{{ state }}</option>{% endfor %}</select>{% if product_id %}<input type="hidden" name="product" value="{{ product_id }}">{% endif %}<button class="moderation-primary">Apply</button>{% if product_id %}<a href="{{ url_for('moderation_queue', status=selected_status) }}">Show all listings</a>{% endif %}</form></section>
 {% for group in reports|groupby('product_id') %}
 <section class="panel moderation-section"><div class="moderation-heading"><div><h2>{{ group.list[0].product_name }}</h2><p>Listing #{{ group.grouper }} · {{ group.list|length }} report(s)</p></div>{% if group.list[0].listing_exists %}<a class="view-btn" href="{{ url_for('listings', view=group.grouper) }}">View listing</a>{% else %}<span>Listing deleted · history preserved</span>{% endif %}</div>
-{% for report in group.list %}<article class="moderation-history"><div class="moderation-heading"><strong>Report #{{ report.id }} · {{ report.reporter_name }}</strong><span class="status {{ 'pending' if report.status == 'Open' else 'approved' if report.status == 'Dismissed' else 'rejected' }}">{{ report.status }}</span></div><small>{{ report.created_at }} UTC</small><p class="moderation-text">{{ report.reason }}</p>{% if report.evidence %}<p class="moderation-text"><strong>Supporting details</strong><br>{{ report.evidence }}</p>{% endif %}
-{% if report.status != 'Open' %}<div class="moderation-decision"><strong>{{ report.status }} — {{ report.decided_by }}</strong><p>{{ report.decision_reason }}</p><small>{{ report.resolved_at }} UTC</small></div>{% endif %}</article>{% endfor %}
+{% for report in group.list %}<article class="moderation-history"><div class="moderation-heading"><strong>Report #{{ report.id }} · {{ report.reporter_name }}</strong><span class="status {{ 'pending' if report.status == 'Open' else 'approved' if report.status == 'Dismissed' else 'rejected' }}">{{ report.status }}</span></div><small>{{ report.created_at|when }}</small><p class="moderation-text">{{ report.reason }}</p>{% if report.evidence %}<p class="moderation-text"><strong>Supporting details</strong><br>{{ report.evidence }}</p>{% endif %}
+{% if report.status != 'Open' %}<div class="moderation-decision"><strong>{{ report.status }} — {{ report.decided_by }}</strong><p>{{ report.decision_reason }}</p><small>{{ report.resolved_at|when }}</small></div>{% endif %}</article>{% endfor %}
 {% if group.list|selectattr('status', 'equalto', 'Open')|list %}
 <form class="moderation-form" method="post" action="{{ url_for('resolve_listing_reports', product_id=group.grouper) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><label for="reason-{{ group.grouper }}">Decision reason</label><textarea id="reason-{{ group.grouper }}" name="reason" required minlength="3" maxlength="1000" rows="3" placeholder="Explain what you found and why you’re taking this action."></textarea><p>This decision resolves all open reports for this listing. Dismiss restores its previous status; remove takes it off sale and preserves its history.</p><div class="moderation-buttons"><button class="moderation-primary" name="decision" value="Dismissed">Dismiss reports</button><button class="moderation-danger" name="decision" value="Removed">Remove listing</button></div></form>
 {% endif %}</section>

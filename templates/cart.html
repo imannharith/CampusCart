@@ -19,19 +19,12 @@
 </head>
 
 <body>
+{% import "_forms.html" as forms with context %}
+
 
 <header class="navbar">
     <a href="/" class="logo">Campus<span>Cart</span></a>
-    <nav class="nav-links">
-        <a href="/">Home</a>
-        <a href="/products">Products</a>
-        <a href="/cart" class="active">Cart</a>
-        <a href="/messages">Messages{% if unread_messages %} <span class="nav-badge" title="Unread messages">{{ unread_messages }}</span>{% endif %}</a>
-        <a href="/my-shop">My Shop{% if orders_to_ship %} <span class="nav-badge" title="Orders waiting to be shipped">{{ orders_to_ship }}</span>{% endif %}</a>
-        <a href="/profile">Profile</a>
-        {% include "_bell.html" %}
-        <a href="/logout">Log out</a>
-    </nav>
+    {% include "_nav.html" %}
 </header>
 
 <div class="container">
@@ -76,28 +69,17 @@
 
             <div class="quantity-buttons">
 
-                <a href="{{ url_for('decrease_quantity', product_id=product_id) }}"
-                   class="button">
-                    −
-                </a>
+                {{ forms.post_button(url_for('decrease_quantity', product_id=product_id), '−', 'button', title='One fewer') }}
 
                 <span>
                     {{ item.quantity }}
                 </span>
 
-                <a href="{{ url_for('increase_quantity', product_id=product_id) }}"
-                   class="button">
-                    +
-                </a>
+                {{ forms.post_button(url_for('increase_quantity', product_id=product_id), '+', 'button', title='One more') }}
 
             </div>
 
-            <a href="{{ url_for('remove_from_cart', product_id=product_id) }}"
-               class="remove-button">
-
-                Remove
-
-            </a>
+            {{ forms.post_button(url_for('remove_from_cart', product_id=product_id), 'Remove', 'remove-button') }}
 
         </div>
 

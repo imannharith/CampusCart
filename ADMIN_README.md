@@ -43,10 +43,14 @@ like the old sqlite3 connection (`cursor()`, `execute()`, `fetchone()`,
    ```
    TURSO_DATABASE_URL=libsql://<database>.turso.io
    TURSO_AUTH_TOKEN=<token>
+   SECRET_KEY=<any long random text>
    ```
 
    `.env` is gitignored, so the token never reaches GitHub. Get the
-   values from a teammate.
+   Turso values from a teammate. `SECRET_KEY` signs the login cookie;
+   make your own with `python -c "import secrets; print(secrets.token_hex(32))"`.
+   Without it the app still runs, but everyone is logged out on every restart.
+   Add `FLASK_DEBUG=1` only while developing: debug mode's error page can run code.
 3. `python app.py`, then visit `http://127.0.0.1:5000/`
 
 If the database can't be reached, the app refuses to start and prints

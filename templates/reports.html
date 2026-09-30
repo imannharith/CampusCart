@@ -9,6 +9,8 @@
 </head>
 
 <body>
+{% import "_forms.html" as forms with context %}
+
 
 <aside class="sidebar">
 
@@ -27,14 +29,12 @@
     <div class="sidebar-bottom">
 
         <div class="admin-user">
-            <div class="avatar">A</div>
-            <div>
-                <strong>Administrator</strong>
-                <small>CampusCart Admin</small>
+            <div class="avatar">{{ (session.get('user') or 'A')[0]|upper }}</div>
+            <div class="admin-who">
+                <strong title="{{ session.get('user', '') }}">{{ session.get('user', 'Administrator') }}</strong>
+                <small>Signed in as admin</small>
             </div>
         </div>
-
-        <a href="#">Settings</a>
         <a href="{{ url_for('logout') }}">Logout</a>
     </div>
 
@@ -233,8 +233,9 @@
         <form method="GET" action="{{ url_for('reports') }}" class="filters" style="grid-template-columns: 1fr auto;">
             <select name="status">
                 <option value="all" {% if selected_status == 'all' %}selected{% endif %}>All Orders</option>
-                <option value="Pending" {% if selected_status == 'Pending' %}selected{% endif %}>Normal</option>
-                <option value="Cancelled" {% if selected_status == 'Cancelled' %}selected{% endif %}>Cancelled by Admin</option>
+                {% for state in ['Pending', 'Shipped', 'Delivered', 'Cancelled'] %}
+                <option value="{{ state }}" {% if selected_status == state %}selected{% endif %}>{{ state }}</option>
+                {% endfor %}
             </select>
             <button type="submit">Filter</button>
         </form>
@@ -282,15 +283,17 @@
                         <td>RM {{ "%.2f"|format(order.subtotal) }}</td>
                         <td>RM {{ "%.2f"|format(order.discount) }}</td>
                         <td>RM {{ "%.2f"|format(order.total) }}</td>
-                        <td>{{ order.order_date }}</td>
+                        <td>{{ order.order_date|when }}</td>
                         <td class="action-cell">
-                            {% if order.status == 'Cancelled' %}
-                                <a href="{{ url_for('admin_reinstate_order', order_id=order.id) }}" class="view-btn">Reinstate</a>
-                            {% else %}
-                                <a href="{{ url_for('admin_cancel_order', order_id=order.id) }}" class="reject-btn"
-                                   onclick="return confirm('Cancel this order? Only do this if there\'s a problem, like a report -- sellers normally handle their own orders.');">
-                                    Cancel Order
-                                </a>
+                            {# Cancel is offered while anything is still on its way; Reinstate
+                               while anything is cancelled. A part-delivered order can show both. #}
+                            {% set states = order.line_items|map(attribute='status')|list %}
+                            {% if 'Pending' in states or 'Shipped' in states %}
+                                {{ forms.post_button(url_for('admin_cancel_order', order_id=order.id), 'Cancel Order', 'reject-btn',
+                                   confirm="Cancel this order? Only do this if there's a problem, like a report -- sellers normally handle their own orders.") }}
+                            {% endif %}
+                            {% if 'Cancelled' in states %}
+                                {{ forms.post_button(url_for('admin_reinstate_order', order_id=order.id), 'Reinstate', 'view-btn') }}
                             {% endif %}
                         </td>
                     </tr>

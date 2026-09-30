@@ -27,14 +27,12 @@
     <div class="sidebar-bottom">
 
         <div class="admin-user">
-            <div class="avatar">A</div>
-            <div>
-                <strong>Administrator</strong>
-                <small>CampusCart Admin</small>
+            <div class="avatar">{{ (session.get('user') or 'A')[0]|upper }}</div>
+            <div class="admin-who">
+                <strong title="{{ session.get('user', '') }}">{{ session.get('user', 'Administrator') }}</strong>
+                <small>Signed in as admin</small>
             </div>
         </div>
-
-        <a href="#">Settings</a>
         <a href="{{ url_for('logout') }}">Logout</a>
     </div>
 
@@ -45,7 +43,7 @@
 {% if detail_view %}
 {% for message in get_flashed_messages() %}<div class="moderation-notice" role="status">{{ message }}</div>{% endfor %}
 
-<header><div><a href="{{ url_for('users') }}">← All users</a><h1>{{ user.fullname }}</h1><p class="subtitle">Account #{{ user.id }} · {{ user.email }} · Joined {{ user.created_at[:10] }}</p></div><span class="status {{ 'rejected' if user.account_status == 'Suspended' else 'approved' }}">{{ user.account_status }}</span></header>
+<header><div><a href="{{ url_for('users') }}">← All users</a><h1>{{ user.fullname }}</h1><p class="subtitle">Account #{{ user.id }} · {{ user.email }} · Joined {{ user.created_at|day }}</p></div><span class="status {{ 'rejected' if user.account_status == 'Suspended' else 'approved' }}">{{ user.account_status }}</span></header>
 <section class="panel moderation-section"><h2>Account access</h2>
 <p>Suspension blocks sign-in, ends access from existing sessions, and hides this account’s linked listings from the shop. Reactivation restores access.</p>
 {% if protected or user.role == 'admin' %}<p>Administrator accounts cannot be suspended here.</p>{% else %}
@@ -58,9 +56,9 @@
 <section class="panel"><div class="panel-title"><div><h2>Listings</h2><p>Older listings are linked only when the seller name matches a single account.</p></div></div>
 <div class="table-container"><table><thead><tr><th>Listing</th><th>Status</th><th>Stock</th><th>Action</th></tr></thead><tbody>{% for item in listings %}<tr><td>{{ item.name }}</td><td>{{ item.status }}</td><td>{{ item.stock }}</td><td><a class="view-btn" href="{{ url_for('listings', view=item.id) }}">View listing</a></td></tr>{% else %}<tr><td colspan="4">No linked listings.</td></tr>{% endfor %}</tbody></table></div></section>
 <section class="panel"><div class="panel-title"><div><h2>Purchases</h2><p>Verified account-linked orders. Older orders with unverified ownership remain in sales reports.</p></div></div>
-<div class="table-container"><table><thead><tr><th>Order</th><th>Date</th><th>Total</th><th>Status</th></tr></thead><tbody>{% for order in orders %}<tr><td>#{{ order.id }}</td><td>{{ order.order_date }}</td><td>RM {{ '%.2f'|format(order.total) }}</td><td>{{ order.status }}</td></tr>{% else %}<tr><td colspan="4">No verified purchases yet.</td></tr>{% endfor %}</tbody></table></div></section>
+<div class="table-container"><table><thead><tr><th>Order</th><th>Date</th><th>Total</th><th>Status</th></tr></thead><tbody>{% for order in orders %}<tr><td>#{{ order.id }}</td><td>{{ order.order_date|when }}</td><td>RM {{ '%.2f'|format(order.total) }}</td><td>{{ order.status }}</td></tr>{% else %}<tr><td colspan="4">No verified purchases yet.</td></tr>{% endfor %}</tbody></table></div></section>
 <section class="panel"><div class="panel-title"><h2>Reports involving this account</h2></div><div class="table-container"><table><thead><tr><th>Listing</th><th>Involvement</th><th>Reason</th><th>Status</th></tr></thead><tbody>{% for report in reports %}<tr><td><a href="{{ url_for('moderation_queue', status='All', product=report.product_id) }}">{{ report.product_name }}</a></td><td>{{ 'Submitted report' if report.reporter_id == user.id else 'Listing owner' }}</td><td>{{ report.reason }}</td><td>{{ report.status }}</td></tr>{% else %}<tr><td colspan="4">No reports involving this account.</td></tr>{% endfor %}</tbody></table></div></section>
-<section class="panel moderation-section"><h2>Account history</h2>{% for event in history %}<article class="moderation-history"><strong>{{ event.action }}</strong><p>{{ event.reason }}</p><small>{{ event.admin_email }} · {{ event.created_at }} UTC</small></article>{% else %}<p>No account actions recorded.</p>{% endfor %}</section>
+<section class="panel moderation-section"><h2>Account history</h2>{% for event in history %}<article class="moderation-history"><strong>{{ event.action }}</strong><p>{{ event.reason }}</p><small>{{ event.admin_email }} · {{ event.created_at|when }}</small></article>{% else %}<p>No account actions recorded.</p>{% endfor %}</section>
 {% else %}
 
     <header>
@@ -157,7 +155,7 @@
                         <td><code>#{{ user.id }}</code></td>
                         <td><strong>{{ user.fullname }}</strong></td>
                         <td>{{ user.email }}</td>
-                        <td>{{ (user.created_at or '')[:10] }}</td>
+                        <td>{{ user.created_at|day }}</td>
                         <td><span class="status {{ 'rejected' if user.account_status == 'Suspended' else 'approved' }}">{{ user.account_status }}</span></td>
                         <td><a class="view-btn" href="{{ url_for('user_detail', user_id=user.id) }}">View account</a></td>
                     </tr>

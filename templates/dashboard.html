@@ -10,6 +10,7 @@
 </head>
 
 <body>
+{% import "_stars.html" as rate %}
 
     <aside class="sidebar">
 
@@ -30,14 +31,12 @@
         <div class="sidebar-bottom">
 
         <div class="admin-user">
-            <div class="avatar">A</div>
-            <div>
-                <strong>Administrator</strong>
-                <small>CampusCart Admin</small>
+            <div class="avatar">{{ (session.get('user') or 'A')[0]|upper }}</div>
+            <div class="admin-who">
+                <strong title="{{ session.get('user', '') }}">{{ session.get('user', 'Administrator') }}</strong>
+                <small>Signed in as admin</small>
             </div>
         </div>
-
-            <a href="#">Settings</a>
             <a href="{{ url_for('logout') }}">Logout</a>
         </div>
 
@@ -202,6 +201,44 @@
 
             </table>
 
+        </section>
+
+        <section class="panel">
+            <div class="panel-title">
+                <div>
+                    <h3>Latest Reviews</h3>
+                    <p>What buyers are saying about delivered items</p>
+                </div>
+                <a href="{{ url_for('listings', _anchor='product-reviews') }}" class="view-all">
+                    Manage reviews →
+                </a>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Product</th>
+                        <th>Reviewer</th>
+                        <th>Rating</th>
+                        <th>Comment</th>
+                        <th>Date</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for review in latest_reviews %}
+                    <tr>
+                        <td><strong>{{ review.product_name or 'Deleted product' }}</strong></td>
+                        <td>{{ review.reviewer }}</td>
+                        <td class="nowrap">{{ rate.stars(review.rating) }}</td>
+                        <td>{{ review.comment or '—' }}</td>
+                        <td class="nowrap">{{ review.review_date|day }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5">No reviews yet.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </section>
 
     </main>

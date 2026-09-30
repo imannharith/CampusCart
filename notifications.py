@@ -113,3 +113,20 @@ def order_cancelled_by_admin(order_id):
     found = rows('SELECT user_id FROM orders WHERE id = ? AND account_linked = 1', (order_id,))
     if found:
         send(found[0]['user_id'], f"Order #{order_id} was cancelled by CampusCart.", '/orders')
+
+
+def order_reinstated_by_admin(order_id):
+    found = rows('SELECT user_id FROM orders WHERE id = ? AND account_linked = 1', (order_id,))
+    if found:
+        send(found[0]['user_id'], f"Order #{order_id} is back on. The seller will send it soon.", '/orders')
+
+
+def review_left(order_item_id):
+    """Tell the seller someone rated what they sold."""
+    found = rows('''SELECT r.rating, r.reviewer, r.product_id, i.product_name, i.seller_id
+        FROM reviews r JOIN order_items i ON i.id = r.order_item_id WHERE r.order_item_id = ?''', (order_item_id,))
+    if found:
+        review = found[0]
+        send(review['seller_id'],
+             f"{review['reviewer']} gave {review['product_name']} {review['rating']} out of 5 stars.",
+             f"/products/{review['product_id']}/reviews")

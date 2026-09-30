@@ -1394,3 +1394,17 @@ td strong { font-weight: 600; }
 
 .moderation-nav-icon { display: inline-grid; place-items: center; width: 18px; height: 18px; border: 1.5px solid currentColor; border-radius: 50%; font-size: 12px; line-height: 1; }
 @media (max-width: 760px) { .sidebar nav { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
+.moderation-notice.error { background: var(--bad-wash); color: var(--bad); }
+
+/* Buttons that send a small form (see templates/_forms.html) sit in line like the links they replaced. */
+.inline-form { display: inline; margin: 0; }
+.inline-form button { font: inherit; cursor: pointer; }
+
+/* The signed-in admin's email: cut short with "…" if it's too long for the sidebar. */
+.admin-who { min-width: 0; }
+.admin-who strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 150px; }
+
+/* Star ratings (templates/_stars.html): five stars, gold up to --rating out of 5. */
+.stars { --percent: calc(var(--rating) / 5 * 100%); display: inline-block; font-size: 14px; line-height: 1; letter-spacing: 1px; vertical-align: -1px; }
+.stars::before { content: "★★★★★"; background: linear-gradient(90deg, #f5a524 var(--percent), #d5dbe5 var(--percent)); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+.nowrap { white-space: nowrap; }

@@ -2,7 +2,8 @@ import os
 import sys
 import secrets
 import hmac
-from datetime import date, timedelta
+import re
+from datetime import date, datetime, timedelta, timezone
 from functools import wraps
 from uuid import uuid4
 
@@ -13,10 +14,21 @@ import database
 import admin_functions as admin
 import messaging
 import notifications
+import reviews
 
 app = Flask(__name__)
-app.secret_key = 'campuscart_secret_key_bebas_tukar'
+
+# The key that signs the login cookie. Anyone who knows it can make a cookie
+# saying "I'm the admin", so it lives in .env (kept off GitHub), not in code.
+app.secret_key = os.environ.get("SECRET_KEY")
+if not app.secret_key:
+    app.secret_key = secrets.token_hex(32)
+    print("No SECRET_KEY in .env -- using a temporary one, so everyone is "
+          "logged out whenever the app restarts.", file=sys.stderr)
+
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=30)
+# The browser won't send the login cookie along with forms posted from other sites.
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 
 # The only statuses the admin links are allowed to set.
 PRODUCT_STATUSES = {"Approved", "Pending", "Rejected", "Reported", "Removed"}
@@ -103,13 +115,89 @@ def chat_time(timestamp):
     return messaging.local_time(timestamp)
 
 
+def malaysia_time(timestamp):
+    """A time from the database as a Malaysian date and time, or None.
+
+    The database stores every time in UTC (CURRENT_TIMESTAMP), eight hours
+    behind Malaysia, so it is shifted before it is shown to anyone."""
+    text = str(timestamp or "").replace("T", " ")[:19]
+    for layout in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M", "%Y-%m-%d"):
+        try:
+            return datetime.strptime(text, layout) + messaging.LOCAL_OFFSET
+        except ValueError:
+            continue
+    return None
+
+
+@app.template_filter('when')
+def when(timestamp):
+    """30 Sep 2026, 1:22 AM"""
+    moment = malaysia_time(timestamp)
+    if moment is None:
+        return "Not available"
+    return f"{moment.day} {moment:%b %Y}, {moment.hour % 12 or 12}:{moment:%M %p}"
+
+
+@app.template_filter('day')
+def day(timestamp):
+    """30 Sep 2026"""
+    moment = malaysia_time(timestamp)
+    return f"{moment.day} {moment:%b %Y}" if moment else "Not available"
+
+
 def require_csrf():
     if not hmac.compare_digest(session.get('csrf_token', '').encode(), request.form.get('csrf_token', '').encode()) or not session.get('csrf_token'):
         abort(400, 'This form expired. Reload the page and try again.')
 
 
+@app.before_request
+def check_form_token():
+    """Every form on the site carries a secret token from the page it was
+    on. A form posted from another website can't know it, so anything that
+    changes data (all of it is POST) is refused without the right token."""
+    if request.method == 'POST':
+        require_csrf()
+
+
+# The categories a student can pick when selling (the Sell form's dropdown).
+SELL_CATEGORIES = {"books", "electronics", "fashion", "accessories"}
+
+
+def read_listing(form, name_field, min_stock=0):
+    """The listing details typed into a form, checked and tidied.
+    Raises ValueError with a message to show if anything is wrong."""
+
+    name = (form.get(name_field) or "").strip()
+    category = (form.get("category") or "").strip()
+    description = (form.get("description") or "").strip()
+
+    if not 1 <= len(name) <= 120:
+        raise ValueError("Give the item a name (up to 120 characters).")
+    if not 1 <= len(category) <= 40:
+        raise ValueError("Choose a category.")
+    if len(description) > 1000:
+        raise ValueError("Keep the description under 1,000 characters.")
+
+    try:
+        price = round(float(form.get("price", "")), 2)
+    except ValueError:
+        raise ValueError("Price must be a number, like 25.00.")
+    # Written this way round so "nan" and "inf" fail too.
+    if not 0.01 <= price <= 100000:
+        raise ValueError("Price must be between RM 0.01 and RM 100,000.")
+
+    try:
+        stock = int(form.get("stock", ""))
+    except ValueError:
+        raise ValueError("Quantity must be a whole number.")
+    if not min_stock <= stock <= 9999:
+        raise ValueError(f"Quantity must be between {min_stock} and 9,999.")
+
+    return {"name": name, "category": category, "price": price,
+            "stock": stock, "description": description}
+
+
 def validate_moderation_form():
-    require_csrf()
     reason = request.form.get('reason', '').strip()
     if not 3 <= len(reason) <= 1000:
         abort(400, 'Enter a reason between 3 and 1,000 characters.')
@@ -147,6 +235,7 @@ def home():
     return render_template(
         "homepage.html",
         products=products,
+        ratings=reviews.ratings(),
     )
 
 # PRODUCT CATALOG PAGE (Dulu products.py)
@@ -187,6 +276,7 @@ def product_catalog():
         selected_category=category_query,
         search=search_query,
         sort=sort_query,
+        ratings=reviews.ratings(),
     )
 
 def build_chart_days(rows, days=7, baseline=5):
@@ -203,7 +293,7 @@ def build_chart_days(rows, days=7, baseline=5):
 
     counts = {row["day"]: row["listings"] for row in rows}
 
-    today = date.today()
+    today = (datetime.now(timezone.utc) + messaging.LOCAL_OFFSET).date()  # today in Malaysia
     slots = []
 
     for days_ago in range(days - 1, -1, -1):
@@ -248,6 +338,7 @@ def dashboard():
         total_users=database.get_user_stats()["total"],
         recent_products=recent_products,
         chart=build_chart_days(admin.get_listings_per_day()),
+        latest_reviews=reviews.latest(),
     )
 
 @app.route("/listings")
@@ -293,6 +384,7 @@ def listings():
         listing_stats=listing_stats,
         review_product=review_product,
         review_image=review_image,
+        review_rating=reviews.summary(review_product["id"]) if review_product else None,
         seller_accounts=database.get_all_users() if edit_id else [],
     )
 
@@ -308,18 +400,24 @@ def edit_product(product_id):
     if seller_id is not None and not admin.rows('SELECT id FROM users WHERE id = ?', (seller_id,)):
         abort(400, 'Seller account does not exist.')
 
+    try:
+        details = read_listing(request.form, "name")
+    except ValueError as problem:
+        flash(str(problem), "error")
+        return redirect(url_for("listings", edit=product_id))
+
     admin.update_product(
         product_id,
-        name=request.form["name"],
+        name=details["name"],
         seller_id=seller_id,
-        category=request.form["category"],
-        price=float(request.form["price"]),
-        stock=int(request.form["stock"]),
+        category=details["category"],
+        price=details["price"],
+        stock=details["stock"],
     )
 
     return redirect(url_for("listings"))
 
-@app.route("/listings/status/<int:product_id>/<status>")
+@app.route("/listings/status/<int:product_id>/<status>", methods=["POST"])
 @admin_required
 def change_product_status(product_id, status):
 
@@ -358,10 +456,12 @@ def remove_product(product_id):
     flash('Listing removed from sale. Its details and history are preserved.')
     return redirect(url_for('listings', view=product_id))
 
-@app.route("/listings/stock/<int:product_id>/<action>")
+@app.route("/listings/stock/<int:product_id>/<action>", methods=["POST"])
 @admin_required
 def adjust_product_stock(product_id, action):
 
+    if action not in {"increase", "decrease"}:
+        abort(400)
     amount = 1 if action == "increase" else -1
     admin.adjust_stock(product_id, amount)
 
@@ -371,10 +471,14 @@ def adjust_product_stock(product_id, action):
 @admin_required
 def rename_category():
 
-    admin.rename_category(
-        request.form["old_name"],
-        request.form["new_name"],
-    )
+    old_name = request.form.get("old_name", "").strip()
+    new_name = request.form.get("new_name", "").strip()
+
+    if not old_name or not 1 <= len(new_name) <= 40:
+        flash("Pick a category and give it a new name (up to 40 characters).", "error")
+        return redirect(url_for("listings"))
+
+    admin.rename_category(old_name, new_name)
 
     return redirect(url_for("listings"))
 
@@ -382,14 +486,20 @@ def rename_category():
 @admin_required
 def add_tier():
 
-    admin.add_discount_tier(
-        min_subtotal=float(request.form["min_subtotal"]),
-        discount_percent=float(request.form["discount_percent"]),
-    )
+    try:
+        min_subtotal = float(request.form.get("min_subtotal", ""))
+        percent = float(request.form.get("discount_percent", ""))
+    except ValueError:
+        min_subtotal = percent = -1
+    if not (0 <= min_subtotal <= 100000 and 0 < percent <= 100):
+        flash("A discount needs a minimum spend of RM 0 or more and a percentage from 1 to 100.", "error")
+        return redirect(url_for("listings"))
+
+    admin.add_discount_tier(min_subtotal=min_subtotal, discount_percent=percent)
 
     return redirect(url_for("listings"))
 
-@app.route("/tiers/delete/<int:tier_id>")
+@app.route("/tiers/delete/<int:tier_id>", methods=["POST"])
 @admin_required
 def delete_tier(tier_id):
 
@@ -397,13 +507,14 @@ def delete_tier(tier_id):
 
     return redirect(url_for("listings"))
 
-@app.route("/reviews/delete/<int:review_id>")
+@app.route("/reviews/delete/<int:review_id>", methods=["POST"])
 @admin_required
 def delete_review(review_id):
 
     admin.delete_review(review_id)
+    flash("Review deleted.")
 
-    return redirect(url_for("listings"))
+    return redirect(url_for("listings", _anchor="product-reviews"))
 
 @app.route("/reports")
 @admin_required
@@ -426,7 +537,7 @@ def reports():
         dead_listings=admin.get_dead_listings(),
     )
 
-@app.route("/reports/cancel/<int:order_id>")
+@app.route("/reports/cancel/<int:order_id>", methods=["POST"])
 @admin_required
 def admin_cancel_order(order_id):
     """Cancel an entire order -- only for a problem like a report, not
@@ -441,13 +552,14 @@ def admin_cancel_order(order_id):
     # did, since the dropdown resets to "All Orders" either way.
     return redirect(url_for("reports", status="Cancelled"))
 
-@app.route("/reports/reinstate/<int:order_id>")
+@app.route("/reports/reinstate/<int:order_id>", methods=["POST"])
 @admin_required
 def admin_reinstate_order(order_id):
 
-    admin.admin_reinstate_order(order_id)
+    if admin.admin_reinstate_order(order_id):
+        notifications.order_reinstated_by_admin(order_id)
 
-    return redirect(url_for("reports", status="Pending"))
+    return redirect(url_for("reports"))
 
 @app.route("/users")
 @admin_required
@@ -471,7 +583,7 @@ def shopper_required(view):
     return wrapped
 
 
-@app.route("/add-to-cart/<int:product_id>")
+@app.route("/add-to-cart/<int:product_id>", methods=["POST"])
 @shopper_required
 def add_to_cart(product_id):
     product = admin.get_product(product_id)
@@ -491,7 +603,7 @@ def view_cart():
     return render_template('cart.html', cart=cart, subtotal=price_cart(cart)['subtotal'])
 
 
-@app.route('/increase/<int:product_id>')
+@app.route('/increase/<int:product_id>', methods=['POST'])
 @shopper_required
 def increase_quantity(product_id):
     product = admin.get_product(product_id)
@@ -501,14 +613,14 @@ def increase_quantity(product_id):
     return redirect(url_for('view_cart'))
 
 
-@app.route('/decrease/<int:product_id>')
+@app.route('/decrease/<int:product_id>', methods=['POST'])
 @shopper_required
 def decrease_quantity(product_id):
     database.decrease_cart_item(current_user()['id'], product_id)
     return redirect(url_for('view_cart'))
 
 
-@app.route('/remove/<int:product_id>')
+@app.route('/remove/<int:product_id>', methods=['POST'])
 @shopper_required
 def remove_from_cart(product_id):
     database.remove_cart_item(current_user()['id'], product_id)
@@ -562,11 +674,23 @@ def place_order():
     cart = database.get_cart(user['id'])
     if not cart:
         return redirect(url_for('view_cart'))
-    name = request.form['name']
-    phone = request.form['phone']
-    address = request.form['address']
+    name = request.form.get('name', '').strip()
+    phone = request.form.get('phone', '').strip()
+    address = request.form.get('address', '').strip()
     pricing = price_cart(cart)
-    order_id = database.checkout_cart(user['id'], cart, pricing, name)
+
+    # The seller posts the item here, so it has to be usable.
+    error = None
+    if not 2 <= len(name) <= 80:
+        error = "Enter your full name."
+    elif not re.fullmatch(r"[0-9+\-\s()]{7,20}", phone) or sum(c.isdigit() for c in phone) < 7:
+        error = "Enter a phone number, like 012-345 6789."
+    elif not 5 <= len(address) <= 300:
+        error = "Enter the address the seller should send your items to."
+    if error:
+        return render_template('checkout.html', cart=cart, error=error, form=request.form, **pricing), 400
+
+    order_id = database.checkout_cart(user['id'], cart, pricing, name, phone, address)
     if order_id is None:
         abort(409, 'Your cart or an item’s availability changed. Review your cart before trying again.')
     notifications.new_order(order_id)
@@ -581,27 +705,15 @@ def view_orders():
     user = current_user()
     if user is None:
         return redirect(url_for("login"))
-    user_id = user["id"]
+    orders = admin.rows(
+        "SELECT * FROM orders WHERE user_id = ? AND account_linked = 1 ORDER BY id DESC",
+        (user["id"],))
 
-    connection = database.get_connection()
+    # Each item has its own status, because each seller ships their own.
+    for order in orders:
+        order["items"] = admin.get_order_items(order["id"])
 
-    cursor = connection.cursor()
-
-    cursor.execute("""
-        SELECT *
-        FROM orders
-        WHERE user_id = ? AND account_linked = 1
-        ORDER BY order_date DESC
-    """, (user_id,))
-
-    orders = cursor.fetchall()
-
-    connection.close()
-
-    return render_template(
-        "orders.html",
-        orders=orders
-    )
+    return render_template("orders.html", orders=orders, my_reviews=reviews.mine(user["id"]))
 
 @app.route("/profile")
 def profile():
@@ -614,7 +726,12 @@ def profile():
     if user is None:
         return redirect(url_for('logout'))
 
-    return render_template("userprofile.html", user=dict(user))
+    recent_orders = admin.rows(
+        """SELECT orders.*, (SELECT SUM(quantity) FROM order_items WHERE order_id = orders.id) AS item_count
+           FROM orders WHERE user_id = ? AND account_linked = 1 ORDER BY id DESC LIMIT 5""",
+        (user["id"],))
+
+    return render_template("userprofile.html", user=dict(user), recent_orders=recent_orders)
 
 def current_user():
     """Return the signed-in account, or None."""
@@ -639,11 +756,65 @@ def read_all_notifications():
     user = current_user()
     if user is None:
         return redirect(url_for("login"))
-    require_csrf()
     notifications.mark_all_read(user["id"])
     # Only ever back to a page on this site.
     back = request.form.get("next", "")
     return redirect(back if back.startswith("/") and not back.startswith("//") else url_for("home"))
+
+@app.route("/products/<int:product_id>/reviews")
+def product_reviews(product_id):
+    """Everything buyers have said about one listing."""
+
+    product = admin.get_product(product_id)
+
+    # Shown while the listing is on sale, and always to its own seller.
+    user = current_user()
+    if product is None or (not admin.available(product) and not (user and product["seller_id"] == user["id"])):
+        abort(404)
+
+    return render_template(
+        "product_reviews.html",
+        product=product,
+        reviews=reviews.for_product(product_id),
+        summary=reviews.summary(product_id),
+        seller_rating=reviews.seller_rating(product["seller_id"]) if product["seller_id"] else None,
+    )
+
+@app.route("/orders/items/<int:item_id>/review", methods=["GET", "POST"])
+def write_review(item_id):
+    """Rate something you bought, once it has been delivered."""
+
+    user = current_user()
+    if user is None:
+        return redirect(url_for("login"))
+
+    bought = reviews.purchase(item_id, user["id"])
+    if bought is None:
+        abort(404)
+
+    # Afterwards, show the review on the listing -- or My Orders if the
+    # listing has since been taken down.
+    if admin.available(admin.get_product(bought["product_id"])):
+        done = url_for("product_reviews", product_id=bought["product_id"], _anchor="reviews")
+    else:
+        done = url_for("view_orders")
+
+    if bought["review_id"]:
+        return redirect(done)
+    if bought["status"] != "Delivered":
+        abort(400, "You can review this once it has been delivered.")
+
+    if request.method == "POST":
+        try:
+            rating, comment = reviews.clean(request.form.get("rating"), request.form.get("comment"))
+        except ValueError as problem:
+            return render_template("write_review.html", item=bought, error=str(problem),
+                                   form=request.form), 400
+        reviews.add(bought, user, rating, comment)
+        notifications.review_left(item_id)
+        return redirect(done)
+
+    return render_template("write_review.html", item=bought, form={})
 
 @app.route("/messages")
 def messages_inbox():
@@ -673,7 +844,6 @@ def message_seller(product_id):
         abort(400, "This is your own listing.")
 
     if request.method == "POST":
-        require_csrf()
         body = messaging.clean(request.form.get("body"))
         if body is None:
             return render_template("conversation.html", conversation=None, product=product,
@@ -701,7 +871,6 @@ def conversation(conversation_id):
         abort(404)
 
     if request.method == "POST":
-        require_csrf()
         body = messaging.clean(request.form.get("body"))
         if body is not None:
             messaging.send(conversation_id, user["id"], body)
@@ -749,6 +918,12 @@ def seller_page():
     if user is None:
         return redirect(url_for('login'))
 
+    return render_my_shop(user)
+
+def render_my_shop(user, sell_error=None, sell_form=None):
+    """My Shop, optionally with a problem shown on the Sell form and what
+    the seller had typed put back, so they don't have to start again."""
+
     return render_template(
         "sellerpage.html",
         user=dict(user),
@@ -756,9 +931,13 @@ def seller_page():
         sales=admin.get_seller_orders(user["id"]),
         summary=admin.get_seller_summary(user["id"]),
         categories=admin.get_all_categories(),
-    )
+        ratings=reviews.ratings(),
+        seller_rating=reviews.seller_rating(user["id"]),
+        sell_error=sell_error,
+        sell_form=sell_form or {},
+    ), 400 if sell_error else 200
 
-@app.route("/my-shop/stock/<int:product_id>/<action>")
+@app.route("/my-shop/stock/<int:product_id>/<action>", methods=["POST"])
 def seller_adjust_stock(product_id, action):
     """Restock or reduce one of your own listings."""
 
@@ -773,6 +952,8 @@ def seller_adjust_stock(product_id, action):
     # anyone signed in could edit anyone else's stock by guessing an id.
     if product is None or product["seller_id"] != user["id"]:
         abort(403)
+    if action not in {"increase", "decrease"}:
+        abort(400)
 
     admin.adjust_stock(product_id, 1 if action == "increase" else -1)
 
@@ -798,7 +979,7 @@ def seller_delete_listing(product_id):
 
     return redirect(url_for("seller_page"))
 
-@app.route("/my-shop/orders/status/<int:item_id>/<status>")
+@app.route("/my-shop/orders/status/<int:item_id>/<status>", methods=["POST"])
 def seller_update_order_status(item_id, status):
     """A seller shipping or delivering one of their own sold items.
 
@@ -835,23 +1016,25 @@ def request_sell():
     if user is None:
         return redirect(url_for('logout'))
 
-    require_csrf()
-
+    # Check the details before saving the photo, so a mistake doesn't
+    # leave an unused photo behind in the uploads folder.
     try:
+        details = read_listing(request.form, "product_name", min_stock=1)
+        if details["category"] not in SELL_CATEGORIES:
+            raise ValueError("Choose a category from the list.")
         image_url = save_product_image(request.files.get("image_file"))
     except ValueError as problem:
-        flash(str(problem))
-        return redirect(url_for("seller_page") + "#sell")
+        return render_my_shop(user, sell_error=str(problem), sell_form=request.form)
 
     admin.add_product(
-        name=request.form["product_name"],
+        name=details["name"],
         seller=user["fullname"],
         seller_id=user["id"],
-        category=request.form["category"],
-        price=float(request.form["price"]),
-        stock=int(request.form["stock"]),
+        category=details["category"],
+        price=details["price"],
+        stock=details["stock"],
         status="Pending",
-        description=request.form.get("description"),
+        description=details["description"],
         image_url=image_url,
     )
 
@@ -860,8 +1043,8 @@ def request_sell():
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
-        email = request.form.get("email")
-        password = request.form.get("password")
+        email = request.form.get("email", "").strip().lower()
+        password = request.form.get("password", "")
         remember = request.form.get("remember")
 
         user = database.get_user_by_email(email)
@@ -884,16 +1067,25 @@ def login():
 @app.route("/register", methods=["GET", "POST"])
 def register():
     if request.method == "POST":
-        fullname = request.form.get("fullname")
-        email = request.form.get("email")
-        password = request.form.get("password")
-        confirm_password = request.form.get("confirm_password")
+        fullname = request.form.get("fullname", "").strip()
+        email = request.form.get("email", "").strip().lower()
+        password = request.form.get("password", "")
+        confirm_password = request.form.get("confirm_password", "")
 
-        if password != confirm_password:
-            return render_template("register.html", error="Passwords don't match.")
+        error = None
+        if not 2 <= len(fullname) <= 80:
+            error = "Enter your full name."
+        elif len(email) > 120 or not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", email):
+            error = "Enter a valid email address."
+        elif not 8 <= len(password) <= 128:
+            error = "Your password needs at least 8 characters."
+        elif password != confirm_password:
+            error = "Passwords don't match."
+        elif database.get_user_by_email(email) is not None:
+            error = "An account with that email already exists."
 
-        if database.get_user_by_email(email) is not None:
-            return render_template("register.html", error="An account with that email already exists.")
+        if error:
+            return render_template("register.html", error=error, fullname=fullname, email=email)
 
         database.create_user(fullname, email, generate_password_hash(password), "student")
 
@@ -916,14 +1108,16 @@ def logout():
 @app.route("/admin/login", methods=["GET", "POST"])
 def admin_login():
     if request.method == "POST":
-        email = request.form.get("email")
-        password = request.form.get("password")
+        email = request.form.get("email", "").strip().lower()
+        password = request.form.get("password", "")
 
         password_hash = ADMIN_ACCOUNTS.get(email)
 
         if password_hash is None or not check_password_hash(password_hash, password):
             return render_template("admin_login.html", error="Incorrect email or password.")
 
+        # A fresh session, so nothing from before signing in carries over.
+        session.clear()
         session['user'] = email
         session['role'] = 'admin'
 
@@ -1015,4 +1209,6 @@ def report_listing(product_id):
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    # Debug mode shows an in-browser console that can run code, so it is
+    # only switched on deliberately (FLASK_DEBUG=1 in .env), never by default.
+    app.run(debug=os.environ.get("FLASK_DEBUG") == "1")

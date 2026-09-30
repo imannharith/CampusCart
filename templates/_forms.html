@@ -1,0 +1,10 @@
+{# A button that sends a small form instead of following a link.
+   Anything that changes data goes through a form like this, carrying the
+   page's secret token, so another website can't trigger it for you.
+   Import with:  {% import "_forms.html" as forms with context %} #}
+{% macro post_button(url, label, class_="", confirm=None, title=None) -%}
+<form method="post" action="{{ url }}" class="inline-form"{% if confirm %} onsubmit='return confirm({{ confirm|tojson }});'{% endif %}>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <button type="submit" class="{{ class_ }}"{% if title %} aria-label="{{ title }}"{% endif %}>{{ label }}</button>
+</form>
+{%- endmacro %}
