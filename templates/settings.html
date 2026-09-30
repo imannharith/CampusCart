@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CampusCart | Settings</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='shopping.css') }}">
+    <style>
+        :root {
+            --bg-color: #f8f9fa;
+            --card-bg: #ffffff;
+            --text-color: #333333;
+            --border-color: #e0e0e0;
+            --hover-bg: #f1f3f5;
+        }
+
+        body.dark-mode {
+            --bg-color: #121212;
+            --card-bg: #1e1e1e;
+            --text-color: #f1f1f1;
+            --border-color: #333333;
+            --hover-bg: #2a2a2a;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        .settings-container {
+            max-width: 650px;
+            margin: 40px auto;
+            padding: 20px;
+        }
+
+        .settings-card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        }
+
+        .settings-title {
+            margin-top: 0;
+            margin-bottom: 20px;
+            font-size: 1.8rem;
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 10px;
+        }
+
+        .settings-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .settings-btn {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            padding: 15px 20px;
+            background-color: var(--card-bg);
+            color: var(--text-color);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            text-align: left;
+            transition: background-color 0.2s, border-color 0.2s;
+        }
+
+        .settings-btn:hover {
+            background-color: var(--hover-bg);
+        }
+
+        .arrow {
+            font-size: 1.2rem;
+            color: #888;
+        }
+
+        .toggle-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* Switch Toggle Styling */
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 46px;
+            height: 24px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 24px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: #2196F3;
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(22px);
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="logo">
+            <a href="/">Campus<span>Cart</span></a>
+        </div>
+        <nav class="nav-links">
+            <a href="/">Home</a>
+            <a href="/products">Products</a>
+            <a href="/cart">🛒 Cart</a>
+            <a href="/profile"><b>👤 Me</b></a>
+            <a href="/logout">Logout</a>
+        </nav>
+    </header>
+
+    <main class="settings-container">
+        <div class="settings-card">
+            <h1 class="settings-title">Settings</h1>
+
+            <div class="settings-list">
+                <!-- 1. Edit Profile Button -->
+                <button class="settings-btn" onclick="javascript:void(0);">
+                    <span>✏️ Edit Profile</span>
+                    <span class="arrow">&rsaquo;</span>
+                </button>
+
+                <!-- 2. Login & Security Button -->
+                <button class="settings-btn" onclick="javascript:void(0);">
+                    <span>🔒 Login & Security</span>
+                    <span class="arrow">&rsaquo;</span>
+                </button>
+
+                <!-- 3. Theme Mode Switcher -->
+                <div class="settings-btn" style="cursor: default;">
+                    <span>🌙 Theme Mode (Light / Dark)</span>
+                    <div class="toggle-container">
+                        <label class="switch">
+                            <input type="checkbox" id="theme-toggle" onchange="toggleTheme()">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- 4. Help Center Button -->
+                <button class="settings-btn" onclick="javascript:void(0);">
+                    <span>❓ Help Center</span>
+                    <span class="arrow">&rsaquo;</span>
+                </button>
+
+                <!-- 5. Contact Us Button -->
+                <button class="settings-btn" onclick="javascript:void(0);">
+                    <span>📞 Contact Us</span>
+                    <span class="arrow">&rsaquo;</span>
+                </button>
+
+                <!-- 6. Data & Privacy Button -->
+                <button class="settings-btn" onclick="javascript:void(0);">
+                    <span>🛡️ Data & Privacy</span>
+                    <span class="arrow">&rsaquo;</span>
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        function toggleTheme() {
+            const body = document.body;
+            body.classList.toggle('dark-mode');
+        }
+    </script>
+
+</body>
+</html>
