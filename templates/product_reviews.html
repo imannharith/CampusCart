@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CampusCart | Reviews for {{ product.name }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='logo.svg') }}">
+</head>
+
+<body>
+{% import "_forms.html" as forms with context %}
+{% import "_stars.html" as rate %}
+
+<header class="navbar">
+    <a href="/" class="logo">Campus<span>Cart</span></a>
+    {% include "_nav.html" %}
+</header>
+
+<main class="container">
+
+    <a class="back-link" href="{{ url_for('product_catalog') }}">&larr; Back to products</a>
+
+    {# The item itself #}
+    <section class="panel review-product">
+        {% if product.image_url %}
+        <img src="{{ product.image_url }}" alt="{{ product.name }}">
+        {% endif %}
+        <div class="review-product-info">
+            <span class="category-tag">{{ product.category|title }}</span>
+            <h1>{{ product.name }}</h1>
+            <p class="price">RM {{ "%.2f"|format(product.price) }}</p>
+            <p class="seller">
+                Sold by {{ product.seller }}
+                {% if seller_rating %}
+                &middot; {{ rate.stars(seller_rating.average) }} {{ seller_rating.average }} as a seller
+                ({{ seller_rating.count }} review{{ 's' if seller_rating.count != 1 }})
+                {% endif %}
+            </p>
+            {% if product.description %}<p class="review-product-description">{{ product.description }}</p>{% endif %}
+
+            {% if current_account and product.seller_id != current_account.id and product.status == 'Approved' %}
+            <div class="review-product-actions">
+                {% if product.stock > 0 %}
+                {{ forms.post_button(url_for('add_to_cart', product_id=product.id), 'Add to Cart', 'btn-primary') }}
+                {% else %}
+                <span class="status cancelled">Sold out</span>
+                {% endif %}
+                <a class="btn-message" href="{{ url_for('message_seller', product_id=product.id) }}">Message seller</a>
+            </div>
+            {% endif %}
+        </div>
+    </section>
+
+    {# How it's rated overall #}
+    <section class="panel" id="reviews">
+        <h2>Reviews</h2>
+
+        {% if summary.count %}
+        <div class="rating-summary">
+            <div class="rating-big">
+                <strong>{{ summary.average }}</strong>
+                {{ rate.stars(summary.average, 'big') }}
+                <span>Based on {{ summary.count }} review{{ 's' if summary.count != 1 }}</span>
+            </div>
+            <div class="rating-bars">
+                {% for bar in summary.bars %}
+                <div class="rating-bar">
+                    <span>{{ bar.stars }} ★</span>
+                    <div class="rating-track"><div style="width: {{ bar.percent }}%"></div></div>
+                    <span>{{ bar.n }}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        {% for review in reviews %}
+        <article class="review" id="review-{{ review.id }}">
+            <div class="review-head">
+                <span class="review-avatar">{{ (review.reviewer or '?')[0]|upper }}</span>
+                <div>
+                    <strong>{{ review.reviewer }}</strong>
+                    {% if review.order_item_id %}<span class="verified">Verified purchase</span>{% endif %}
+                    <div>{{ rate.stars(review.rating) }} <small>{{ review.review_date|day }}</small></div>
+                </div>
+            </div>
+            {% if review.comment %}<p>{{ review.comment }}</p>{% endif %}
+        </article>
+        {% endfor %}
+
+        {% else %}
+        <div class="empty">
+            <strong>No reviews yet</strong>
+            <span>Reviews come from students who bought this item and received it.</span>
+        </div>
+        {% endif %}
+    </section>
+
+</main>
+
+</body>
+</html>

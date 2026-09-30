@@ -740,3 +740,6 @@ body {
         width: 100%;
     }
 }
+/* A problem with what was typed at checkout. */
+.form-error { margin: 0 0 16px; padding: 12px 14px; border-radius: 10px; background: rgba(210, 47, 69, 0.10); color: #d22f45; }
+.checkout-section form > small { display: block; margin: 4px 0 22px; color: #6b7280; }

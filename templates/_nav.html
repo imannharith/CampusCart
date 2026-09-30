@@ -1,0 +1,14 @@
+{# The shopper's top menu, shared by every page so a link is only ever added once.
+   request.endpoint is the name of the page being shown, used to highlight it. #}
+{% set here = request.endpoint %}
+<nav class="nav-links">
+    <a href="/"{% if here == 'home' %} class="active"{% endif %}>Home</a>
+    <a href="/products"{% if here == 'product_catalog' %} class="active"{% endif %}>Products</a>
+    <a href="/cart"{% if here == 'view_cart' %} class="active"{% endif %}>Cart</a>
+    <a href="/orders"{% if here == 'view_orders' %} class="active"{% endif %}>My Orders</a>
+    <a href="/messages"{% if here in ('messages_inbox', 'conversation', 'message_seller') %} class="active"{% endif %}>Messages{% if unread_messages %} <span class="nav-badge" title="Unread messages">{{ unread_messages }}</span>{% endif %}</a>
+    <a href="/my-shop"{% if here == 'seller_page' %} class="active"{% endif %}>My Shop{% if orders_to_ship %} <span class="nav-badge" title="Orders waiting to be shipped">{{ orders_to_ship }}</span>{% endif %}</a>
+    <a href="/profile"{% if here == 'profile' %} class="active"{% endif %}>Profile</a>
+    {% include "_bell.html" %}
+    <a href="/logout">Log out</a>
+</nav>

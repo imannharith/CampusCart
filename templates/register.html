@@ -22,28 +22,21 @@
             {% endif %}
 
             <form action="/register" method="POST" class="auth-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                 
                 <div class="form-group">
                     <label for="fullname">Full Name</label>
-                    <input type="text" id="fullname" name="fullname" placeholder="John Doe" required>
-                </div>
-
-                <div class="form-group">
-                    <label for="role">Account Type</label>
-                    <select id="role" name="role" required>
-                        <option value="student">Student / Customer</option>
-                        <option value="seller">Student Seller</option>
-                    </select>
+                    <input type="text" id="fullname" name="fullname" placeholder="John Doe" maxlength="80" value="{{ fullname or '' }}" required>
                 </div>
 
                 <div class="form-group">
                     <label for="email">Campus Email</label>
-                    <input type="email" id="email" name="email" placeholder="student@campus.edu.my" required>
+                    <input type="email" id="email" name="email" placeholder="student@campus.edu.my" maxlength="120" value="{{ email or '' }}" required>
                 </div>
 
                 <div class="form-group">
                     <label for="password">Password</label>
-                    <input type="password" id="password" name="password" placeholder="••••••••" required>
+                    <input type="password" id="password" name="password" placeholder="At least 8 characters" minlength="8" maxlength="128" required>
                 </div>
 
                 <div class="form-group">

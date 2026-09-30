@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CampusCart | Rate {{ item.product_name }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='logo.svg') }}">
+</head>
+
+<body>
+
+<header class="navbar">
+    <a href="/" class="logo">Campus<span>Cart</span></a>
+    {% include "_nav.html" %}
+</header>
+
+<main class="container narrow">
+
+    <a class="back-link" href="{{ url_for('view_orders') }}">&larr; Back to My Orders</a>
+
+    <section class="panel">
+        <h2>Rate {{ item.product_name }}</h2>
+        <p>From order #{{ item.order_id }}, sold by {{ item.seller }}. Your name and review will be shown on the listing.</p>
+
+        {% if error %}
+        <p class="note note-error" role="alert">{{ error }}</p>
+        {% endif %}
+
+        <form method="post" class="form-grid">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+            {# Five radio buttons drawn as stars. They're listed 5 -> 1 and shown
+               right-to-left, so "a star and every star before it" lights up. #}
+            <fieldset class="star-picker">
+                <legend>Your rating</legend>
+                <div class="star-row">
+                    {% for n in range(5, 0, -1) %}
+                    <input type="radio" id="star{{ n }}" name="rating" value="{{ n }}" required
+                           {% if form.get('rating') == n|string %}checked{% endif %}>
+                    <label for="star{{ n }}" title="{{ n }} star{{ 's' if n > 1 }}">★<span class="sr-only">{{ n }} star{{ 's' if n > 1 }}</span></label>
+                    {% endfor %}
+                </div>
+            </fieldset>
+
+            <div class="form-row">
+                <label for="comment">Your review <small>(optional)</small></label>
+                <textarea id="comment" name="comment" rows="4" maxlength="500"
+                          placeholder="Was it as described? How was the seller?">{{ form.get('comment', '') }}</textarea>
+            </div>
+
+            <div>
+                <button type="submit" class="btn-primary">Post review</button>
+            </div>
+        </form>
+    </section>
+
+</main>
+
+</body>
+</html>

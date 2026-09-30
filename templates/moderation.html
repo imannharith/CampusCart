@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Listing moderation · CampusCart</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='admin.css') }}">
+<link rel="icon" href="{{ url_for('static', filename='logo.svg') }}"></head><body>
+<aside class="sidebar">
+
+    <h2>Campus<span>Cart</span></h2>
+    <p class="admin-label">ADMIN PANEL</p>
+
+    <nav>
+        <a href="{{ url_for('dashboard') }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7.5" height="7.5" rx="1.5"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="1.5"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="1.5"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1.5"/></svg>Dashboard</a>
+        <a href="{{ url_for('listings') }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 8.2 12 4l8.5 4.2v7.6L12 20l-8.5-4.2z"/><path d="m3.5 8.2 8.5 4.3 8.5-4.3M12 12.5V20"/></svg>Listings</a>
+        <a href="{{ url_for('users') }}" class="{{ 'active' if request.endpoint in ['user_detail', 'users'] else '' }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9.5" cy="8" r="3.3"/><path d="M3.8 19.6a5.7 5.7 0 0 1 11.4 0"/><path d="M16.4 5.4a3.3 3.3 0 0 1 0 5.2M17.6 14.6a5.7 5.7 0 0 1 2.6 5"/></svg>Users</a>
+            <a href="{{ url_for('reports') }}" class="{{ 'active' if request.endpoint == 'reports' else '' }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4v16h16"/><path d="M8.4 20v-5.5M12.8 20v-9.5M17.2 20v-3.5"/></svg>Reports</a>
+            <a href="{{ url_for('moderation_queue') }}" class="{{ 'active' if request.endpoint == 'moderation_queue' else '' }}"><span class="moderation-nav-icon" aria-hidden="true">!</span>Moderation</a>
+
+    </nav>
+
+    <div class="sidebar-bottom">
+
+        <div class="admin-user">
+            <div class="avatar">{{ (session.get('user') or 'A')[0]|upper }}</div>
+            <div class="admin-who">
+                <strong title="{{ session.get('user', '') }}">{{ session.get('user', 'Administrator') }}</strong>
+                <small>Signed in as admin</small>
+            </div>
+        </div>
+        <a href="{{ url_for('logout') }}">Logout</a>
+    </div>
+
+</aside>
+
+<main class="main moderation-main">
+{% for message in get_flashed_messages() %}<div class="moderation-notice" role="status">{{ message }}</div>{% endfor %}
+
+<header><div><h1>Listing moderation</h1><p class="subtitle">Review student reports and keep a record of every decision.</p></div></header>
+<section class="panel moderation-section"><form method="get" class="moderation-filter"><label for="status">Show reports</label><select id="status" name="status">{% for state in ['Open', 'Dismissed', 'Removed', 'All'] %}<option {{ 'selected' if state == selected_status else '' }}>{{ state }}</option>{% endfor %}</select>{% if product_id %}<input type="hidden" name="product" value="{{ product_id }}">{% endif %}<button class="moderation-primary">Apply</button>{% if product_id %}<a href="{{ url_for('moderation_queue', status=selected_status) }}">Show all listings</a>{% endif %}</form></section>
+{% for group in reports|groupby('product_id') %}
+<section class="panel moderation-section"><div class="moderation-heading"><div><h2>{{ group.list[0].product_name }}</h2><p>Listing #{{ group.grouper }} · {{ group.list|length }} report(s)</p></div>{% if group.list[0].listing_exists %}<a class="view-btn" href="{{ url_for('listings', view=group.grouper) }}">View listing</a>{% else %}<span>Listing deleted · history preserved</span>{% endif %}</div>
+{% for report in group.list %}<article class="moderation-history"><div class="moderation-heading"><strong>Report #{{ report.id }} · {{ report.reporter_name }}</strong><span class="status {{ 'pending' if report.status == 'Open' else 'approved' if report.status == 'Dismissed' else 'rejected' }}">{{ report.status }}</span></div><small>{{ report.created_at|when }}</small><p class="moderation-text">{{ report.reason }}</p>{% if report.evidence %}<p class="moderation-text"><strong>Supporting details</strong><br>{{ report.evidence }}</p>{% endif %}
+{% if report.status != 'Open' %}<div class="moderation-decision"><strong>{{ report.status }} — {{ report.decided_by }}</strong><p>{{ report.decision_reason }}</p><small>{{ report.resolved_at|when }}</small></div>{% endif %}</article>{% endfor %}
+{% if group.list|selectattr('status', 'equalto', 'Open')|list %}
+<form class="moderation-form" method="post" action="{{ url_for('resolve_listing_reports', product_id=group.grouper) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><label for="reason-{{ group.grouper }}">Decision reason</label><textarea id="reason-{{ group.grouper }}" name="reason" required minlength="3" maxlength="1000" rows="3" placeholder="Explain what you found and why you’re taking this action."></textarea><p>This decision resolves all open reports for this listing. Dismiss restores its previous status; remove takes it off sale and preserves its history.</p><div class="moderation-buttons"><button class="moderation-primary" name="decision" value="Dismissed">Dismiss reports</button><button class="moderation-danger" name="decision" value="Removed">Remove listing</button></div></form>
+{% endif %}</section>
+{% else %}<section class="panel empty-state"><strong>No {{ selected_status|lower if selected_status != 'All' else '' }} reports</strong><span>Students can submit reports using “Report listing” on the homepage or Products page.</span><a class="view-btn" href="{{ url_for('moderation_queue', status='All') }}">Show all reports</a></section>{% endfor %}
+</main></body></html>
