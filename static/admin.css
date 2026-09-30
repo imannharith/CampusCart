@@ -1073,24 +1073,22 @@ tbody tr:hover td { background: var(--surface-2); }
 
 .admin-auth-footer a:hover { color: var(--text-2); }
 
-/* ==========================================================
-   CampusCart refresh (17 Sep)
-   CSS only: the templates keep their structure.
-   1. Fonts and colours   2. Sidebar becomes a top bar
-   3. Blue activity card  4. Cards, tables, buttons, labels
-   ========================================================== */
-
-/* 1. Fonts and colours: blue and white, rounder shapes */
+/* Admin presentation refresh. Existing markup, routes and controls are preserved. */
 :root {
-    --bg:        #f3f6fd;
-    --ui:        "Figtree", "Helvetica Neue", Arial, sans-serif;
-    --display:   "Outfit", "Figtree", sans-serif;
-    --r-surface: 22px;
-    --r-control: 12px;
-    --r-badge:   999px;
-    --blue-soft: #dbe7ff;
+    --bg: #f3f6fd;
+    --text: #0f172a;
+    --text-2: #4c5768;
+    --text-3: #7e8899;
+    --border: #e4e9f2;
+    --ui: "Figtree", "Helvetica Neue", Arial, sans-serif;
+    --display: "Outfit", "Figtree", sans-serif;
+    --r-surface: 20px;
+    --r-control: 11px;
+    --r-badge: 7px;
+    --shadow: 0 4px 24px -12px rgba(28, 46, 81, .16);
 }
 
+body { background: var(--bg); }
 /* 2. The sidebar markup is reused as a top navigation bar */
 .sidebar {
     position: sticky;
@@ -1178,204 +1176,235 @@ nav a.active::before { display: none; }
     padding: 34px 40px 80px;
 }
 
-header h1 {
-    font-family: var(--display);
-    font-size: 40px;
-    letter-spacing: -0.03em;
-}
 
-.subtitle { font-size: 16px; }
+/* Wrap the original top bar before its controls become crowded. */
+.sidebar { flex-wrap: wrap; }
+.sidebar h2 { font-weight: 700; letter-spacing: -.025em; }
+.main { min-width: 0; }
+header { margin-bottom: 30px; }
+header h1 { font-family: var(--display); font-size: clamp(28px, 3vw, 38px); font-weight: 600; letter-spacing: -.035em; line-height: 1.2; }
+.subtitle { margin-top: 9px; line-height: 1.65; }
+.panel { padding: 24px; border: 1px solid var(--border); box-shadow: var(--shadow); margin-bottom: 22px; min-width: 0; }
+.panel-title { align-items: center; gap: 16px; margin-bottom: 22px; }
+.panel-title h3 { font-family: var(--display); font-size: 18px; font-weight: 500; }
+.panel-title p { font-size: 13px; line-height: 1.6; }
+.panel-title > div { min-width: 0; }
+.view-all { color: var(--brand-hi); font-weight: 600; flex-shrink: 0; }
+.board { grid-template-columns: minmax(0, 1.65fr) minmax(270px, 1fr); gap: 22px; margin-bottom: 22px; align-items: stretch; }
+.board > .panel, .board-side .panel { margin-bottom: 0; }
+.board-side { gap: 22px; }
+.board-side > .panel { height: 100%; }
+.content-grid { grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr); gap: 22px; }
 
-/* 3. Dashboard: the activity panel becomes the blue card */
+/* One prominent blue panel gives the dashboard its focal point. */
 .board-main {
-    padding-bottom: 44px;
-    color: #ffffff;
-    background: var(--brand);
-    box-shadow: 0 12px 30px -16px rgba(37, 99, 235, 0.7);
+    padding: 28px 28px 48px;
+    background: radial-gradient(ellipse at top right, #5487f6, transparent 65%), linear-gradient(135deg, #245bdd, #1948b7);
+    border-color: #3168dd;
+    box-shadow: 0 12px 30px -16px #2155c980;
+    color: #fff;
 }
+.board-main .panel-title h3 { color: #fff; font-size: 20px; }
+.board-main .panel-title p { color: #e1eaff; }
+.period { white-space: nowrap; border-radius: 8px; padding: 6px 10px; }
+.board-main .period { background: #ffffff1f; color: #fff; border: 1px solid #ffffff24; }
+.board-main .metric-strip { background: #ffffff12; border: 1px solid #ffffff24; border-radius: 13px; gap: 0; margin-bottom: 26px; }
+.board-main .metric { padding: 18px; background: transparent; min-width: 0; }
+.board-main .metric + .metric { border-left: 1px solid #ffffff24; }
+.board-main .metric p { color: #e1eaff; font-size: 12px; }
+.board-main .metric h2 { color: #fff; font-family: var(--display); font-size: 32px; font-weight: 500; overflow-wrap: anywhere; }
+.board-main .chart { height: 185px; border-color: #ffffff40; background-image: repeating-linear-gradient(to top, #ffffff18 0 1px, transparent 1px 25%); }
+.board-main .bar { max-width: 28px; background: linear-gradient(#fff, #b6d0ff); box-shadow: none; }
+.board-main .bar span, .board-main .chart-axis { color: #e1eaff; }
+.chart-empty { position: absolute; inset: 0 0 0 32px; display: flex; align-items: center; justify-content: center; color: #e1eaff; text-align: center; }
+.queue { padding: 18px 14px; border-color: var(--border); margin-bottom: 14px; gap: 12px; }
+.queue-count { width: 48px; height: 48px; font-family: var(--display); font-size: 24px; }
+.queue-count:not(.queue-alert) { color: #9a5909; background: #fff0d6; box-shadow: none; }
+.queue-label strong { font-size: 14px; }
+.queue-label small { display: block; margin-top: 3px; line-height: 1.5; }
+.queue-go { font-size: 20px; }
 
-.board-main .panel-title h3 { color: #ffffff; font-size: 18px; }
-.board-main .panel-title p  { color: var(--blue-soft); }
+/* Cards adapt to the actual count, including the five report metrics. */
+.stats { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; margin-bottom: 24px; }
+.stats:has(> .card:nth-child(5)) { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.card { min-width: 0; padding: 22px; border: 1px solid var(--border); box-shadow: var(--shadow); }
+.card p { min-height: 36px; padding-right: 28px; font-size: 13px; margin-bottom: 12px; }
+.card h2 { font-family: var(--display); font-size: clamp(23px, 2.3vw, 32px); font-weight: 500; line-height: 1.2; overflow-wrap: anywhere; }
+.card small { margin-top: 10px; line-height: 1.5; }
+.icon { width: 30px; height: 30px; top: 19px; right: 16px; border-radius: 10px; }
+.purple { color: var(--brand); background: var(--brand-wash); }
+.panel-highlight { background: linear-gradient(135deg, #f0f5ff, #fff); border-color: #d5e2fb; box-shadow: var(--shadow); }
 
-.board-main .period {
-    white-space: nowrap;
-    color: #ffffff;
-    background: rgba(255, 255, 255, 0.16);
+/* Consistent field widths and button placement for each existing form. */
+.filters { grid-template-columns: minmax(180px, 2fr) minmax(130px, 1fr) minmax(130px, 1fr) auto; align-items: center; gap: 12px; }
+.filters:has(> :nth-child(3):last-child) { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; }
+.form-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.form-grid .cancel-link { grid-column: 1 / -1; justify-self: end; }
+.filters input, .filters select, .form-grid input { width: 100%; min-height: 44px; background: #fafbfe; border-color: var(--border-2); }
+.filters button, .filters-button, .form-grid button { min-height: 44px; border-radius: 10px; white-space: nowrap; }
+.filters :focus-visible, .form-grid :focus-visible { outline: 2px solid var(--brand); outline-offset: 3px; }
+
+/* Keep actions as real table cells so row borders stay aligned. */
+.table-container { max-width: 100%; border: 1px solid var(--border); border-radius: 12px; }
+table { text-align: left; }
+th { padding: 13px 16px; color: #607087; background: #f6f8fc; font-size: 11px; font-weight: 600; letter-spacing: .065em; }
+td { padding: 16px; vertical-align: middle; line-height: 1.6; }
+td:first-child { min-width: 140px; }
+td strong { font-weight: 600; }
+.action-cell { display: table-cell; min-width: 210px; max-width: 280px; }
+.action-cell a { display: inline-flex; align-items: center; justify-content: center; margin: 3px 3px 3px 0; }
+.view-btn, .approve-btn, .reject-btn { display: inline-flex; min-height: 34px; padding: 6px 10px; border-radius: 8px; font-size: 12px; font-weight: 600; text-decoration: none; }
+.view-btn { color: var(--brand-hi); background: var(--brand-wash); border-color: transparent; }
+.approve-btn { color: #fff; background: var(--brand); border-color: var(--brand); }
+.approve-btn:hover { color: #fff; background: var(--brand-hi); border-color: var(--brand-hi); }
+.reject-btn { color: #b83249; background: #fff; border-color: #efccd3; }
+.status { padding: 5px 10px; border-radius: 7px; font-weight: 600; }
+.stock-cell { white-space: nowrap; gap: 10px; }
+.stock-btn { flex-shrink: 0; width: 28px; height: 28px; }
+.category-tag { display: inline-block; color: var(--brand-hi); background: var(--brand-wash); border-color: transparent; }
+.action { padding: 16px; }
+.empty-state { padding: 42px 20px; border-radius: 12px; background: #f8fafe; }
+/* The dashboard's existing table has no wrapper; its panel owns scrolling. */
+.panel:has(> table) { overflow-x: auto; }
+.panel:has(> table) > table { min-width: 580px; }
+.admin-auth-box { border-top: 4px solid var(--brand); }
+
+@media (min-width: 1800px) {
+    .main { margin-right: auto; }
 }
-
-.board-main .metric-strip {
-    gap: 10px;
-    background: transparent;
-    border: none;
+@media (max-width: 1250px) {
+    .main { padding: 32px 24px 60px; }
+    .stats:has(> .card:nth-child(5)) { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+    .stats:has(> .card:nth-child(5)) > .card { grid-column: span 2; }
+    .stats:has(> .card:nth-child(5)) > .card:nth-last-child(-n+2) { grid-column: span 3; }
+    .filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .board { grid-template-columns: minmax(0, 1.4fr) minmax(250px, 1fr); }
+    .board-main { padding: 24px 20px 44px; }
+    .board-main .metric { padding: 14px 10px; }
 }
-
-.board-main .metric {
-    border-radius: var(--r-control);
-    background: rgba(255, 255, 255, 0.12);
+@media (max-width: 1050px) {
+    .sidebar { border-radius: 22px; gap: 12px; }
+    .sidebar nav { order: 3; flex-basis: 100%; justify-content: flex-start; }
+    .sidebar-bottom { margin-left: auto; }
+    .board, .content-grid { grid-template-columns: minmax(0, 1fr); }
+    .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
-
-.board-main .metric p  { color: var(--blue-soft); }
-.board-main .metric h2 { color: #ffffff; font-family: var(--display); font-size: 30px; }
-
-.board-main .chart {
-    border-bottom-color: rgba(255, 255, 255, 0.4);
-    background-image: repeating-linear-gradient(
-        to top,
-        rgba(255, 255, 255, 0.14) 0 1px,
-        transparent 1px 25%
-    );
+@media (max-width: 760px) {
+    .sidebar { position: static; width: auto; height: auto; margin: 12px; padding: 14px; border-radius: 18px; gap: 12px; }
+    .sidebar h2 { font-size: 21px; }
+    .sidebar nav { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; }
+    .sidebar nav a { flex-direction: column; gap: 6px; padding: 10px 4px; font-size: 12px; min-width: 0; }
+    .sidebar-bottom { order: 4; width: 100%; flex-wrap: wrap; justify-content: flex-end; gap: 6px; padding-top: 10px; border-top: 1px solid var(--border); }
+    .admin-user { margin-right: auto; }
+    .main { margin: 0; padding: 18px 16px 48px; }
+    header { margin-bottom: 24px; }
+    header h1 { font-size: 30px; }
+    .panel { padding: 20px; border-radius: 16px; }
+    .board-main { padding-bottom: 44px; }
+    .panel-title { flex-wrap: wrap; gap: 10px; }
+    .stats, .stats:has(> .card:nth-child(5)) { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    .stats:has(> .card:nth-child(5)) > .card { grid-column: auto; }
+    .stats:has(> .card:nth-child(5)) > .card:nth-last-child(-n+2) { grid-column: auto; }
+    .stats:has(> .card:nth-child(5)) > .card:last-child { grid-column: 1 / -1; }
+    .card { padding: 18px; }
+    .card h2 { font-size: 26px; }
+    .form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .filters:has(> :nth-child(3):last-child) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .filters:has(> :nth-child(3):last-child) > button { grid-column: 1 / -1; }
 }
-
-.board-main .bar {
-    background: #ffffff;
-    box-shadow: none;
+@media (max-width: 460px) {
+    .filters, .form-grid, .filters:has(> :nth-child(3):last-child) { grid-template-columns: minmax(0, 1fr); }
+    /* These two-field forms have inline desktop columns in the templates. */
+    .filters[style*="grid-template-columns"] { grid-template-columns: minmax(0, 1fr) !important; }
+    .card { padding: 16px; }
+    .card p { padding-right: 0; padding-top: 34px; min-height: 68px; }
+    .icon { top: 14px; left: 16px; right: auto; }
+    .card h2 { font-size: 24px; }
+    .board-main .metric { padding: 12px 8px; }
+    .board-main .metric h2 { font-size: 26px; }
+    .board-main .metric p { font-size: 11px; }
 }
-
-.board-main .bar span,
-.board-main .chart-axis { color: var(--blue-soft); }
-
-.chart-empty {
-    position: absolute;
-    inset: 0 0 0 32px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 600;
-    color: var(--blue-soft);
-}
-
-/* 4. Cards, tables, buttons and status labels */
-.card h2,
-.queue-count { font-family: var(--display); }
-
-.icon { border-radius: 50%; }
-
-.queue-count:not(.queue-alert) {
-    color: var(--warn);
-    background: var(--warn-wash);
-    box-shadow: none;
-}
-
-th {
-    font-size: 12.5px;
-    font-weight: 600;
-    letter-spacing: 0;
-    text-transform: none;
-    background: transparent;
-}
-
-th:first-child,
-th:last-child { border-radius: 0; }
-
-.status { padding: 4px 11px; font-weight: 600; }
-
-.rejected,
-.cancelled { color: var(--text-2); background: var(--surface-3); }
-
-.view-btn,
-.approve-btn,
-.reject-btn {
-    padding: 7px 14px;
-    font-weight: 700;
-    display: inline-block;
-}
-
-.view-btn    { color: var(--brand-hi); background: var(--brand-wash); border-color: transparent; }
-.approve-btn { color: #ffffff; background: var(--brand); border-color: var(--brand); }
-.reject-btn  { color: var(--bad); background: var(--surface); border-color: rgba(210, 47, 69, 0.3); }
-
-.approve-btn:hover { color: #ffffff; background: var(--brand-hi); border-color: var(--brand-hi); }
-
-.filters input,
-.filters select,
-.form-grid input { background: var(--surface); border-color: var(--border-2); }
-
-.filters button,
-.filters-button,
-.form-grid button { border-radius: 999px; font-weight: 700; }
-
-.stock-btn { border-radius: 50%; }
-
-.category-tag {
-    color: var(--brand-hi);
-    background: var(--brand-wash);
-    border-color: transparent;
-    font-weight: 600;
-}
-
-@media (max-width: 960px) {
-    .sidebar { margin: 10px 12px 0; border-radius: 20px; }
-    header h1 { font-size: 32px; }
-}
-
-@media (max-width: 960px) {
-
-    .sidebar {
-        position: static;
-        flex-direction: row;
-        align-items: center;
-        gap: 14px;
-        width: 100%;
-        height: auto;
-        padding: 12px 16px;
-        border-right: none;
-        border-bottom: 1px solid var(--border);
-        overflow-x: auto;
-    }
-
-    .sidebar h2 {
-        font-size: 17px;
-        white-space: nowrap;
-        padding: 0;
-    }
-
-    .sidebar h2::before {
-        width: 24px;
-        height: 24px;
-    }
-
-    .sidebar .admin-label,
-    .sidebar-bottom { display: none; }
-
-    nav {
-        flex-direction: row;
-        flex: none;
-    }
-
-    nav a,
-    .sidebar-link { white-space: nowrap; }
-
-    nav a.active::before,
-    .sidebar-link.active::before { display: none; }
-
-    .main {
-        margin-left: 0;
-        padding: 24px 18px 60px;
-    }
-
-    header {
-        flex-direction: column;
-        gap: 18px;
-    }
-
-    .stats { grid-template-columns: repeat(2, 1fr); }
-
-    .board,
-    .content-grid,
-    .filters,
-    .form-grid { grid-template-columns: 1fr; }
-}
-
-@media (max-width: 520px) {
-    .stats { grid-template-columns: 1fr; }
-    .metric-strip { grid-template-columns: 1fr; }
-}
-
 @media (prefers-reduced-motion: reduce) {
-    *,
-    *::before,
-    *::after {
-        animation: none !important;
-        transition-duration: 0.01ms !important;
-    }
+    *, *::before, *::after { animation: none !important; transition-duration: .01ms !important; }
 }
+
+/* Admin listing inspection: full photo, seller details and moderation actions. */
+.listing-review { scroll-margin-top: 150px; border-color: #cbdcfb; }
+#marketplace-listings { scroll-margin-top: 150px; }
+.listing-review-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr); gap: 32px; align-items: start; }
+.listing-review-media { min-width: 0; background: var(--surface-2); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; }
+.listing-review-media a { display: block; color: var(--brand-hi); text-decoration: none; }
+.listing-review-media img { display: block; width: 100%; height: 340px; object-fit: contain; padding: 16px; }
+.listing-review-photo-caption { display: block; padding: 12px 16px; text-align: center; border-top: 1px solid var(--border); font-size: 13px; }
+.listing-review-placeholder { min-height: 280px; display: grid; place-items: center; padding: 24px; color: var(--text-2); text-align: center; }
+.listing-review-media [hidden] { display: none; }
+.listing-review-content { min-width: 0; overflow-wrap: anywhere; }
+.listing-review-content h2 { font-family: var(--display); font-size: 26px; line-height: 1.3; margin: 12px 0 8px; }
+.listing-review-price { font-size: 24px; font-weight: 700; color: var(--brand-hi); }
+.listing-review-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; padding: 22px 0; margin: 0 0 20px; border-bottom: 1px solid var(--border); }
+.listing-review-facts dt { font-size: 12px; color: var(--text-2); margin-bottom: 4px; }
+.listing-review-facts dd { font-weight: 600; }
+.listing-review-description-title { font-size: 14px; margin-bottom: 8px; }
+.listing-review-description { white-space: pre-wrap; color: var(--text-2); line-height: 1.7; }
+.listing-review-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--border); }
+.listing-review-actions a { min-height: 42px; padding: 10px 16px; align-items: center; justify-content: center; }
+@media (max-width: 760px) {
+    .listing-review-grid { grid-template-columns: minmax(0, 1fr); gap: 24px; }
+    .listing-review-media img { height: 260px; }
+    .listing-review, #marketplace-listings { scroll-margin-top: 16px; }
+}
+@media (max-width: 460px) {
+    .listing-review .panel-title { align-items: flex-start; }
+    .listing-review-actions a { flex: 1 1 130px; }
+}
+
+/* Compact marketplace rows; moderation controls live in listing details. */
+.listing-product-summary { display: flex; align-items: center; gap: 12px; min-width: 190px; }
+.listing-product-summary strong { min-width: 0; max-width: 28ch; overflow-wrap: anywhere; }
+.listing-thumbnail { width: 52px; height: 52px; flex: 0 0 52px; overflow: hidden; border: 1px solid var(--border); border-radius: 10px; background: var(--surface-2); }
+.listing-thumbnail img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.listing-thumbnail-placeholder { display: grid; place-items: center; width: 100%; height: 100%; padding: 4px; color: var(--text-2); font-size: 10px; line-height: 1.3; text-align: center; }
+.listing-thumbnail [hidden] { display: none; }
+.listing-row-actions { min-width: 170px; white-space: nowrap; }
+
+/* Account and listing moderation reuse the admin palette and surfaces. */
+.moderation-section { padding: 24px; margin-bottom: 24px; }
+.moderation-section h2 { font-size: 19px; margin-bottom: 8px; }
+.moderation-section p { color: var(--text-2); margin: 8px 0; }
+.moderation-form { display: grid; gap: 12px; margin-top: 20px; max-width: 760px; }
+.moderation-form label, .moderation-filter label { font-weight: 600; }
+.moderation-form textarea { width: 100%; resize: vertical; padding: 12px; border: 1px solid var(--border-2); border-radius: var(--r-control); font: inherit; background: var(--surface); color: var(--text); }
+.moderation-primary, .moderation-danger { border: 0; padding: 11px 18px; border-radius: var(--r-control); font: inherit; font-weight: 600; cursor: pointer; justify-self: start; }
+.moderation-primary { background: var(--brand); color: white; }
+.moderation-danger { background: var(--bad); color: white; }
+.moderation-heading, .moderation-buttons, .moderation-filter { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.moderation-buttons, .moderation-filter { justify-content: flex-start; }
+.moderation-filter select { padding: 10px; border: 1px solid var(--border-2); border-radius: var(--r-control); font: inherit; }
+.moderation-history { border-top: 1px solid var(--border); padding: 20px 0; overflow-wrap: anywhere; }
+.moderation-history:first-of-type { margin-top: 18px; }
+.moderation-history small { color: var(--text-3); }
+.moderation-text { white-space: pre-wrap; }
+.moderation-decision { border-left: 3px solid var(--brand); padding-left: 16px; margin-top: 16px; }
+.moderation-notice { padding: 16px; margin-bottom: 24px; background: var(--ok-wash); color: var(--ok); border-radius: var(--r-control); }
+.report-page { max-width: 760px; margin: 48px auto; padding: 0 20px; }
+.report-page > a { display: inline-block; margin-bottom: 20px; }
+.moderation-main .table-container td { overflow-wrap: anywhere; }
+@media (max-width: 640px) { .moderation-section { padding: 18px; } .moderation-buttons { align-items: stretch; flex-direction: column; } }
+
+
+.moderation-nav-icon { display: inline-grid; place-items: center; width: 18px; height: 18px; border: 1.5px solid currentColor; border-radius: 50%; font-size: 12px; line-height: 1; }
+@media (max-width: 760px) { .sidebar nav { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
+.moderation-notice.error { background: var(--bad-wash); color: var(--bad); }
+
+/* Buttons that send a small form (see templates/_forms.html) sit in line like the links they replaced. */
+.inline-form { display: inline; margin: 0; }
+.inline-form button { font: inherit; cursor: pointer; }
+
+/* The signed-in admin's email: cut short with "…" if it's too long for the sidebar. */
+.admin-who { min-width: 0; }
+.admin-who strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 150px; }
+
+/* Star ratings (templates/_stars.html): five stars, gold up to --rating out of 5. */
+.stars { --percent: calc(var(--rating) / 5 * 100%); display: inline-block; font-size: 14px; line-height: 1; letter-spacing: 1px; vertical-align: -1px; }
+.stars::before { content: "★★★★★"; background: linear-gradient(90deg, #f5a524 var(--percent), #d5dbe5 var(--percent)); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+.nowrap { white-space: nowrap; }

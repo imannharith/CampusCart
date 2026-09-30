@@ -20,6 +20,7 @@
             {% endif %}
 
             <form action="/admin/login" method="POST" class="admin-auth-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
 
                 <div class="form-group">
                     <label for="email">Admin Email</label>

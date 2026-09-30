@@ -43,10 +43,14 @@ like the old sqlite3 connection (`cursor()`, `execute()`, `fetchone()`,
    ```
    TURSO_DATABASE_URL=libsql://<database>.turso.io
    TURSO_AUTH_TOKEN=<token>
+   SECRET_KEY=<any long random text>
    ```
 
    `.env` is gitignored, so the token never reaches GitHub. Get the
-   values from a teammate.
+   Turso values from a teammate. `SECRET_KEY` signs the login cookie;
+   make your own with `python -c "import secrets; print(secrets.token_hex(32))"`.
+   Without it the app still runs, but everyone is logged out on every restart.
+   Add `FLASK_DEBUG=1` only while developing: debug mode's error page can run code.
 3. `python app.py`, then visit `http://127.0.0.1:5000/`
 
 If the database can't be reached, the app refuses to start and prints
@@ -62,7 +66,7 @@ why, rather than hanging.
 | `order_items`    | line items belonging to an order                  |
 | `discount_codes` | code, discount_percent, active                    |
 | `reviews`        | product_id, reviewer, rating, comment, review_date |
-| `cart`           | user_id, product_id, quantity (defined but unused) |
+| `cart`           | user_id, product_id, quantity; unique per account/product |
 
 `order_items` is the bridge between orders and products: one order
 holds many products and one product appears in many orders, so each
@@ -158,7 +162,7 @@ one to show a total on the page, the other to save it. Two sums of the
 same cart is one sum too many: any difference between them means the
 buyer agrees to one figure and is charged another.
 
-Both now call `price_cart()`, which returns the subtotal, the discount
+Both now call `price_cart(cart)`, which returns the subtotal, the discount
 and the total together. Because the quote and the charge come from the
 same call, they cannot drift apart.
 
@@ -189,33 +193,55 @@ restarting could not fix. It now compares the full list of tables
 against `EXPECTED_TABLES` and fills in whatever is absent. Still one
 query on a normal start.
 
-## Still to connect
+## Marketplace account integration
 
-1. **The storefront does not read the database.** `app.py` still has a
-   hardcoded `products` list at the top, and the homepage and product
-   pages use that instead of the `products` table. So approving,
-   editing or deleting a product in the admin panel changes nothing
-   for shoppers. Whoever owns the storefront should call
-   `admin_functions.get_all_products(status="Approved")`.
+The homepage and catalog read approved database listings and hide linked listings
+from suspended sellers. Each signed-in account has its own persistent cart in the
+`cart` table. Cart routes take the account ID from the session, never from a form
+or URL parameter. Logging out or restarting the app does not erase the cart.
+The former shared in-memory cart cannot be migrated because it had no owner.
 
-   This is currently the blocker for the stock work above. The
-   hardcoded list uses ids 1–4 while the real table holds entirely
-   different ids, so a cart is built from products that do not exist
-   in the database. `place_order()` writes order items for ids that
-   match nothing, the stock update finds no row to change, and
-   `get_top_selling_products()` — which inner-joins `order_items` to
-   `products` — silently drops those orders from the report.
+Checkout reads current product prices and saves the order, line items, stock
+changes, and removal of that buyer's cart in one libSQL batch transaction. It
+checks the cart quantities, prices, availability, seller IDs and stock again inside
+the transaction. Changed, sold-out or duplicate checkout snapshots do not create an
+order or clear the cart. Other accounts' carts stay untouched.
 
-2. **The cart is in memory, not in the database.** `app.py` keeps a
-   module-level `cart` dict, which means it is shared by everyone
-   using the same running server and is wiped on restart. The `cart`
-   table already exists in the database and is unused.
+Seller profile listings, My Shop, sales summaries, admin seller activity, and
+stock/delete/fulfilment ownership checks use account IDs. Order lines snapshot the
+seller ID at purchase, so later renaming, reassignment, or deletion of the listing
+does not transfer the sale to a different seller. Names remain display text.
+Admins choose seller accounts by ID, with name/email shown in the listing editor.
 
-3. **Orders are not linked to accounts.** `place_order()` and
-   `/orders` both hardcode `user_id = 1`, left over from before login
-   existed, so every order belongs to the same user.
+Startup performs a one-time backfill for unlinked listings and order lines whose
+seller name identifies exactly one existing account. Ambiguous or unmatched
+records stay unlinked and remain visible to admins. A later signup with the same
+name cannot claim these records. Admins can assign unlinked listings explicitly.
 
-4. **`discount_codes` still exists in the database.** The app no longer
-   creates or reads it, but the table and its rows were left in place
-   rather than dropped from a database the whole team shares. It can go
-   whenever everyone agrees it should.
+## Account and listing moderation
+
+- **Users → View account** shows linked listings, verified purchases, reports,
+  and account action history. Suspend/reactivate requires a reason and records
+  the admin and UTC time. Suspension blocks login and existing sessions and
+  hides linked listings from shoppers; admins can still inspect them.
+- **Moderation** groups open reports by listing and filters decision history.
+  Students report from the product catalog; admins can report from listing
+  details. Reports contain the reporter, reason, optional supporting text/links,
+  and time. Submission temporarily marks the listing Reported and takes it off
+  sale. One decision resolves all open reports for that listing. Dismiss restores
+  its previous status; Remove sets Rejected and preserves the report records.
+- New forms use POST, CSRF tokens, server-side validation, and admin authorization.
+  Account changes and report decisions use transactional libSQL batches.
+- Startup adds `users.account_status`, `products.seller_id`,
+  `orders.account_linked`, `account_actions`, and `listing_reports` automatically.
+  Existing uniquely matching seller names are linked; ambiguous names are left
+  unlinked. Old Reported listings receive a legacy report with unknown reporter
+  and return to Pending if dismissed, because their previous status is unknown.
+- Checkout now saves the signed-in account ID. Older orders used the hardcoded
+  ID 1, so they remain in admin sales reports but are excluded from personal
+  purchase history rather than assigned to the wrong account.
+- Supporting evidence is text/reference links, not file uploads. Decision history
+  stays available after a listing is later deleted.
+
+Run the isolated SQLite-backed regression suite with
+`python3 -m unittest discover -s tests -v`. It does not connect to or modify Turso.

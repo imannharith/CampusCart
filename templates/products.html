@@ -7,17 +7,13 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
+{% import "_forms.html" as forms with context %}
+{% import "_stars.html" as rate with context %}
+
 
     <header class="navbar">
         <a href="/" class="logo">Campus<span>Cart</span></a>
-        <nav class="nav-links">
-            <a href="/">Home</a>
-            <a href="/products" class="active">Products</a>
-            <a href="/cart">Cart</a>
-            <a href="/my-shop">My Shop</a>
-            <a href="/profile">Profile</a>
-            <a href="/logout">Log out</a>
-        </nav>
+        {% include "_nav.html" %}
     </header>
 
     <main class="container shop-layout">
@@ -56,7 +52,7 @@
         </aside>
 
         <section class="listing-content">
-            <h2>Product Catalog</h2>
+            <div class="section-heading"><div><p class="eyebrow">Browse the marketplace</p><h2>Product catalog</h2></div></div>
             <div class="product-grid">
                 
                 {% if products %}
@@ -71,13 +67,20 @@
                             <span class="category-tag">{{ product.category | capitalize }}</span>
                             <h3>{{ product.name }}</h3>
                             <p class="price">RM {{ "%.2f"|format(product.price) }}</p>
+                        {{ rate.card(product.id, ratings.get(product.id)) }}
                             <p class="stock">Stock: {{ product.stock }} units</p>
                             <p class="seller">Sold by {{ product.seller }}</p>
+                            <a href="{{ url_for('report_listing', product_id=product.id) }}">Report listing</a>
                             {% if product.description %}
                             <p class="description">{{ product.description }}</p>
                             {% endif %}
-                            {% if product.stock > 0 %}
-                            <a href="/add-to-cart/{{ product.id }}" class="btn-view-details">Add to Cart</a>
+                            {% if product.seller_id and not (current_account and product.seller_id == current_account.id) %}
+                            <a href="{{ url_for('message_seller', product_id=product.id) }}" class="btn-message">Message seller</a>
+                            {% endif %}
+                            {% if current_account and product.seller_id == current_account.id %}
+                            <span class="btn-view-details sold-out">Your listing</span>
+                            {% elif product.stock > 0 %}
+                            {{ forms.post_button(url_for('add_to_cart', product_id=product.id), 'Add to Cart', 'btn-view-details') }}
                             {% else %}
                             <span class="btn-view-details sold-out">Sold out</span>
                             {% endif %}

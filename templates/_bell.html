@@ -1,0 +1,36 @@
+{# The bell in the top bar. <details> opens and closes on click without any JavaScript. #}
+{% if current_account %}
+<details class="bell">
+    <summary title="Updates on your orders and listings" aria-label="Notifications{% if unread_notifications %}, {{ unread_notifications }} new{% endif %}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+        {% if unread_notifications %}<span class="nav-badge bell-count">{{ unread_notifications }}</span>{% endif %}
+    </summary>
+    <div class="bell-panel">
+        <div class="bell-head">
+            <strong>Notifications</strong>
+            {% if unread_notifications %}
+            <form method="POST" action="/notifications/read-all">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <input type="hidden" name="next" value="{{ request.path }}">
+                <button type="submit">Mark all as read</button>
+            </form>
+            {% endif %}
+        </div>
+        {% for note in notifications %}
+        <a class="bell-item{% if not note.read_at %} unread{% endif %}" href="/notifications/{{ note.id }}">
+            <span>{{ note.text }}</span>
+            <small>{{ note.created_at|chat_time }}</small>
+        </a>
+        {% else %}
+        <p class="bell-empty">Nothing new yet. Sales, approvals and delivery updates will show up here.</p>
+        {% endfor %}
+    </div>
+</details>
+<script>
+    // Close the bell when clicking anywhere else on the page.
+    document.addEventListener('click', function (event) {
+        var bell = document.querySelector('details.bell');
+        if (bell && !bell.contains(event.target)) bell.removeAttribute('open');
+    });
+</script>
+{% endif %}

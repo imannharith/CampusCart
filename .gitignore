@@ -4,6 +4,9 @@ __pycache__/
 .env
 database.db
 
+# demo logins for the shared database -- share them directly, not on GitHub
+DEMO_ACCOUNTS.md
+
 # editor tooling, not part of the app -- install with:
 # npx skills add Leonxlnx/taste-skill
 .agents/

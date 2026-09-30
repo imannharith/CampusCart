@@ -10,6 +10,7 @@
 </head>
 
 <body>
+{% import "_stars.html" as rate %}
 
     <aside class="sidebar">
 
@@ -22,20 +23,20 @@
             <a href="{{ url_for('listings') }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 8.2 12 4l8.5 4.2v7.6L12 20l-8.5-4.2z"/><path d="m3.5 8.2 8.5 4.3 8.5-4.3M12 12.5V20"/></svg>Listings</a>
 
             <a href="{{ url_for('users') }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9.5" cy="8" r="3.3"/><path d="M3.8 19.6a5.7 5.7 0 0 1 11.4 0"/><path d="M16.4 5.4a3.3 3.3 0 0 1 0 5.2M17.6 14.6a5.7 5.7 0 0 1 2.6 5"/></svg>Users</a>
-            <a href="{{ url_for('reports') }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4v16h16"/><path d="M8.4 20v-5.5M12.8 20v-9.5M17.2 20v-3.5"/></svg>Reports</a>
-        </nav>
+                <a href="{{ url_for('reports') }}" class="{{ 'active' if request.endpoint == 'reports' else '' }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4v16h16"/><path d="M8.4 20v-5.5M12.8 20v-9.5M17.2 20v-3.5"/></svg>Reports</a>
+                <a href="{{ url_for('moderation_queue') }}" class="{{ 'active' if request.endpoint == 'moderation_queue' else '' }}"><span class="moderation-nav-icon" aria-hidden="true">!</span>Moderation</a>
+
+    </nav>
 
         <div class="sidebar-bottom">
 
         <div class="admin-user">
-            <div class="avatar">A</div>
-            <div>
-                <strong>Administrator</strong>
-                <small>CampusCart Admin</small>
+            <div class="avatar">{{ (session.get('user') or 'A')[0]|upper }}</div>
+            <div class="admin-who">
+                <strong title="{{ session.get('user', '') }}">{{ session.get('user', 'Administrator') }}</strong>
+                <small>Signed in as admin</small>
             </div>
         </div>
-
-            <a href="#">Settings</a>
             <a href="{{ url_for('logout') }}">Logout</a>
         </div>
 
@@ -128,7 +129,7 @@
                         <span class="queue-go">&rarr;</span>
                     </a>
 
-                    <a class="queue" href="{{ url_for('listings', status='Reported') }}">
+                    <a class="queue" href="{{ url_for('moderation_queue') }}">
                         <span class="queue-count queue-alert">{{ reported_products }}</span>
                         <span class="queue-label">
                             <strong>Reported listings</strong>
@@ -200,6 +201,44 @@
 
             </table>
 
+        </section>
+
+        <section class="panel">
+            <div class="panel-title">
+                <div>
+                    <h3>Latest Reviews</h3>
+                    <p>What buyers are saying about delivered items</p>
+                </div>
+                <a href="{{ url_for('listings', _anchor='product-reviews') }}" class="view-all">
+                    Manage reviews →
+                </a>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Product</th>
+                        <th>Reviewer</th>
+                        <th>Rating</th>
+                        <th>Comment</th>
+                        <th>Date</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for review in latest_reviews %}
+                    <tr>
+                        <td><strong>{{ review.product_name or 'Deleted product' }}</strong></td>
+                        <td>{{ review.reviewer }}</td>
+                        <td class="nowrap">{{ rate.stars(review.rating) }}</td>
+                        <td>{{ review.comment or '—' }}</td>
+                        <td class="nowrap">{{ review.review_date|day }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5">No reviews yet.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </section>
 
     </main>
