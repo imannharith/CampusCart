@@ -214,6 +214,40 @@
 
     </section>
 
+    <section class="panel" id="refunds">
+        <div class="panel-title">
+            <div>
+                <h3>Refunds to make</h3>
+                <p>Paid items that were cancelled. Send the buyer their money back, then mark it done here so they're told.</p>
+            </div>
+        </div>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr><th>Order #</th><th>Buyer</th><th>Item</th><th>Refund</th><th>Paid with</th><th>Cancelled</th><th>Action</th></tr>
+                </thead>
+                <tbody>
+                    {% for line in refunds %}
+                    <tr>
+                        <td><strong>#{{ line.order_id }}</strong></td>
+                        <td>{{ line.buyer_name or 'Unknown' }}</td>
+                        <td>{{ line.product_name }} &times;{{ line.quantity }}</td>
+                        <td><strong>RM {{ "%.2f"|format(line.refund_amount) }}</strong></td>
+                        <td>{{ line.payment_channel or 'CampusPay' }}{% if line.payment_ref %}<small class="pay-channel">Ref {{ line.payment_ref }}</small>{% endif %}</td>
+                        <td>{{ line.cancelled_at|when }}</td>
+                        <td class="action-cell">
+                            {{ forms.post_button(url_for('mark_refunded', item_id=line.id), 'Mark refunded', 'view-btn',
+                               confirm='Have you sent this money back to the buyer?') }}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="7">No refunds owed. When a paid item is cancelled, it shows up here.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+
     <section class="panel">
 
         <div class="panel-title">
@@ -226,7 +260,7 @@
         <form method="GET" action="{{ url_for('reports') }}" class="filters" style="grid-template-columns: 1fr auto;">
             <select name="status">
                 <option value="all" {% if selected_status == 'all' %}selected{% endif %}>All Orders</option>
-                {% for state in ['Pending', 'Shipped', 'Delivered', 'Cancelled'] %}
+                {% for state in ['Awaiting payment', 'Pending', 'Shipped', 'Delivered', 'Cancelled'] %}
                 <option value="{{ state }}" {% if selected_status == state %}selected{% endif %}>{{ state }}</option>
                 {% endfor %}
             </select>
@@ -254,6 +288,7 @@
                         <th>Subtotal</th>
                         <th>Discount</th>
                         <th>Total</th>
+                        <th>Payment</th>
                         <th>Date</th>
                         <th>Action</th>
                     </tr>
@@ -276,6 +311,17 @@
                         <td>RM {{ "%.2f"|format(order.subtotal) }}</td>
                         <td>RM {{ "%.2f"|format(order.discount) }}</td>
                         <td>RM {{ "%.2f"|format(order.total) }}</td>
+                        <td>
+                            {% if order.payment_status == 'Paid' %}
+                            <span class="status approved">Paid</span>{% if order.payment_channel %}<small class="pay-channel">{{ order.payment_channel }}</small>{% endif %}
+                            {% elif order.payment_status == 'Unpaid' %}
+                            <span class="status pending">Unpaid</span>
+                            {% elif order.payment_status %}
+                            <span class="status rejected">{{ order.payment_status }}</span>
+                            {% else %}
+                            <span class="pay-channel">Before online payment</span>
+                            {% endif %}
+                        </td>
                         <td>{{ order.order_date|when }}</td>
                         <td class="action-cell">
                             {# Cancel is offered while anything is still on its way; Reinstate
@@ -283,15 +329,15 @@
                             {% set states = order.line_items|map(attribute='status')|list %}
                             {% if 'Pending' in states or 'Shipped' in states %}
                                 {{ forms.post_button(url_for('admin_cancel_order', order_id=order.id), 'Cancel Order', 'reject-btn',
-                                   confirm="Cancel this order? Only do this if there's a problem, like a report -- sellers normally handle their own orders.") }}
+                                   confirm="Cancel this order? Only do this if there's a problem, like a report. If it was paid online, it will appear under Refunds to make.") }}
                             {% endif %}
-                            {% if 'Cancelled' in states %}
+                            {% if 'Cancelled' in states and order.payment_status in [None, 'Paid'] %}
                                 {{ forms.post_button(url_for('admin_reinstate_order', order_id=order.id), 'Reinstate', 'view-btn') }}
                             {% endif %}
                         </td>
                     </tr>
                     {% else %}
-                    <tr><td colspan="8">No orders match this filter.</td></tr>
+                    <tr><td colspan="9">No orders match this filter.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>

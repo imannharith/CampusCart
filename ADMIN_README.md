@@ -56,6 +56,27 @@ like the old sqlite3 connection (`cursor()`, `execute()`, `fetchone()`,
 If the database can't be reached, the app refuses to start and prints
 why, rather than hanging.
 
+## Payment (CampusPay demo)
+
+This is a university project, so no real money moves. After checkout the
+buyer lands on **CampusPay**, CampusCart's own pretend payment page, which
+works like a real Malaysian QR payment:
+
+- **E-wallet / DuitNow QR:** the buyer scans the QR code with Touch 'n Go,
+  GrabPay, Boost, ShopeePay or any DuitNow app. On a phone that can reach the
+  site it opens a "Pay RM ..." page; otherwise press **I've paid** to pretend.
+
+What happens behind it is the real process (section 7 of `shop_functions.py`):
+checkout makes an order **Awaiting payment** and holds its items for 30
+minutes -> paying marks it **Paid**, gives it a reference number (CCP-...) and
+tells the sellers -> cancelling puts the items back in the cart -> an order
+left unpaid for 30 minutes lets its items go. Sellers only ever see paid orders.
+
+**Refunds:** if a paid item is cancelled, it appears under **Reports > Refunds
+to make**. Press **Mark refunded** once the money's been returned; the buyer is told.
+
+The QR codes are drawn by the `segno` library (`pip install -r requirements.txt`).
+
 ## Database tables
 
 | Table            | Purpose                                          |

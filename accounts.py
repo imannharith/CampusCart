@@ -261,7 +261,7 @@ def open_orders(user_id):
     cursor.execute("""SELECT
         (SELECT COUNT(*) FROM order_items WHERE seller_id = ? AND status IN ('Pending', 'Shipped')) +
         (SELECT COUNT(*) FROM order_items i JOIN orders o ON o.id = i.order_id
-            WHERE o.user_id = ? AND o.account_linked = 1 AND i.status IN ('Pending', 'Shipped')) AS n""",
+            WHERE o.user_id = ? AND o.account_linked = 1 AND i.status IN ('Awaiting payment', 'Pending', 'Shipped')) AS n""",
         (user_id, user_id))
     waiting = cursor.fetchone()["n"]
     connection.close()

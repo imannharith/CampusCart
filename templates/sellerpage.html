@@ -233,12 +233,15 @@
                         <td class="action-cell">
                             {% if line.status == 'Pending' %}
                                 {{ forms.post_button(url_for('seller_update_order_status', item_id=line.id, status='Shipped'), 'Mark Shipped', 'btn-ship') }}
-                                {{ forms.post_button(url_for('seller_update_order_status', item_id=line.id, status='Cancelled'), 'Cancel', 'btn-cancel', confirm="Cancel this sale? It will go back into your stock.") }}
+                                {{ forms.post_button(url_for('seller_update_order_status', item_id=line.id, status='Cancelled'), 'Cancel', 'btn-cancel', confirm="Cancel this sale? It goes back into your stock, and if the buyer paid online they get their money back.") }}
                             {% elif line.status == 'Shipped' %}
                                 {{ forms.post_button(url_for('seller_update_order_status', item_id=line.id, status='Delivered'), 'Mark Delivered', 'btn-deliver') }}
-                                {{ forms.post_button(url_for('seller_update_order_status', item_id=line.id, status='Cancelled'), 'Cancel', 'btn-cancel', confirm="Cancel this sale? It will go back into your stock.") }}
+                                {{ forms.post_button(url_for('seller_update_order_status', item_id=line.id, status='Cancelled'), 'Cancel', 'btn-cancel', confirm="Cancel this sale? It goes back into your stock, and if the buyer paid online they get their money back.") }}
+                            {% elif line.status == 'Cancelled' and line.refund_status == 'Refunded' %}
+                                <span class="action-done">Refunded</span>
                             {% elif line.status == 'Cancelled' %}
                                 {{ forms.post_button(url_for('seller_update_order_status', item_id=line.id, status='Pending'), 'Reinstate', 'btn-reinstate') }}
+                                {% if line.refund_status == 'Owed' %}<small class="refund-note">Buyer will be refunded</small>{% endif %}
                             {% else %}
                                 <span class="action-done">Completed</span>
                             {% endif %}

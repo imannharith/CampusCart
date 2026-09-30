@@ -7,6 +7,7 @@ pages a student sees -- grouped in the same order as the top menu:
     1. Shopping (Home, Products, Cart, Checkout)     2. My Orders & Reviews
     3. Messages     4. My Shop     5. Notifications
     6. Help Center & Contact Us (from the Settings page)
+    7. Payments (CampusPay, the demo payment page)
 
 The admin panel's functions are in admin_functions.py; signing up and
 logging in are in accounts.py.
@@ -19,11 +20,14 @@ import re
 from datetime import datetime, timedelta
 from uuid import uuid4
 
+import segno                      # draws the QR codes on the payment page
+
 import database
 # Shared with the admin panel: listings are looked up the same way, and what a
 # seller keeps from a sale is worked out by the same rule as the admin's revenue report.
 from admin_functions import (PLATFORM_COMMISSION_PERCENT, actual_revenue, get_all_products,
-                             get_all_discount_tiers, get_order_items, sync_order_status)
+                             get_all_discount_tiers, get_order_items, sync_order_status,
+                             can_reinstate, order_is_paid)
 
 # Timestamps are stored in UTC; CampusCart's students are in Malaysia (UTC+8).
 LOCAL_OFFSET = timedelta(hours=8)
@@ -152,6 +156,11 @@ def checkout_cart(user_id, cart, pricing, buyer_name, phone, address):
 
     The first statement only creates an order if the entire snapshot still matches.
     Every later statement depends on that order, so stale/duplicate requests do nothing.
+
+    The order starts as "Awaiting payment": its items are held for the buyer
+    (taken out of stock so nobody else can buy them), but sellers don't see it
+    until the payment goes through. If it isn't paid within PAYMENT_MINUTES,
+    release_order() puts the items back.
     """
     token = uuid4().hex
     guards = ['(SELECT COUNT(*) FROM cart WHERE user_id = ?) = ?',
@@ -168,12 +177,14 @@ def checkout_cart(user_id, cart, pricing, buyer_name, phone, address):
         args.extend([user_id, product_id, item['quantity'], item['price'], item['seller_id'], item['name'], item['seller'], user_id])
     if not cart:
         return None
-    statements = [("""INSERT INTO orders (user_id, subtotal, discount, total, status, buyer_name, phone, address, account_linked, checkout_token)
-        SELECT ?, ?, ?, ?, 'Pending', ?, ?, ?, 1, ? WHERE """ + ' AND '.join(guards), args)]
+    statements = [(f"""INSERT INTO orders (user_id, subtotal, discount, total, status, buyer_name, phone, address,
+            account_linked, checkout_token, payment_status, payment_expires_at, sellers_notified)
+        SELECT ?, ?, ?, ?, 'Awaiting payment', ?, ?, ?, 1, ?, 'Unpaid', datetime('now', '+{PAYMENT_MINUTES} minutes'), 0
+        WHERE """ + ' AND '.join(guards), args)]
     for product_id, item in cart.items():
         statements.extend([
-            ("""INSERT INTO order_items (order_id, product_id, quantity, price, product_name, seller, seller_id)
-                SELECT id, ?, ?, ?, ?, ?, ? FROM orders WHERE checkout_token = ?""",
+            ("""INSERT INTO order_items (order_id, product_id, quantity, price, product_name, seller, seller_id, status)
+                SELECT id, ?, ?, ?, ?, ?, ?, 'Awaiting payment' FROM orders WHERE checkout_token = ?""",
              [product_id, item['quantity'], item['price'], item['name'], item['seller'], item['seller_id'], token]),
             ("""UPDATE products SET stock = stock - ? WHERE id = ?
                 AND EXISTS (SELECT 1 FROM orders WHERE checkout_token = ?)""", [item['quantity'], product_id, token]),
@@ -566,7 +577,7 @@ def update_order_item_status(item_id, status):
     cursor = connection.cursor()
 
     cursor.execute(
-        "SELECT status, product_id, quantity, order_id FROM order_items WHERE id = ?",
+        "SELECT status, product_id, quantity, order_id, refund_status FROM order_items WHERE id = ?",
         (item_id,)
     )
     row = cursor.fetchone()
@@ -586,6 +597,18 @@ def update_order_item_status(item_id, status):
     was_cancelled = row["status"].lower() == "cancelled"
     now_cancelled = status.lower() == "cancelled"
 
+    # Bringing a cancelled sale back only makes sense for an order that was
+    # really paid, and not once the buyer has already been refunded.
+    if was_cancelled and not now_cancelled:
+        if not can_reinstate(row["order_id"]) or row["refund_status"] == "Refunded":
+            connection.close()
+            return False
+
+    # Cancelling something the buyer paid for online means they're owed a refund;
+    # reinstating it before the refund is sent means they're not.
+    paid = order_is_paid(row["order_id"])
+    refund = ("Owed" if paid else row["refund_status"]) if now_cancelled else None
+
     if was_cancelled != now_cancelled:
         direction = 1 if now_cancelled else -1
         cursor.execute(
@@ -599,13 +622,13 @@ def update_order_item_status(item_id, status):
     # date behind.
     if now_cancelled:
         cursor.execute(
-            "UPDATE order_items SET status = ?, cancelled_at = datetime('now') WHERE id = ?",
-            (status, item_id)
+            "UPDATE order_items SET status = ?, cancelled_at = datetime('now'), refund_status = ? WHERE id = ?",
+            (status, refund, item_id)
         )
     else:
         cursor.execute(
-            "UPDATE order_items SET status = ?, cancelled_at = NULL WHERE id = ?",
-            (status, item_id)
+            "UPDATE order_items SET status = ?, cancelled_at = NULL, refund_status = ? WHERE id = ?",
+            (status, refund, item_id)
         )
 
     connection.commit()
@@ -641,6 +664,7 @@ def get_seller_orders(seller_id, cancelled_max_age_days=2):
             order_items.quantity,
             order_items.price,
             order_items.status  AS status,
+            order_items.refund_status AS refund_status,
             COALESCE(order_items.product_name, products.name) AS product_name,
             products.image_url  AS image_url,
             orders.order_date   AS order_date,
@@ -653,6 +677,9 @@ def get_seller_orders(seller_id, cancelled_max_age_days=2):
         LEFT JOIN products ON products.id = order_items.product_id
         JOIN orders ON orders.id = order_items.order_id
         WHERE order_items.seller_id = ?
+          -- only sales the buyer actually paid for (or from before online payment)
+          AND order_items.status != 'Awaiting payment'
+          AND (orders.payment_status IS NULL OR orders.payment_status = 'Paid')
           AND NOT (
               LOWER(order_items.status) = 'cancelled'
               AND order_items.cancelled_at IS NOT NULL
@@ -786,16 +813,21 @@ def notify_listing_decided(product_id, status, reason=None):
 
 def notify_order_item_moved(item_id):
     """Tell the buyer their item was shipped, delivered, cancelled or reinstated."""
-    found = rows('''SELECT i.product_name, i.status, o.id AS order_id, o.user_id
+    found = rows('''SELECT i.product_name, i.status, i.quantity, i.price, i.refund_status, o.id AS order_id,
+            o.user_id, o.subtotal, o.discount
         FROM order_items i JOIN orders o ON o.id = i.order_id
         WHERE i.id = ? AND o.account_linked = 1''', (item_id,))
     if not found:
         return
     line = found[0]
+    cancelled = f"The seller cancelled {line['product_name']} from order #{line['order_id']}."
+    if line['refund_status'] == 'Owed':
+        amount = actual_revenue(line['quantity'], line['price'], line['subtotal'], line['discount'])
+        cancelled += f" CampusCart will refund your RM {amount:.2f}."
     text = {
         'Shipped': f"{line['product_name']} is on its way.",
         'Delivered': f"{line['product_name']} was marked as delivered.",
-        'Cancelled': f"The seller cancelled {line['product_name']} from order #{line['order_id']}.",
+        'Cancelled': cancelled,
         'Pending': f"{line['product_name']} from order #{line['order_id']} is back on.",
     }.get(line['status'])
     if text:
@@ -803,9 +835,16 @@ def notify_order_item_moved(item_id):
 
 
 def notify_order_cancelled(order_id):
-    found = rows('SELECT user_id FROM orders WHERE id = ? AND account_linked = 1', (order_id,))
+    found = rows('SELECT user_id, subtotal, discount FROM orders WHERE id = ? AND account_linked = 1', (order_id,))
     if found:
-        notify(found[0]['user_id'], f"Order #{order_id} was cancelled by CampusCart.", '/orders')
+        order = found[0]
+        owed = sum(actual_revenue(i['quantity'], i['price'], order['subtotal'], order['discount'])
+                   for i in rows("SELECT quantity, price FROM order_items WHERE order_id = ? AND refund_status = 'Owed'",
+                                 (order_id,)))
+        text = f"Order #{order_id} was cancelled by CampusCart."
+        if owed:
+            text += f" You'll get RM {owed:.2f} back."
+        notify(order['user_id'], text, '/orders')
 
 
 def notify_order_reinstated(order_id):
@@ -841,10 +880,10 @@ HELP_TOPICS = {
         "faqs": [
             ("How do I buy something?",
              "Press Add to Cart on any item, open your Cart, then Proceed to Checkout. Enter your name, "
-             "phone number and address and press Place Order. The seller is told straight away."),
-            ("How do I pay the seller?",
-             "CampusCart doesn't take money online. Agree how to pay with the seller in Messages -- "
-             "usually cash or DuitNow when you meet. It's safest to pay once you've seen the item."),
+             "phone number and address, press Continue to payment and pay. The seller is told once you've paid."),
+            ("How do I pay?",
+             "After checkout you go to CampusPay and scan its QR code with Touch 'n Go eWallet, GrabPay, "
+             "Boost, ShopeePay or any DuitNow app. Your items are held for 30 minutes while you pay."),
             ("Where can I see what I've ordered?",
              "Open My Orders in the top menu. Every item shows where it is: Pending (the seller hasn't sent "
              "it yet), Shipped, Delivered or Cancelled. The bell tells you whenever that changes."),
@@ -923,3 +962,136 @@ def mark_support_read(user_id):
     """The student has now seen the admins' replies."""
     database.atomic([("""UPDATE support_messages SET read_at = CURRENT_TIMESTAMP
         WHERE user_id = ? AND from_admin = 1 AND read_at IS NULL""", [user_id])])
+
+
+# ====================================================================
+# 7. PAYMENTS (CAMPUSPAY DEMO)
+# Paying for an order. This is a university project, so no real money
+# moves: CampusPay is CampusCart's own pretend payment page. It works
+# like a real one -- scan a QR code with an e-wallet or DuitNow -- and the
+# order goes through the same steps a real one would:
+#
+#   1. Checkout makes an order that is "Awaiting payment" (its items are held).
+#   2. The buyer scans the QR code on the CampusPay page and pays.
+#   3. confirm_paid() marks the order Paid and tells the sellers -- once.
+#   4. If it's cancelled or left unpaid, release_order() gives the items back.
+# ====================================================================
+
+
+PAYMENT_MINUTES = 30          # how long an unpaid order holds its items
+
+# The apps a buyer can scan the CampusPay QR code with.
+WALLETS = {
+    "tng": "Touch 'n Go eWallet", "grabpay": "GrabPay", "boost": "Boost",
+    "shopeepay": "ShopeePay", "duitnow": "DuitNow QR",
+}
+
+
+def payment_method(method):
+    """"Touch 'n Go eWallet", "DuitNow QR"... -- or None for anything we don't offer."""
+    return WALLETS.get(method)
+
+
+def get_order(order_id):
+    found = rows("SELECT * FROM orders WHERE id = ?", (order_id,))
+    return found[0] if found else None
+
+
+def order_for_scan(token):
+    """The order a QR code points at. The code carries the order's secret
+    checkout token, so it can't be guessed from the order number."""
+    found = rows("SELECT * FROM orders WHERE checkout_token = ?", (token,))
+    return found[0] if found else None
+
+
+def unpaid_orders(user_id):
+    """This buyer's orders that are still waiting to be paid (for Cart and My Orders)."""
+    return rows("""SELECT * FROM orders WHERE user_id = ? AND payment_status = 'Unpaid'
+        AND payment_expires_at > datetime('now') ORDER BY id DESC""", (user_id,))
+
+
+def seconds_left(order):
+    """How long the buyer still has to pay (for the countdown on CampusPay)."""
+    found = rows("SELECT CAST(strftime('%s', payment_expires_at) - strftime('%s', 'now') AS INTEGER) AS s "
+                 "FROM orders WHERE id = ?", (order["id"],))
+    return max(0, found[0]["s"] or 0) if found else 0
+
+
+def payment_qr(url):
+    """A QR code (as an SVG picture) that opens this address when scanned."""
+    return segno.make(url, error="m").svg_inline(scale=5, dark="#0f172a", light=None)
+
+
+def confirm_paid(order, method):
+    """Mark this order Paid and let its items go to the sellers. Safe to call
+    twice (e.g. the QR is scanned on a phone while the computer also clicks):
+    only the first call changes anything or sends notifications.
+    Returns True if this call is the one that marked it paid."""
+    channel = payment_method(method)
+    if channel is None:
+        return False
+    reference = "CCP-" + uuid4().hex[:10].upper()          # like a bank's transaction number
+    database.atomic([
+        ("""UPDATE orders SET payment_status = 'Paid', paid_at = CURRENT_TIMESTAMP,
+                payment_channel = ?, payment_ref = ?
+            WHERE id = ? AND payment_status = 'Unpaid' AND payment_expires_at > datetime('now')""",
+         [channel, reference, order["id"]]),
+        ("""UPDATE order_items SET status = 'Pending'
+            WHERE order_id = ? AND status = 'Awaiting payment'
+            AND EXISTS (SELECT 1 FROM orders WHERE id = ? AND payment_status = 'Paid')""", [order["id"], order["id"]]),
+    ])
+    sync_order_status(order["id"])
+
+    # Tell the sellers exactly once, even if two confirmations arrive together.
+    connection = database.get_connection()
+    cursor = connection.cursor()
+    cursor.execute("""UPDATE orders SET sellers_notified = 1
+        WHERE id = ? AND sellers_notified = 0 AND payment_status = 'Paid'""", (order["id"],))
+    first = cursor.rowcount == 1
+    connection.commit()
+    connection.close()
+    if not first:
+        return False
+
+    notify_new_order(order["id"])
+    notify(order["user_id"], f"Payment received for order #{order['id']} (RM {order['total']:.2f}). "
+                             "The sellers have been told to send your items.", "/orders")
+    return True
+
+
+def release_order(order, reason, back_to_cart=False):
+    """An order that won't be paid: put its items back on sale and, if the
+    buyer cancelled, back in their cart. Returns "released", or "paid" if
+    it turns out it was paid already."""
+    order = get_order(order["id"]) or order
+    if order["payment_status"] == "Paid":
+        return "paid"
+    if order["payment_status"] != "Unpaid":
+        return "released"
+
+    items = rows("SELECT product_id, quantity FROM order_items WHERE order_id = ? AND status = 'Awaiting payment'",
+                 (order["id"],))
+    statements = [("UPDATE orders SET payment_status = ? WHERE id = ? AND payment_status = 'Unpaid'",
+                   [reason, order["id"]])]
+    for item in items:
+        statements.append(("""UPDATE products SET stock = stock + ? WHERE id = ?
+            AND EXISTS (SELECT 1 FROM orders WHERE id = ? AND payment_status = ?)""",
+                           [item["quantity"], item["product_id"], order["id"], reason]))
+        if back_to_cart:
+            statements.append(("""INSERT INTO cart (user_id, product_id, quantity) VALUES (?, ?, ?)
+                ON CONFLICT(user_id, product_id) DO UPDATE SET quantity = cart.quantity + excluded.quantity""",
+                               [order["user_id"], item["product_id"], item["quantity"]]))
+    statements.append(("""UPDATE order_items SET status = 'Cancelled', cancelled_at = CURRENT_TIMESTAMP
+        WHERE order_id = ? AND status = 'Awaiting payment'""", [order["id"]]))
+    database.atomic(statements)
+    sync_order_status(order["id"])
+    return "released"
+
+
+def expire_unpaid_orders():
+    """Orders left unpaid for PAYMENT_MINUTES let go of their items, so a
+    buyer who closed the payment page doesn't keep things off the shelf.
+    Runs now and then while the site is being used (see app.py)."""
+    for order in rows("""SELECT * FROM orders WHERE payment_status = 'Unpaid'
+            AND payment_expires_at <= datetime('now')"""):
+        release_order(order, "Expired")

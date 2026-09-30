@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CampusPay | Scan to pay</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='logo.svg') }}">
+</head>
+
+<body class="pay-body">
+
+{# What a phone sees after scanning the QR code on the payment page. #}
+<main class="pay-page scan-page">
+
+    <section class="panel scan-card">
+        {% if order.payment_status == 'Paid' %}
+        <span class="confirm-mark ok" aria-hidden="true">&#10003;</span>
+        <h1>Paid</h1>
+        <p>RM {{ "%.2f"|format(order.total) }} to CampusCart, order #{{ order.id }}.<br>
+           Reference {{ order.payment_ref }}. You can go back to your computer now.</p>
+        {% elif order.payment_status != 'Unpaid' %}
+        <span class="confirm-mark bad" aria-hidden="true">&times;</span>
+        <h1>This code has expired</h1>
+        <p>Order #{{ order.id }} can't be paid any more. Start again from your cart.</p>
+        {% else %}
+        <p class="pay-merchant">Pay <strong>CampusCart</strong></p>
+        <p class="pay-amount">RM {{ "%.2f"|format(order.total) }}</p>
+        <p class="pay-ref">Order #{{ order.id }}</p>
+
+        <form method="post" class="scan-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <fieldset>
+                <legend>Pay with</legend>
+                {% for code, name in wallets.items() %}
+                <label class="wallet-option">
+                    <input type="radio" name="method" value="{{ code }}" {% if loop.first %}checked{% endif %}>
+                    <span>{{ name }}</span>
+                </label>
+                {% endfor %}
+            </fieldset>
+            <button type="submit" class="btn-primary">Pay RM {{ "%.2f"|format(order.total) }}</button>
+        </form>
+        {% endif %}
+    </section>
+
+</main>
+
+</body>
+</html>

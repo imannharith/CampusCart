@@ -480,15 +480,36 @@ def user_exists(user_id):
 
 # Each seller moves their own items along, so an order's overall status is
 # worked out from its items rather than set by hand:
+#   still waiting for the buyer to pay      -> Awaiting payment
 #   every item cancelled                    -> Cancelled
 #   every item left has been delivered      -> Delivered
 #   at least one item shipped or delivered  -> Shipped
 #   otherwise                               -> Pending
 ORDER_STATUS_FROM_ITEMS = """CASE
+    WHEN EXISTS (SELECT 1 FROM order_items i WHERE i.order_id = orders.id AND i.status = 'Awaiting payment') THEN 'Awaiting payment'
     WHEN NOT EXISTS (SELECT 1 FROM order_items i WHERE i.order_id = orders.id AND i.status != 'Cancelled') THEN 'Cancelled'
     WHEN NOT EXISTS (SELECT 1 FROM order_items i WHERE i.order_id = orders.id AND i.status NOT IN ('Delivered', 'Cancelled')) THEN 'Delivered'
     WHEN EXISTS (SELECT 1 FROM order_items i WHERE i.order_id = orders.id AND i.status IN ('Shipped', 'Delivered')) THEN 'Shipped'
     ELSE 'Pending' END"""
+
+
+# A line counts as sold unless it was cancelled or is still waiting for
+# payment -- used by every revenue figure, so unpaid orders never count.
+SOLD_LINE = "LOWER(order_items.status) NOT IN ('cancelled', 'awaiting payment')"
+# An order that really happened: paid online, or placed before online payment.
+REAL_ORDER = "(orders.payment_status IS NULL OR orders.payment_status = 'Paid')"
+
+
+def order_is_paid(order_id):
+    """True if the buyer paid this order online (so cancelling it means a refund)."""
+    found = rows("SELECT payment_status FROM orders WHERE id = ?", (order_id,))
+    return bool(found) and found[0]["payment_status"] == "Paid"
+
+
+def can_reinstate(order_id):
+    """A cancelled line can only come back if the order was really paid (or
+    is from before online payment) -- never an order nobody paid for."""
+    return bool(rows(f"SELECT 1 FROM orders WHERE id = ? AND {REAL_ORDER}", (order_id,)))
 
 
 def sync_order_status(order_id=None):
@@ -539,6 +560,7 @@ def get_order_items(order_id):
             order_items.price,
             order_items.status,
             order_items.cancelled_at,
+            order_items.refund_status,
             order_items.seller,
             order_items.seller_id,
             products.status AS product_status,
@@ -578,15 +600,19 @@ def admin_cancel_order(order_id):
 
     changed = False
 
+    paid = order_is_paid(order_id)
+
     for item in items:
         if item["status"].lower() in ("pending", "shipped"):
             cursor.execute(
                 "UPDATE products SET stock = MAX(0, stock + ?) WHERE id = ?",
                 (item["quantity"], item["product_id"])
             )
+            # The buyer paid for this item online, so they're owed their money back.
             cursor.execute(
-                "UPDATE order_items SET status = 'Cancelled', cancelled_at = datetime('now') WHERE id = ?",
-                (item["id"],)
+                "UPDATE order_items SET status = 'Cancelled', cancelled_at = datetime('now'), "
+                "refund_status = CASE WHEN ? THEN 'Owed' ELSE refund_status END WHERE id = ?",
+                (1 if paid else 0, item["id"])
             )
             changed = True
 
@@ -601,11 +627,15 @@ def admin_reinstate_order(order_id):
     order back to Pending and takes its stock back out. Returns True
     if anything changed."""
 
+    # Never bring back an order nobody paid for.
+    if not can_reinstate(order_id):
+        return False
+
     connection = get_connection()
     cursor = connection.cursor()
 
     cursor.execute(
-        "SELECT id, status, product_id, quantity FROM order_items WHERE order_id = ?",
+        "SELECT id, status, product_id, quantity, refund_status FROM order_items WHERE order_id = ?",
         (order_id,)
     )
     items = [dict(row) for row in cursor.fetchall()]
@@ -617,13 +647,14 @@ def admin_reinstate_order(order_id):
     changed = False
 
     for item in items:
-        if item["status"].lower() == "cancelled":
+        # A line whose money has already gone back to the buyer stays cancelled.
+        if item["status"].lower() == "cancelled" and item["refund_status"] != "Refunded":
             cursor.execute(
                 "UPDATE products SET stock = MAX(0, stock + ?) WHERE id = ?",
                 (-item["quantity"], item["product_id"])
             )
             cursor.execute(
-                "UPDATE order_items SET status = 'Pending', cancelled_at = NULL WHERE id = ?",
+                "UPDATE order_items SET status = 'Pending', cancelled_at = NULL, refund_status = NULL WHERE id = ?",
                 (item["id"],)
             )
             changed = True
@@ -634,23 +665,51 @@ def admin_reinstate_order(order_id):
     return changed
 
 
+def get_refunds_owed():
+    """Paid items that were cancelled: the buyer is owed that money back.
+    An admin sends the money back and then marks it done here, which tells
+    the buyer."""
+    lines = rows(f"""SELECT order_items.*, orders.buyer_name, orders.payment_ref, orders.payment_channel,
+            orders.subtotal AS order_subtotal, orders.discount AS order_discount
+        FROM order_items JOIN orders ON orders.id = order_items.order_id
+        WHERE order_items.refund_status = 'Owed' ORDER BY order_items.cancelled_at""")
+    for line in lines:
+        line["refund_amount"] = round(actual_revenue(line["quantity"], line["price"],
+                                                     line["order_subtotal"], line["order_discount"]), 2)
+    return lines
+
+
+def mark_refunded(item_id):
+    """Record that the money for this cancelled item went back to the buyer.
+    Returns who to tell (user_id, product_name), or None if nothing was owed."""
+    owed = rows("""SELECT order_items.product_name, orders.user_id FROM order_items
+        JOIN orders ON orders.id = order_items.order_id
+        WHERE order_items.id = ? AND order_items.refund_status = 'Owed'""", (item_id,))
+    if not owed:
+        return None
+    database.atomic([("""UPDATE order_items SET refund_status = 'Refunded', refunded_at = CURRENT_TIMESTAMP
+        WHERE id = ? AND refund_status = 'Owed'""", [item_id])])
+    return owed[0]
+
+
 def get_sales_summary():
     """Return overall sales figures for the dashboard/reports page."""
 
     connection = get_connection()
     cursor = connection.cursor()
 
-    cursor.execute("SELECT COUNT(*) AS total_orders FROM orders")
+    # Only orders that really happened: an unpaid or abandoned checkout isn't a sale.
+    cursor.execute(f"SELECT COUNT(*) AS total_orders FROM orders WHERE {REAL_ORDER}")
     total_orders = cursor.fetchone()["total_orders"]
 
     cursor.execute(
         "SELECT COALESCE(SUM(total), 0) AS total_revenue FROM orders "
-        "WHERE LOWER(status) != 'cancelled'"
+        f"WHERE LOWER(status) != 'cancelled' AND {REAL_ORDER}"
     )
     total_revenue = cursor.fetchone()["total_revenue"]
 
     cursor.execute(
-        "SELECT COALESCE(SUM(discount), 0) AS total_discount FROM orders"
+        f"SELECT COALESCE(SUM(discount), 0) AS total_discount FROM orders WHERE {REAL_ORDER}"
     )
     total_discount = cursor.fetchone()["total_discount"]
 
@@ -677,7 +736,7 @@ def get_top_selling_products(limit=5):
     connection = get_connection()
     cursor = connection.cursor()
 
-    cursor.execute("""
+    cursor.execute(f"""
         SELECT
             order_items.product_id AS id,
             COALESCE(order_items.product_name, products.name) AS name,
@@ -685,7 +744,7 @@ def get_top_selling_products(limit=5):
             SUM(order_items.quantity * order_items.price) AS revenue
         FROM order_items
         LEFT JOIN products ON products.id = order_items.product_id
-        WHERE LOWER(order_items.status) != 'cancelled'
+        WHERE {SOLD_LINE}
         GROUP BY order_items.product_id
         ORDER BY units_sold DESC
         LIMIT ?
@@ -749,7 +808,7 @@ def get_platform_revenue():
     connection = get_connection()
     cursor = connection.cursor()
 
-    cursor.execute("""
+    cursor.execute(f"""
         SELECT
             order_items.quantity,
             order_items.price,
@@ -757,7 +816,7 @@ def get_platform_revenue():
             orders.discount AS order_discount
         FROM order_items
         JOIN orders ON orders.id = order_items.order_id
-        WHERE LOWER(order_items.status) != 'cancelled'
+        WHERE {SOLD_LINE} AND {REAL_ORDER}
     """)
     rows = cursor.fetchall()
 

@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CampusPay | Pay RM {{ "%.2f"|format(order.total) }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='logo.svg') }}">
+</head>
+
+<body class="pay-body">
+{% import "_forms.html" as forms with context %}
+<script>document.documentElement.dataset.theme = "{{ theme or 'light' }}";</script>
+
+{# CampusPay has its own plain header, like a real payment page. #}
+<header class="pay-header">
+    <span class="pay-brand">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="5" width="20" height="14" rx="3"/><path d="M2 10h20M6 15h4"/></svg>
+        CampusPay
+    </span>
+    <span class="pay-secure">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+        Secure checkout
+    </span>
+</header>
+
+<main class="pay-page">
+
+    <div class="pay-layout">
+
+        {# Left: choose how to pay #}
+        <section class="panel pay-panel">
+            <h1>Scan to pay</h1>
+
+            {# QR: scan with any e-wallet or banking app #}
+            <div class="pay-tab" id="tab-qr">
+                <div class="qr-area">
+                    <div class="qr-frame">{{ qr|safe }}</div>
+                    <div class="qr-text">
+                        <strong>Scan to pay RM {{ "%.2f"|format(order.total) }}</strong>
+                        <span>Open Touch &rsquo;n Go eWallet, GrabPay, Boost, ShopeePay or any DuitNow banking app and scan this code.</span>
+                        <p class="qr-waiting"><span class="pulse" aria-hidden="true"></span> Waiting for you to pay&hellip;</p>
+                    </div>
+                </div>
+
+                <form method="post" action="{{ url_for('approve_payment', order_id=order.id) }}" class="qr-simulate">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <label for="method">Paid in your app? Choose it and confirm</label>
+                    <div>
+                        <select id="method" name="method">
+                            {% for code, name in wallets.items() %}<option value="{{ code }}">{{ name }}</option>{% endfor %}
+                        </select>
+                        <button type="submit" class="btn-message">I've paid</button>
+                    </div>
+                </form>
+            </div>
+        </section>
+
+        {# Right: what's being paid for #}
+        <aside class="panel pay-summary">
+            <p class="pay-merchant">Paying <strong>CampusCart</strong></p>
+            <p class="pay-amount">RM {{ "%.2f"|format(order.total) }}</p>
+            <p class="pay-ref">Order #{{ order.id }}</p>
+
+            <div class="pay-timer" id="pay-timer" data-seconds="{{ seconds_left }}">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+                <span>Items held for <strong id="pay-countdown">--:--</strong></span>
+            </div>
+
+            <ul class="summary-items">
+                {% for item in items %}
+                <li>
+                    <div><strong>{{ item.product_name }}</strong><span>{{ item.quantity }} &times; RM {{ "%.2f"|format(item.price) }}</span></div>
+                    <span>RM {{ "%.2f"|format(item.price * item.quantity) }}</span>
+                </li>
+                {% endfor %}
+            </ul>
+
+            {{ forms.post_button(url_for('cancel_payment', order_id=order.id), 'Cancel payment', 'btn-link pay-cancel',
+               confirm='Cancel this payment? Your items go back to your cart.') }}
+        </aside>
+    </div>
+
+</main>
+
+<script>
+(function () {
+    // Countdown until the held items go back on sale
+    var left = Number(document.getElementById('pay-timer').dataset.seconds);
+    var out = document.getElementById('pay-countdown');
+    function tick() {
+        var m = Math.floor(left / 60), s = left % 60;
+        out.textContent = m + ':' + (s < 10 ? '0' : '') + s;
+        if (left <= 0) { location.reload(); return; }
+        left -= 1;
+    }
+    tick();
+    setInterval(tick, 1000);
+
+    // If the QR code is paid on a phone, move on by ourselves
+    setInterval(function () {
+        fetch('{{ url_for("payment_status", order_id=order.id) }}')
+            .then(function (r) { return r.ok ? r.json() : null; })
+            .then(function (data) {
+                if (data && data.status !== 'Unpaid') location.href = '{{ url_for("order_confirmation", order_id=order.id) }}';
+            })
+            .catch(function () {});
+    }, 3000);
+})();
+</script>
+
+</body>
+</html>

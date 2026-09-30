@@ -1556,3 +1556,6 @@ td strong { font-weight: 600; }
 @media (max-width: 900px) {
     .support-stats { grid-template-columns: minmax(0, 1fr); gap: 10px; }
 }
+
+/* Payment column and refunds (Reports) */
+.pay-channel { display: block; margin-top: 3px; color: var(--text-3); font-size: 11px; }

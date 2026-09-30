@@ -16,6 +16,7 @@ import os
 import sys
 import secrets
 import hmac
+import time
 from datetime import timedelta
 
 from flask import Flask, render_template, redirect, url_for, request, session, abort, flash
@@ -82,6 +83,24 @@ def check_form_token():
     changes data (all of it is POST) is refused without the right token."""
     if request.method == 'POST':
         require_csrf()
+
+
+# Unpaid orders hold their items for shop.PAYMENT_MINUTES. Rather than a
+# separate timer, the site checks for expired ones at most once a minute
+# while people are using it.
+_last_expiry_check = 0.0
+
+
+@app.before_request
+def release_expired_orders():
+    global _last_expiry_check
+    if request.endpoint in (None, 'static') or time.time() - _last_expiry_check < 60:
+        return
+    _last_expiry_check = time.time()
+    try:
+        shop.expire_unpaid_orders()
+    except Exception as error:          # never let this break the page someone asked for
+        app.logger.warning("Couldn't release expired orders: %s", error)
 
 
 def validate_moderation_form():
@@ -348,7 +367,18 @@ def reports():
         sellers=admin.get_seller_activity(),
         platform=admin.get_platform_revenue(),
         dead_listings=admin.get_dead_listings(),
+        refunds=admin.get_refunds_owed(),
     )
+
+
+@app.route("/reports/refunds/<int:item_id>", methods=["POST"])
+@accounts.admin_required
+def mark_refunded(item_id):
+    """The admin sent a cancelled item's money back to the buyer."""
+    refunded = admin.mark_refunded(item_id)
+    if refunded:
+        shop.notify(refunded["user_id"], f"Your refund for {refunded['product_name']} has been sent.", "/orders")
+    return redirect(url_for("reports", _anchor="refunds"))
 
 @app.route("/reports/cancel/<int:order_id>", methods=["POST"])
 @accounts.admin_required
@@ -405,7 +435,8 @@ def add_to_cart(product_id):
 def view_cart():
     shop.remove_owned_cart_items(accounts.current_user()['id'])
     cart = shop.get_cart(accounts.current_user()['id'])
-    return render_template('cart.html', cart=cart, subtotal=shop.price_cart(cart)['subtotal'])
+    return render_template('cart.html', cart=cart, subtotal=shop.price_cart(cart)['subtotal'],
+                           unpaid=shop.unpaid_orders(accounts.current_user()['id']))
 
 
 @app.route('/increase/<int:product_id>', methods=['POST'])
@@ -459,13 +490,103 @@ def place_order():
     if error:
         return render_template('checkout.html', cart=cart, error=error, form=request.form, **pricing), 400
 
+    # 1. The order is made, its items are held, and the cart is emptied.
     order_id = shop.checkout_cart(user['id'], cart, pricing, name, phone, address)
     if order_id is None:
         abort(409, 'Your cart or an item’s availability changed. Review your cart before trying again.')
-    shop.notify_new_order(order_id)
-    return render_template('order_confirmation.html', order_id=order_id,
-                           name=name, phone=phone, address=address,
-                           subtotal=pricing['subtotal'], discount=pricing['discount'], total=pricing['total'])
+
+    # 2. Off to the payment page.
+    return redirect(url_for('payment_page', order_id=order_id))
+
+
+# ======================================================================
+# PAYMENT -- CampusPay, the demo payment page (no real money moves).
+# See section 7 of shop_functions.py for how it works.
+# ======================================================================
+
+def own_unpaid_order(order_id):
+    """The logged-in buyer's order, or 404 -- nobody pays or cancels someone else's."""
+    order = shop.get_order(order_id)
+    if order is None or order["user_id"] != accounts.current_user()["id"]:
+        abort(404)
+    return order
+
+
+@app.route("/pay/<int:order_id>")
+@accounts.shopper_required
+def payment_page(order_id):
+    """CampusPay: scan the QR code with an e-wallet or DuitNow app to pay."""
+    order = own_unpaid_order(order_id)
+    if order["payment_status"] != "Unpaid" or shop.seconds_left(order) == 0:
+        return redirect(url_for('order_confirmation', order_id=order_id))
+    scan_url = url_for('scan_to_pay', token=order["checkout_token"], _external=True)
+    return render_template("payment.html", order=order, items=admin.get_order_items(order_id),
+                           wallets=shop.WALLETS, seconds_left=shop.seconds_left(order),
+                           qr=shop.payment_qr(scan_url), scan_url=scan_url)
+
+
+@app.route("/pay/<int:order_id>/approve", methods=["POST"])
+@accounts.shopper_required
+def approve_payment(order_id):
+    """The buyer says they've paid (the "I've paid" button under the QR code)."""
+    order = own_unpaid_order(order_id)
+    if shop.payment_method(request.form.get("method")) is None:
+        abort(400)
+    shop.confirm_paid(order, request.form.get("method"))
+    return redirect(url_for('order_confirmation', order_id=order_id))
+
+
+@app.route("/pay/<int:order_id>/status")
+@accounts.shopper_required
+def payment_status(order_id):
+    """The payment page asks this every few seconds, so a QR code paid on a
+    phone moves the computer on to the confirmation page by itself."""
+    return {"status": own_unpaid_order(order_id)["payment_status"]}
+
+
+@app.route("/pay/scan/<token>", methods=["GET", "POST"])
+def scan_to_pay(token):
+    """What a phone opens after scanning the QR code: confirm and pay.
+    No login needed -- the QR code itself carries the order's secret token."""
+    order = shop.order_for_scan(token)
+    if order is None:
+        abort(404)
+    if request.method == "POST":
+        if shop.payment_method(request.form.get("method")) is None:
+            abort(400)
+        shop.confirm_paid(order, request.form.get("method"))
+        order = shop.get_order(order["id"])
+    return render_template("scan_pay.html", order=order, wallets=shop.WALLETS, token=token)
+
+
+@app.route("/orders/<int:order_id>/pay")
+@accounts.shopper_required
+def continue_payment(order_id):
+    """Back to the payment page for an order that hasn't been paid yet."""
+    own_unpaid_order(order_id)
+    return redirect(url_for('payment_page', order_id=order_id))
+
+
+@app.route("/orders/<int:order_id>/cancel-payment", methods=["POST"])
+@accounts.shopper_required
+def cancel_payment(order_id):
+    """The buyer cancelled instead of paying: items go back to their cart."""
+    order = own_unpaid_order(order_id)
+    if shop.release_order(order, 'Cancelled', back_to_cart=True) == "paid":
+        flash("That order had already been paid, so it wasn't cancelled.")
+        return redirect(url_for('view_orders'))
+    flash("Payment cancelled, so nothing was charged. Your items are back in your cart.")
+    return redirect(url_for('view_cart'))
+
+
+@app.route("/orders/<int:order_id>/confirmation")
+@accounts.shopper_required
+def order_confirmation(order_id):
+    """"Thank you" page once an order is paid."""
+    order = shop.get_order(order_id)
+    if order is None or order["user_id"] != accounts.current_user()["id"]:
+        abort(404)
+    return render_template('order_confirmation.html', order=order, items=admin.get_order_items(order_id))
 
 
 @app.route("/orders")

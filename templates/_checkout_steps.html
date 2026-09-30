@@ -1,0 +1,11 @@
+{# Where the buyer is in paying: Cart -> Details -> Pay -> Done.
+   Include with {% set step = 1..4 %} set first. #}
+<ol class="checkout-steps" aria-label="Checkout progress">
+    {% for label in ['Cart', 'Details', 'Pay', 'Done'] %}
+    <li class="{{ 'done' if loop.index < step else ('current' if loop.index == step else '') }}"
+        {% if loop.index == step %}aria-current="step"{% endif %}>
+        <span class="step-dot">{% if loop.index < step %}&#10003;{% else %}{{ loop.index }}{% endif %}</span>
+        <span>{{ label }}</span>
+    </li>
+    {% endfor %}
+</ol>
