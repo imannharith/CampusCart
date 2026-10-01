@@ -1,201 +1,124 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-
     <meta charset="UTF-8">
-
-    <meta name="viewport"
-          content="width=device-width, initial-scale=1.0">
-
-    <title>Checkout - CampusCart</title>
-
-    <link rel="stylesheet"
-          href="{{ url_for('static', filename='shopping.css') }}">
-
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CampusCart | Checkout</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='logo.svg') }}">
 </head>
 
 <body>
 
-<div class="container">
+<header class="navbar">
+    <a href="/" class="logo">Campus<span>Cart</span></a>
+    {% include "_nav.html" %}
+</header>
 
-    <h1>Checkout</h1>
+<main class="container checkout-page">
 
-    <div class="checkout-section">
+    <a class="back-link" href="{{ url_for('view_cart') }}">&larr; Back to cart</a>
 
-        <h2>Customer Information</h2>
-
-        {% if error %}
-        <p class="form-error" role="alert">{{ error }}</p>
-        {% endif %}
-
-        <form action="{{ url_for('place_order') }}"
-              method="POST">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-
-            <label for="name">
-                Full Name
-            </label>
-
-            <input
-                type="text"
-                id="name"
-                name="name"
-                placeholder="Enter your full name"
-                value="{{ (form or {}).get('name', '') }}"
-                maxlength="80"
-                required
-            >
-
-            <label for="phone">
-                Phone Number
-            </label>
-
-            <input
-                type="tel"
-                id="phone"
-                name="phone"
-                placeholder="e.g. 012-345 6789"
-                value="{{ (form or {}).get('phone', '') }}"
-                maxlength="20"
-                required
-            >
-
-            <label for="address">
-                Delivery Address
-            </label>
-
-            <textarea
-                id="address"
-                name="address"
-                placeholder="Enter your delivery address"
-                maxlength="300"
-                required
-            >{{ (form or {}).get('address', '') }}</textarea>
-            <small>The seller uses this to send your items.</small>
-
-
-            <h2>Order Summary</h2>
-
-            {% for product_id, item in cart.items() %}
-
-                <div class="checkout-item">
-
-                    <div>
-
-                        <strong>
-                            {{ item.name }}
-                        </strong>
-
-                        <p>
-                            Quantity:
-                            {{ item.quantity }}
-                        </p>
-
-                    </div>
-
-                    <p>
-                        RM {{ "%.2f"|format(
-                            item.price * item.quantity
-                        ) }}
-                    </p>
-
-                </div>
-
-            {% endfor %}
-
-
-            <div class="checkout-total">
-
-                <p>
-                    <span>Subtotal:</span>
-
-                    <span>
-                        RM {{ "%.2f"|format(subtotal) }}
-                    </span>
-                </p>
-
-                <p>
-                    <span>
-                        Discount:
-                        {% if discount_percent %}
-                            ({{ discount_percent }}%)
-                        {% endif %}
-                    </span>
-
-                    <span>
-                        RM {{ "%.2f"|format(discount) }}
-                    </span>
-                </p>
-
-                <p class="final-total">
-
-                    <span>Total:</span>
-
-                    <span>
-                        RM {{ "%.2f"|format(total) }}
-                    </span>
-
-                </p>
-
-            </div>
-<h2>Payment Method</h2>
-
-<div class="payment-methods">
-
-    <label class="payment-option">
-        <input
-            type="radio"
-            name="payment_method"
-            value="card"
-            required
-        >
-        <span>💳 Credit / Debit Card</span>
-    </label>
-
-    <label class="payment-option">
-        <input
-            type="radio"
-            name="payment_method"
-            value="online_banking"
-        >
-        <span>🏦 Online Banking</span>
-    </label>
-
-    <label class="payment-option">
-        <input
-            type="radio"
-            name="payment_method"
-            value="ewallet"
-        >
-        <span>📱 E-Wallet</span>
-    </label>
-
-</div>
-
-            <button
-                type="submit"
-                class="checkout-button">
-
-                Place Order
-
-            </button>
-
-        </form>
-
+    <div class="page-head">
+        <div>
+            <h1>Checkout</h1>
+            <p>Tell the sellers where to send your items, then pay securely online.</p>
+        </div>
     </div>
 
-    <br>
+    {% set step = 2 %}
+    {% include "_checkout_steps.html" %}
 
-    <a href="{{ url_for('view_cart') }}"
-       class="button">
+    {% if error %}
+    <p class="note note-error" role="alert">{{ error }}</p>
+    {% endif %}
 
-        Back to Cart
+    <form action="{{ url_for('place_order') }}" method="POST" class="checkout-layout">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
 
-    </a>
+        {# Left: delivery details, then how to pay #}
+        <div class="checkout-main">
+            <section class="panel">
+                <h2>Delivery details</h2>
+                <p>The seller uses these to send your items. Nobody else sees them.</p>
 
-</div>
+                <div class="form-grid checkout-fields">
+                    <div class="form-row">
+                        <label for="name">Full name</label>
+                        <input type="text" id="name" name="name" maxlength="80" required
+                               value="{{ (form or {}).get('name', current_account.fullname if current_account else '') }}">
+                    </div>
+                    <div class="form-row">
+                        <label for="phone">Phone number</label>
+                        <input type="tel" id="phone" name="phone" maxlength="20" required placeholder="e.g. 012-345 6789"
+                               value="{{ (form or {}).get('phone', '') }}">
+                    </div>
+                    <div class="form-row checkout-wide">
+                        <label for="address">Delivery address</label>
+                        <textarea id="address" name="address" maxlength="300" rows="3" required
+                                  placeholder="Room, block and college, or your full address">{{ (form or {}).get('address', '') }}</textarea>
+                    </div>
+                </div>
+            </section>
+
+            <section class="panel pay-methods">
+                <h2>Payment</h2>
+                <p>On the next page you'll pay through <strong>CampusPay</strong> by scanning a QR code with your e-wallet or banking app.</p>
+
+                <div class="pay-grid">
+                    <div class="pay-option">
+                        <strong>E-wallets</strong>
+                        <span>Touch &rsquo;n Go eWallet, GrabPay, Boost, ShopeePay</span>
+                    </div>
+                    <div class="pay-option">
+                        <strong>DuitNow QR</strong>
+                        <span>Scan with any Malaysian banking or e-wallet app</span>
+                    </div>
+                    <div class="pay-option">
+                        <strong>Held for you</strong>
+                        <span>Nobody else can buy your items for 30 minutes while you pay</span>
+                    </div>
+                    <div class="pay-option">
+                        <strong>Nothing to type</strong>
+                        <span>No card or bank details: just scan and confirm in your app</span>
+                    </div>
+                </div>
+
+                <p class="pay-note">Change your mind on the payment page and your items go straight back to your cart.</p>
+            </section>
+        </div>
+
+        {# Right: what you're paying for #}
+        <aside class="panel checkout-summary">
+            <h2>Order summary</h2>
+            <ul class="summary-items">
+                {% for product_id, item in cart.items() %}
+                <li>
+                    <div>
+                        <strong>{{ item.name }}</strong>
+                        <span>{{ item.quantity }} &times; RM {{ "%.2f"|format(item.price) }} &middot; {{ item.seller }}</span>
+                    </div>
+                    <span>RM {{ "%.2f"|format(item.price * item.quantity) }}</span>
+                </li>
+                {% endfor %}
+            </ul>
+
+            <dl class="summary-totals">
+                <div><dt>Subtotal</dt><dd>RM {{ "%.2f"|format(subtotal) }}</dd></div>
+                <div><dt>Discount{% if discount_percent %} ({{ discount_percent|round(0)|int }}%){% endif %}</dt>
+                     <dd>{% if discount %}&minus;{% endif %}RM {{ "%.2f"|format(discount) }}</dd></div>
+                <div class="summary-total"><dt>Total</dt><dd>RM {{ "%.2f"|format(total) }}</dd></div>
+            </dl>
+
+            <button type="submit" class="btn-primary pay-button">Continue to payment &middot; RM {{ "%.2f"|format(total) }}</button>
+            <p class="secure-note">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+                Secure payment by CampusPay
+            </p>
+        </aside>
+    </form>
+
+</main>
 
 </body>
-
 </html>

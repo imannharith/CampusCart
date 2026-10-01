@@ -9,6 +9,7 @@
 </head>
 
 <body>
+{% import "_forms.html" as forms with context %}
 {% import "_stars.html" as rate %}
 
 <header class="navbar">
@@ -26,8 +27,12 @@
         <a href="/products" class="btn-primary">Keep shopping</a>
     </div>
 
+    {% for message in get_flashed_messages() %}
+    <p class="note" role="status">{{ message }}</p>
+    {% endfor %}
+
     {% for order in orders %}
-    <section class="panel order-panel">
+    <section class="panel order-panel{% if order.payment_status in ['Expired', 'Cancelled'] %} order-unpaid{% endif %}">
 
         <div class="order-top">
             <div>
@@ -36,6 +41,25 @@
             </div>
             <span class="status {{ order.status|lower }}">{{ order.status }}</span>
         </div>
+
+        {# How the payment went #}
+        {% if order.payment_status == 'Unpaid' %}
+        <div class="pay-banner">
+            <div>
+                <strong>Waiting for payment</strong>
+                <span>Your items are held until {{ order.payment_expires_at|when }}. Pay by then or they go back on sale.</span>
+            </div>
+            <div class="pay-banner-actions">
+                <a class="btn-primary" href="{{ url_for('continue_payment', order_id=order.id) }}">Pay now</a>
+                {{ forms.post_button(url_for('cancel_payment', order_id=order.id), 'Cancel order', 'btn-link',
+                   confirm='Cancel this order? Your items go back to your cart.') }}
+            </div>
+        </div>
+        {% elif order.payment_status == 'Paid' %}
+        <p class="paid-line">&#10003; Paid RM {{ "%.2f"|format(order.total) }} on {{ order.paid_at|when }}{% if order.payment_channel %} with {{ order.payment_channel }}{% endif %}{% if order.payment_ref %} <small>&middot; Ref {{ order.payment_ref }}</small>{% endif %}</p>
+        {% elif order.payment_status in ['Expired', 'Cancelled'] %}
+        <p class="paid-line not-paid">Not paid &middot; {{ 'the 30 minutes ran out' if order.payment_status == 'Expired' else 'you cancelled it' }}. Nothing was charged.</p>
+        {% endif %}
 
         <div class="table-wrap">
             <table>
@@ -56,7 +80,11 @@
                         <td>{{ item.seller or 'Unknown' }}</td>
                         <td>{{ item.quantity }}</td>
                         <td>RM {{ "%.2f"|format(item.price * item.quantity) }}</td>
-                        <td><span class="status {{ item.status|lower }}">{{ item.status }}</span></td>
+                        <td>
+                            <span class="status {{ item.status|lower }}">{{ item.status }}</span>
+                            {% if item.refund_status == 'Owed' %}<small class="refund-note">Refund on its way</small>
+                            {% elif item.refund_status == 'Refunded' %}<small class="refund-note done">Refunded</small>{% endif %}
+                        </td>
                         <td class="order-actions">
                             {# Once it has arrived you can rate it -- once. #}
                             {% set my_review = my_reviews.get(item.id) %}

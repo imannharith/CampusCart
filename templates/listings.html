@@ -1,469 +1,309 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CampusCart | Listings</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='admin.css') }}">
-    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='logo.svg') }}">
-</head>
-
-<body>
+{% extends "_admin_base.html" %}
 {% import "_forms.html" as forms with context %}
 {% import "_stars.html" as rate %}
+{% import "_admin_icons.html" as icons %}
 
+{% block title %}Listings{% endblock %}
+{% block heading %}Listings{% endblock %}
+{% block subtitle %}Approve new listings before they go on sale, and look after everything already in the shop.{% endblock %}
 
-<aside class="sidebar">
+{% block content %}
 
-    <h2>Campus<span>Cart</span></h2>
-    <p class="admin-label">ADMIN PANEL</p>
+{# ---------- One listing, opened with "Review" or "View" ---------- #}
+{% if review_product %}
+<section class="panel listing-review" id="listing-details" aria-labelledby="listing-details-title">
 
-    {% include "_admin_nav.html" %}
-
-    <div class="sidebar-bottom">
-
-        <div class="admin-user">
-            <div class="avatar" title="{{ session.get('user', '') }}">{{ (session.get('user') or 'A')[0]|upper }}</div>
-            <div class="admin-who">
-                <strong title="{{ session.get('user', '') }}">{{ session.get('user', 'Administrator') }}</strong>
-                <small>Signed in as admin</small>
-            </div>
+    <div class="panel-title">
+        <div>
+            {% if review_product.status == 'Pending' %}
+            <h3 id="listing-details-title">Review this listing</h3>
+            <p>Check the photo and details, then approve it for the shop or reject it.
+               {% if listing_stats.pending > 1 %}{{ listing_stats.pending - 1 }} more waiting after this one.{% endif %}</p>
+            {% else %}
+            <h3 id="listing-details-title">Listing details</h3>
+            <p>Everything about this listing, and what you can do with it.</p>
+            {% endif %}
         </div>
-        <a href="{{ url_for('logout') }}">Logout</a>
+        <a class="view-all" href="{{ url_for('listings', **filters) }}">Close &times;</a>
     </div>
 
-</aside>
+    <div class="listing-review-grid">
 
-<main class="main">
-
-    <header>
-
-        <div>
-            <h1>Product Listings</h1>
-            <p class="subtitle">
-                Review and manage student products.
-            </p>
+        <div class="listing-review-media">
+            {% if review_image %}
+            <a href="{{ review_image }}" target="_blank" rel="noopener noreferrer" aria-label="Open full-size photo of {{ review_product.name }}">
+                <img src="{{ review_image }}" alt="{{ review_product.name }}" referrerpolicy="no-referrer"
+                     onerror="this.parentElement.hidden = true; this.parentElement.nextElementSibling.hidden = false;">
+                <span class="listing-review-photo-caption">Open full-size photo &nearr;</span>
+            </a>
+            <div class="listing-review-placeholder" hidden>The photo couldn't be loaded.</div>
+            {% else %}
+            <div class="listing-review-placeholder">No photo.</div>
+            {% endif %}
         </div>
 
-</header>
+        <div class="listing-review-content">
+            <span class="status {{ review_product.status|lower }}">{{ review_product.status }}</span>
+            <h2>{{ review_product.name }}</h2>
+            <p class="listing-review-price">RM {{ "%.2f"|format(review_product.price) }}</p>
 
-    {% for kind, message in get_flashed_messages(with_categories=true) %}
-    <div class="moderation-notice{% if kind == 'error' %} error{% endif %}" role="status">{{ message }}</div>
-    {% endfor %}
-
-    {% if review_product %}
-    <section class="panel listing-review" id="listing-details" aria-labelledby="listing-details-title" tabindex="-1">
-        <div class="panel-title">
-            <div>
-                <h3 id="listing-details-title">Listing details</h3>
-                <p>Review the listing and its current status before making a decision.</p>
-            </div>
-            <a class="view-all" href="{{ url_for('listings', category=selected_category, status=selected_status, search=search, _anchor='marketplace-listings') }}">Close details ×</a>
-        </div>
-        <div class="listing-review-grid">
-            <div class="listing-review-media">
-                {% if review_image %}
-                <a href="{{ review_image }}" target="_blank" rel="noopener noreferrer" aria-label="Open full-size photo of {{ review_product.name }}">
-                    <img src="{{ review_image }}" alt="{{ review_product.name }}" referrerpolicy="no-referrer"
-                         onerror="this.parentElement.hidden = true; this.parentElement.nextElementSibling.hidden = false;">
-                    <span class="listing-review-photo-caption">Open full-size photo ↗</span>
-                </a>
-                <div class="listing-review-placeholder" hidden>Photo could not be loaded.</div>
-                {% else %}
-                <div class="listing-review-placeholder">No photo provided.</div>
-                {% endif %}
-            </div>
-            <div class="listing-review-content">
-                <span class="status {{ review_product.status|lower }}">{{ review_product.status }}</span>
-                <h2>{{ review_product.name }}</h2>
-                <p class="listing-review-price">RM {{ "%.2f"|format(review_product.price) }}</p>
-                <dl class="listing-review-facts">
-                    <div><dt>Seller</dt><dd>{{ review_product.seller or 'Not provided' }}</dd></div>
-                    <div><dt>Category</dt><dd>{{ review_product.category or 'Not provided' }}</dd></div>
-                    <div><dt>Stock</dt><dd>{{ review_product.stock }} unit(s)</dd></div>
-                    <div><dt>Submitted</dt><dd>{{ review_product.created_at|when }}</dd></div>
-                    <div><dt>Rating</dt><dd>{% if review_rating.count %}{{ rate.stars(review_rating.average) }} {{ review_rating.average }} from {{ review_rating.count }} review{{ 's' if review_rating.count != 1 }}{% else %}No reviews yet{% endif %}</dd></div>
-                </dl>
-                <h3 class="listing-review-description-title">Description</h3>
-                <p class="listing-review-description">{{ (review_product.description or '')|trim or 'No description provided.' }}</p>
-                {% if review_product.status == 'Removed' %}
-                <p>This listing has been removed from sale. Its details and history are preserved.</p>
-                {% if review_product.removal_reason %}<p><strong>Removal reason:</strong> {{ review_product.removal_reason }}</p><small>{{ review_product.removed_by }} · {{ review_product.removed_at|when }}</small>{% endif %}
-                <a class="view-btn" href="{{ url_for('moderation_queue', product=review_product.id, status='All') }}">View report history</a>
-                {% endif %}
-                <div class="listing-review-actions" aria-label="Listing actions">
-                    {% if review_product.status == 'Reported' %}<a class="view-btn" href="{{ url_for('moderation_queue', product=review_product.id) }}">Read reports and history</a>{% endif %}
-                    {% if review_product.status == 'Pending' %}
-                    {{ forms.post_button(url_for('change_product_status', product_id=review_product.id, status='Approved'), 'Approve listing', 'approve-btn') }}
-                    {{ forms.post_button(url_for('change_product_status', product_id=review_product.id, status='Rejected'), 'Reject listing', 'reject-btn') }}
-                    {% endif %}
-                    <a href="{{ url_for('listings', edit=review_product.id, category=selected_category, status=selected_status, search=search) }}" class="view-btn">Edit listing</a>
-                    {% if review_product.status in ['Approved', 'Pending'] %}
-                    <a href="{{ url_for('report_listing', product_id=review_product.id) }}" class="reject-btn">Report listing</a>
-                    {% endif %}
+            <dl class="listing-review-facts">
+                <div>
+                    <dt>Seller</dt>
+                    <dd>
+                        {% if review_product.seller_id %}
+                        <a href="{{ url_for('user_detail', user_id=review_product.seller_id) }}">{{ review_product.seller }}</a>
+                        {% else %}
+                        {{ review_product.seller or 'Not given' }}
+                        {% endif %}
+                    </dd>
                 </div>
-                {% if review_product.status != 'Removed' %}
-                <form class="moderation-form" method="post" action="{{ url_for('resolve_listing_reports', product_id=review_product.id) if review_product.status == 'Reported' else url_for('remove_product', product_id=review_product.id) }}">
+                <div><dt>Category</dt><dd>{{ (review_product.category or 'Not given')|capitalize }}</dd></div>
+                <div><dt>Stock</dt><dd>{{ review_product.stock }} left</dd></div>
+                <div><dt>Listed</dt><dd>{{ review_product.created_at|when }}</dd></div>
+                <div class="wide">
+                    <dt>Rating</dt>
+                    <dd>{% if review_rating.count %}{{ rate.stars(review_rating.average) }} {{ review_rating.average }} from {{ review_rating.count }} review{{ 's' if review_rating.count != 1 }}{% else %}No reviews yet{% endif %}</dd>
+                </div>
+            </dl>
+
+            <h3 class="listing-review-description-title">Description</h3>
+            <p class="listing-review-description">{{ (review_product.description or '')|trim or 'No description.' }}</p>
+
+            {% if review_product.status == 'Removed' %}
+            <div class="moderation-decision">
+                <strong>Removed from sale{% if review_product.removed_by %} by {{ review_product.removed_by }}{% endif %}</strong>
+                {% if review_product.removal_reason %}<p>{{ review_product.removal_reason }}</p>{% endif %}
+                {% if review_product.removed_at %}<small>{{ review_product.removed_at|when }}</small>{% endif %}
+            </div>
+            {% elif review_product.status == 'Rejected' %}
+            <p class="listing-review-note">This listing was rejected, so it isn't shown in the shop.</p>
+            {% elif review_product.status == 'Reported' %}
+            <p class="listing-review-note">Students reported this listing, so it's off sale. Read the reports and decide on the Moderation page.</p>
+            {% endif %}
+
+            <div class="listing-review-actions">
+                {% if review_product.status == 'Pending' %}
+                {{ forms.post_button(url_for('change_product_status', product_id=review_product.id, status='Approved'), 'Approve', 'approve-btn') }}
+                {{ forms.post_button(url_for('change_product_status', product_id=review_product.id, status='Rejected'), 'Reject', 'reject-btn',
+                   confirm='Reject this listing? The seller will be told.') }}
+                {% elif review_product.status == 'Reported' %}
+                <a class="approve-btn" href="{{ url_for('moderation_queue', product=review_product.id) }}">Read the reports</a>
+                {% elif review_product.status == 'Removed' %}
+                <a class="view-btn" href="{{ url_for('moderation_queue', product=review_product.id, status='All') }}">Report history</a>
+                {% endif %}
+                <a class="view-btn" href="{{ url_for('listings', edit=review_product.id, **filters) }}">Edit</a>
+            </div>
+
+            {# Taking an approved listing off sale needs a reason, which the seller is sent. #}
+            {% if review_product.status == 'Approved' %}
+            <details class="remove-box">
+                <summary>Remove from sale&hellip;</summary>
+                <form class="moderation-form" method="post" action="{{ url_for('remove_product', product_id=review_product.id) }}">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                    <label for="listing-decision-reason">Decision reason</label>
-                    <textarea id="listing-decision-reason" name="reason" required minlength="3" maxlength="1000" rows="3" placeholder="Explain your decision."></textarea>
-                    <p>Removing takes the listing off sale and preserves its details and history.{% if review_product.status == 'Reported' %} Dismiss reports restores its status before it was reported.{% endif %}</p>
+                    <label for="remove-reason">Why is it being removed?</label>
+                    <textarea id="remove-reason" name="reason" required minlength="3" maxlength="1000" rows="3"
+                              placeholder="The seller is sent this reason."></textarea>
+                    <p>It comes off sale straight away. Its details and order history are kept.</p>
                     <div class="moderation-buttons">
-                        {% if review_product.status == 'Reported' %}<button class="moderation-primary" name="decision" value="Dismissed">Dismiss reports</button>{% endif %}
                         <button class="moderation-danger" name="decision" value="Removed">Remove listing</button>
                     </div>
                 </form>
-                {% endif %}
-            </div>
-        </div>
-    </section>
-    {% endif %}
-
-    <section class="stats">
-
-        <div class="card">
-            <span class="icon blue">P</span>
-
-            <div>
-                <p>Total Listings</p>
-                <h2>{{ listing_stats.total }}</h2>
-                <small>All products</small>
-            </div>
+            </details>
+            {% endif %}
         </div>
 
-        <div class="card">
-            <span class="icon orange">!</span>
+    </div>
 
-            <div>
-                <p>Pending</p>
-                <h2>{{ listing_stats.pending }}</h2>
-                <small>Need review</small>
-            </div>
+</section>
+
+{# ---------- Editing a listing ---------- #}
+{% elif edit_product %}
+<section class="panel" id="edit-listing">
+
+    <div class="panel-title">
+        <div>
+            <h3>Edit listing</h3>
+            <p>Changing &ldquo;{{ edit_product.name }}&rdquo;. The seller sees the changes straight away.</p>
         </div>
+        <a class="view-all" href="{{ url_for('listings', view=edit_product.id, **filters) }}">Cancel</a>
+    </div>
 
-        <div class="card">
-            <span class="icon purple">&#10003;</span>
+    <form method="post" action="{{ url_for('edit_product', product_id=edit_product.id) }}" class="edit-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
 
-            <div>
-                <p>Approved</p>
-                <h2>{{ listing_stats.approved }}</h2>
-                <small>Active products</small>
-            </div>
-        </div>
+        <label class="wide">Name
+            <input type="text" name="name" required maxlength="120" value="{{ edit_product.name }}">
+        </label>
 
-        <div class="card">
-            <span class="icon red">R</span>
+        <label class="wide">Seller
+            <select name="seller_id">
+                {% if not edit_product.seller_id %}<option value="">{{ edit_product.seller }} (no account linked)</option>{% endif %}
+                {% for account in seller_accounts %}
+                <option value="{{ account.id }}" {% if edit_product.seller_id == account.id %}selected{% endif %}>{{ account.fullname }} &middot; {{ account.email }}</option>
+                {% endfor %}
+            </select>
+        </label>
 
-            <div>
-                <p>Reported</p>
-                <h2>{{ listing_stats.reported }}</h2>
-                <small>Need attention</small>
-            </div>
-        </div>
-
-    </section>
-
-    {% if edit_product %}
-    <section class="panel">
-
-        <div class="panel-title">
-            <div>
-                <h3>Edit Product</h3>
-                <p>Update "{{ edit_product.name }}".</p>
-            </div>
-        </div>
-
-        <form
-            method="POST"
-            action="{{ url_for('edit_product', product_id=edit_product.id) }}"
-            class="form-grid"
-        >
-            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-            <input type="text" name="name" placeholder="Product name" required
-                   value="{{ edit_product.name }}">
-
-            <label>Seller account
-                <select name="seller_id" aria-label="Seller account">
-                    {% if not edit_product.seller_id %}<option value="">Unlinked legacy seller: {{ edit_product.seller }}</option>{% endif %}
-                    {% for account in seller_accounts %}
-                    <option value="{{ account.id }}" {% if edit_product.seller_id == account.id %}selected{% endif %}>{{ account.fullname }} · {{ account.email }} · #{{ account.id }}</option>
-                    {% endfor %}
-                </select>
-            </label>
-
-            <input type="text" name="category" placeholder="Category" required
-                   value="{{ edit_product.category }}">
-
-            <input type="number" step="0.01" name="price" placeholder="Price (RM)" required
-                   value="{{ edit_product.price }}">
-
-            <input type="number" name="stock" placeholder="Stock" required
-                   value="{{ edit_product.stock }}">
-
-            <button type="submit" class="filters-button">
-                Save Changes
-            </button>
-
-            <a href="{{ url_for('listings') }}" class="cancel-link">Cancel</a>
-        </form>
-
-    </section>
-    {% endif %}
-
-    <section class="panel">
-
-        <div class="panel-title">
-
-            <div>
-                <h3>Find Listings</h3>
-                <p>Search or filter marketplace listings.</p>
-            </div>
-
-        </div>
-
-        <form method="GET" action="{{ url_for('listings') }}" class="filters">
-
-            <input
-                type="text"
-                name="search"
-                placeholder="Search product..."
-                value="{{ search }}"
-            >
-
+        <label>Category
             <select name="category">
-                <option value="all" {% if selected_category == 'all' %}selected{% endif %}>All Categories</option>
-                {% for cat in categories %}
-                <option value="{{ cat }}" {% if selected_category == cat %}selected{% endif %}>{{ cat }}</option>
+                {% for category in sell_categories %}
+                <option value="{{ category }}" {% if edit_product.category == category %}selected{% endif %}>{{ category|capitalize }}</option>
                 {% endfor %}
+                {% if edit_product.category not in sell_categories %}
+                <option value="{{ edit_product.category }}" selected>{{ edit_product.category }} (current)</option>
+                {% endif %}
             </select>
+        </label>
 
-            <select name="status">
-                <option value="all" {% if selected_status == 'all' %}selected{% endif %}>All Status</option>
-                <option value="Approved" {% if selected_status == 'Approved' %}selected{% endif %}>Approved</option>
-                <option value="Pending" {% if selected_status == 'Pending' %}selected{% endif %}>Pending</option>
-                <option value="Reported" {% if selected_status == 'Reported' %}selected{% endif %}>Reported</option>
-                <option value="Removed" {% if selected_status == 'Removed' %}selected{% endif %}>Removed</option>
-            </select>
+        <label>Price (RM)
+            <input type="number" name="price" step="0.01" min="0.01" max="100000" required value="{{ '%.2f'|format(edit_product.price) }}">
+        </label>
 
-            <button type="submit">Search</button>
+        <label>Stock
+            <input type="number" name="stock" min="0" max="9999" required value="{{ edit_product.stock }}">
+        </label>
 
-        </form>
-
-    </section>
-
-    <section class="panel">
-
-        <div class="panel-title">
-
-            <div>
-                <h3 id="marketplace-listings">Marketplace Listings</h3>
-                <p>{{ products|length }} product(s) found.</p>
-            </div>
-
-            <a href="{{ url_for('dashboard') }}" class="view-all">
-                ← Dashboard
-            </a>
-
+        <div class="form-actions">
+            <button type="submit" class="filters-button">Save changes</button>
+            <a href="{{ url_for('listings', view=edit_product.id, **filters) }}" class="cancel-link">Cancel</a>
         </div>
+    </form>
 
-        <div class="table-container">
+</section>
 
-            <table>
+{# ---------- Nothing open: offer to start on the waiting ones ---------- #}
+{% elif next_review %}
+<a class="review-banner" href="{{ url_for('listings', view=next_review) }}">
+    <span class="review-banner-icon">{{ icons.icon('clock') }}</span>
+    <span class="review-banner-text">
+        <strong>{{ listing_stats.pending }} listing{{ 's are' if listing_stats.pending != 1 else ' is' }} waiting for review</strong>
+        <small>Go through them one at a time, oldest first. After each decision the next one opens.</small>
+    </span>
+    <span class="review-banner-go">Start reviewing &rarr;</span>
+</a>
+{% endif %}
 
-                <thead>
+{# ---------- The numbers (each one filters the table below) ---------- #}
+<section class="stats">
+    <a class="card" href="{{ url_for('listings', _anchor='all-listings') }}">
+        <span class="icon blue">{{ icons.icon('box') }}</span>
+        <p>All listings</p>
+        <h2>{{ listing_stats.total }}</h2>
+        <small>Every listing, any status</small>
+    </a>
+    <a class="card" href="{{ url_for('listings', status='Pending', _anchor='all-listings') }}">
+        <span class="icon orange">{{ icons.icon('clock') }}</span>
+        <p>Waiting for review</p>
+        <h2>{{ listing_stats.pending }}</h2>
+        <small>Not in the shop until approved</small>
+    </a>
+    <a class="card" href="{{ url_for('listings', status='Approved', _anchor='all-listings') }}">
+        <span class="icon green">{{ icons.icon('check') }}</span>
+        <p>Approved</p>
+        <h2>{{ listing_stats.approved }}</h2>
+        <small>On sale in the shop</small>
+    </a>
+    <a class="card" href="{{ url_for('listings', status='Reported', _anchor='all-listings') }}">
+        <span class="icon red">{{ icons.icon('flag') }}</span>
+        <p>Reported</p>
+        <h2>{{ listing_stats.reported }}</h2>
+        <small>Off sale until you decide</small>
+    </a>
+</section>
 
-                    <tr>
-                        <th>Product</th>
-                        <th>Seller</th>
-                        <th>Category</th>
-                        <th>Price</th>
-                        <th>Stock</th>
-                        <th>Status</th>
-                        <th>Action</th>
-                    </tr>
+{# ---------- Every listing ---------- #}
+<section class="panel" id="all-listings">
 
-                </thead>
-
-                <tbody>
-
-                    {% for product in products %}
-                    <tr>
-                        <td>
-                            <div class="listing-product-summary">
-                                <div class="listing-thumbnail">
-                                    {% set thumbnail = product.image_url or '' %}
-                                    {% if thumbnail.startswith(('/static/', 'https://', 'http://')) %}
-                                    <img src="{{ thumbnail }}" alt="" width="52" height="52" loading="lazy" decoding="async" referrerpolicy="no-referrer"
-                                         onerror="this.hidden = true; this.nextElementSibling.hidden = false;">
-                                    <span class="listing-thumbnail-placeholder" hidden>No photo</span>
-                                    {% else %}
-                                    <span class="listing-thumbnail-placeholder">No photo</span>
-                                    {% endif %}
-                                </div>
-                                <strong>{{ product.name }}</strong>
-                            </div>
-                        </td>
-
-                        <td>{{ product.seller }}</td>
-                        <td>{{ product.category }}</td>
-                        <td>RM {{ "%.2f"|format(product.price) }}</td>
-
-                        <td>
-                            <div class="stock-cell">
-                                {{ forms.post_button(url_for('adjust_product_stock', product_id=product.id, action='decrease'), '−', 'stock-btn', title='One less in stock') }}
-                                <span>{{ product.stock }}</span>
-                                {{ forms.post_button(url_for('adjust_product_stock', product_id=product.id, action='increase'), '+', 'stock-btn', title='One more in stock') }}
-                            </div>
-                        </td>
-
-                        <td>
-                            <span class="status {{ product.status|lower }}">
-                                {{ product.status }}
-                            </span>
-                        </td>
-
-                        <td class="action-cell listing-row-actions">
-                            <a href="{{ url_for('listings', view=product.id, category=selected_category, status=selected_status, search=search, _anchor='listing-details') }}" class="view-btn" aria-label="View details for {{ product.name }}">View details</a>
-                            <a href="{{ url_for('listings', edit=product.id) }}" class="view-btn">
-                                Edit
-                            </a>
-
-                        </td>
-                    </tr>
-                    {% else %}
-                    <tr>
-                        <td colspan="7">No products match your filters.</td>
-                    </tr>
-                    {% endfor %}
-
-                </tbody>
-
-            </table>
-
+    <div class="panel-title">
+        <div>
+            <h3>All listings</h3>
+            <p>{{ products|length }} listing{{ 's' if products|length != 1 }}{% if filters %} match{{ 'es' if products|length == 1 }} these filters{% endif %}.</p>
         </div>
+        {% if filters %}<a href="{{ url_for('listings', _anchor='all-listings') }}" class="view-all">Clear filters</a>{% endif %}
+    </div>
 
-    </section>
-
-    <section class="panel">
-
-        <div class="panel-title">
-            <div>
-                <h3>Categories</h3>
-                <p>Categories currently in use across all products.</p>
-            </div>
-        </div>
-
-        <div class="category-tags">
-            {% for cat in categories %}
-            <span class="category-tag">{{ cat }}</span>
-            {% else %}
-            <span>No categories yet.</span>
+    <form method="get" action="{{ url_for('listings', _anchor='all-listings') }}" class="filters table-filters">
+        <input type="search" name="search" placeholder="Search by product name" value="{{ search }}" aria-label="Search by product name">
+        <select name="category" aria-label="Category">
+            <option value="all">All categories</option>
+            {% for category in categories %}
+            <option value="{{ category }}" {% if selected_category == category %}selected{% endif %}>{{ category|capitalize }}</option>
             {% endfor %}
-        </div>
+        </select>
+        <select name="status" aria-label="Status">
+            <option value="all">All statuses</option>
+            {% for state in ['Pending', 'Approved', 'Rejected', 'Reported', 'Removed'] %}
+            <option value="{{ state }}" {% if selected_status == state %}selected{% endif %}>{{ state }}</option>
+            {% endfor %}
+        </select>
+        <button type="submit">Search</button>
+    </form>
 
-        <form method="POST" action="{{ url_for('rename_category') }}" class="filters" style="margin-top: 16px;">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-            <select name="old_name">
-                {% for cat in categories %}
-                <option value="{{ cat }}">{{ cat }}</option>
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Product</th>
+                    <th>Seller</th>
+                    <th>Category</th>
+                    <th>Price</th>
+                    <th>Stock</th>
+                    <th>Status</th>
+                    <th><span class="sr-only">Actions</span></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for product in products %}
+                <tr id="product-{{ product.id }}"{% if review_product and review_product.id == product.id %} class="is-selected"{% endif %}>
+                    <td>
+                        <div class="listing-product-summary">
+                            <div class="listing-thumbnail">
+                                {% set thumbnail = product.image_url or '' %}
+                                {% if thumbnail.startswith(('/static/', 'https://', 'http://')) %}
+                                <img src="{{ thumbnail }}" alt="" width="52" height="52" loading="lazy" decoding="async" referrerpolicy="no-referrer"
+                                     onerror="this.hidden = true; this.nextElementSibling.hidden = false;">
+                                <span class="listing-thumbnail-placeholder" hidden>No photo</span>
+                                {% else %}
+                                <span class="listing-thumbnail-placeholder">No photo</span>
+                                {% endif %}
+                            </div>
+                            <strong>{{ product.name }}</strong>
+                        </div>
+                    </td>
+                    <td>
+                        {% if product.seller_id %}
+                        <a href="{{ url_for('user_detail', user_id=product.seller_id) }}">{{ product.seller }}</a>
+                        {% else %}
+                        {{ product.seller }}
+                        {% endif %}
+                    </td>
+                    <td>{{ product.category|capitalize }}</td>
+                    <td class="nowrap">RM {{ "%.2f"|format(product.price) }}</td>
+                    <td>
+                        <div class="stock-cell">
+                            {{ forms.post_button(url_for('adjust_product_stock', product_id=product.id, action='decrease', **filters), '−', 'stock-btn', title='One less in stock') }}
+                            <span>{{ product.stock }}</span>
+                            {{ forms.post_button(url_for('adjust_product_stock', product_id=product.id, action='increase', **filters), '+', 'stock-btn', title='One more in stock') }}
+                        </div>
+                    </td>
+                    <td><span class="status {{ product.status|lower }}">{{ product.status }}</span></td>
+                    <td class="action-cell">
+                        {% if product.status == 'Pending' %}
+                        <a href="{{ url_for('listings', view=product.id, **filters) }}" class="approve-btn" aria-label="Review {{ product.name }}">Review</a>
+                        {% else %}
+                        <a href="{{ url_for('listings', view=product.id, **filters) }}" class="view-btn" aria-label="View {{ product.name }}">View</a>
+                        {% endif %}
+                        <a href="{{ url_for('listings', edit=product.id, **filters) }}" class="view-btn" aria-label="Edit {{ product.name }}">Edit</a>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="7">No listings match these filters.</td></tr>
                 {% endfor %}
-            </select>
+            </tbody>
+        </table>
+    </div>
 
-            <input type="text" name="new_name" placeholder="New category name" required>
+</section>
 
-            <button type="submit">Rename</button>
-        </form>
-
-    </section>
-
-    <section class="panel">
-
-        <div class="panel-title">
-            <div>
-                <h3>Discount Tiers</h3>
-                <p>Automatic discounts, based on how much a student spends.</p>
-            </div>
-        </div>
-
-        <form method="POST" action="{{ url_for('add_tier') }}" class="filters">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-            <input type="number" step="0.01" min="0" name="min_subtotal" placeholder="Spend at least (RM)" required>
-            <input type="number" step="0.01" min="0" max="100" name="discount_percent" placeholder="Discount %" required>
-            <button type="submit">Add Tier</button>
-        </form>
-
-        <div class="table-container" style="margin-top: 16px;">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Spend at least</th>
-                        <th>Discount</th>
-                        <th>Action</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for t in discount_tiers %}
-                    <tr>
-                        <td><strong>RM {{ "%.2f"|format(t.min_subtotal) }}</strong></td>
-                        <td>{{ t.discount_percent }}%</td>
-                        <td class="action-cell">
-                            {{ forms.post_button(url_for('delete_tier', tier_id=t.id), 'Delete', 'reject-btn', confirm='Delete this tier?') }}
-                        </td>
-                    </tr>
-                    {% else %}
-                    <tr><td colspan="3">No spend tiers yet — no discounts will apply.</td></tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-
-    </section>
-
-    <section class="panel">
-
-        <div class="panel-title">
-            <div>
-                <h3 id="product-reviews">Product Reviews</h3>
-                <p>What buyers said after their item was delivered. Delete anything rude, fake or off-topic.</p>
-            </div>
-        </div>
-
-        <div class="table-container">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Product</th>
-                        <th>Reviewer</th>
-                        <th>Rating</th>
-                        <th>Comment</th>
-                        <th>Date</th>
-                        <th>Action</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for r in reviews %}
-                    <tr>
-                        <td><strong>{{ r.product_name or 'Deleted product' }}</strong></td>
-                        <td>
-                            {% if r.reviewer_id %}<a href="{{ url_for('user_detail', user_id=r.reviewer_id) }}">{{ r.reviewer }}</a>{% else %}{{ r.reviewer }}{% endif %}
-                        </td>
-                        <td class="nowrap">{{ rate.stars(r.rating) }} {{ r.rating }}/5</td>
-                        <td>{{ r.comment or '—' }}</td>
-                        <td class="nowrap">{{ r.review_date|day }}</td>
-                        <td class="action-cell">
-                            {{ forms.post_button(url_for('delete_review', review_id=r.id), 'Delete', 'reject-btn', confirm='Delete this review?') }}
-                        </td>
-                    </tr>
-                    {% else %}
-                    <tr><td colspan="6">No reviews yet. Buyers can rate an item once it has been delivered to them.</td></tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-
-    </section>
-
-</main>
-
-</body>
-</html>
+{% endblock %}

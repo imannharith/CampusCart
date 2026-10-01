@@ -1,0 +1,223 @@
+{% extends "_admin_base.html" %}
+
+{% block title %}{{ user.fullname }}{% endblock %}
+
+{% set status_class = {'Active': 'approved', 'Deactivated': 'pending'}.get(user.account_status, 'rejected') %}
+
+{% block header %}
+<header>
+    <div>
+        <a class="back-link" href="{{ url_for('users') }}">&larr; All users</a>
+        <h1>{{ user.fullname }} <span class="status {{ status_class }}">{{ user.account_status }}</span></h1>
+        <p class="subtitle">Account #{{ user.id }} &middot; {{ user.email }} &middot; Joined {{ user.created_at|day }}</p>
+    </div>
+</header>
+{% endblock %}
+
+{% block content %}
+<div class="detail-layout">
+
+    <div class="detail-main">
+
+        {# ---------- What they make from selling ---------- #}
+        {% if listings or sales %}
+        <section class="panel">
+            <div class="panel-title">
+                <div>
+                    <h3>Sales</h3>
+                    <p>What buyers paid for this student's items, after discounts. Cancelled items don't count.</p>
+                </div>
+            </div>
+
+            <div class="money-strip">
+                <div>
+                    <p>Buyers paid</p>
+                    <h2>RM {{ "%.2f"|format(earnings.gross_sales) }}</h2>
+                </div>
+                <div>
+                    <p>CampusCart fee ({{ earnings.commission_percent }}%)</p>
+                    <h2>RM {{ "%.2f"|format(earnings.commission_paid) }}</h2>
+                </div>
+                <div class="is-total">
+                    <p>Seller earns</p>
+                    <h2>RM {{ "%.2f"|format(earnings.earned) }}</h2>
+                </div>
+                <div>
+                    <p>Items sold</p>
+                    <h2>{{ earnings.units_sold }}</h2>
+                </div>
+            </div>
+
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr><th>Order</th><th>Item</th><th>Buyer</th><th>Paid</th><th>Status</th><th>Date</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for sale in sales %}
+                        <tr>
+                            <td><strong>#{{ sale.order_id }}</strong></td>
+                            <td>{{ sale.product_name or 'Item removed' }} &times;{{ sale.quantity }}</td>
+                            <td>{{ sale.buyer_name or 'Unknown' }}</td>
+                            <td class="nowrap">RM {{ "%.2f"|format(sale.actual_amount) }}</td>
+                            <td><span class="status {{ sale.status|lower }}">{{ sale.status }}</span></td>
+                            <td class="nowrap">{{ sale.order_date|day }}</td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="6">Nothing sold yet.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+        {% endif %}
+
+        {# ---------- What they have listed ---------- #}
+        <section class="panel">
+            <div class="panel-title">
+                <div>
+                    <h3>Listings</h3>
+                    <p>Everything this student has put up for sale.</p>
+                </div>
+            </div>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr><th>Listing</th><th>Price</th><th>Stock</th><th>Status</th><th><span class="sr-only">Action</span></th></tr>
+                    </thead>
+                    <tbody>
+                        {% for item in listings %}
+                        <tr>
+                            <td><strong>{{ item.name }}</strong></td>
+                            <td class="nowrap">RM {{ "%.2f"|format(item.price) }}</td>
+                            <td>{{ item.stock }}</td>
+                            <td><span class="status {{ item.status|lower }}">{{ item.status }}</span></td>
+                            <td class="action-cell"><a class="view-btn" href="{{ url_for('listings', view=item.id) }}">View</a></td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="5">No listings.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        {# ---------- What they have bought ---------- #}
+        <section class="panel">
+            <div class="panel-title">
+                <div>
+                    <h3>Purchases</h3>
+                    <p>Orders this student placed.</p>
+                </div>
+            </div>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr><th>Order</th><th>Date</th><th>Total</th><th>Payment</th><th>Status</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for order in orders %}
+                        <tr>
+                            <td><strong>#{{ order.id }}</strong></td>
+                            <td class="nowrap">{{ order.order_date|when }}</td>
+                            <td class="nowrap">RM {{ "%.2f"|format(order.total) }}</td>
+                            <td>
+                                {% if order.payment_status == 'Paid' %}<span class="status approved">Paid</span>
+                                {% elif order.payment_status == 'Unpaid' %}<span class="status pending">Unpaid</span>
+                                {% elif order.payment_status %}<span class="status rejected">{{ order.payment_status }}</span>
+                                {% else %}&mdash;{% endif %}
+                            </td>
+                            <td><span class="status {{ order.status|lower }}">{{ order.status }}</span></td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="5">No purchases yet.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        {# ---------- Reports they made, or reports about their listings ---------- #}
+        <section class="panel">
+            <div class="panel-title">
+                <div>
+                    <h3>Reports</h3>
+                    <p>Reports this student sent, and reports about their listings.</p>
+                </div>
+            </div>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr><th>Listing</th><th>Who</th><th>Reason</th><th>Status</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for report in reports %}
+                        <tr>
+                            <td><a href="{{ url_for('moderation_queue', status='All', product=report.product_id) }}">{{ report.product_name }}</a></td>
+                            <td>{{ 'They reported it' if report.reporter_id == user.id else 'Their listing' }}</td>
+                            <td>{{ report.reason }}</td>
+                            <td><span class="status {{ {'Open': 'pending', 'Dismissed': 'approved'}.get(report.status, 'rejected') }}">{{ report.status }}</span></td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="4">No reports.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+    </div>
+
+    <aside class="detail-side">
+
+        {# ---------- Suspend or reactivate ---------- #}
+        <section class="panel">
+            <div class="panel-title">
+                <div>
+                    <h3>Account access</h3>
+                    <p>A suspended student can't sign in, and their listings are hidden from the shop.</p>
+                </div>
+            </div>
+
+            {% if protected or user.role == 'admin' %}
+            <p class="side-note">This is an administrator account, so it can't be suspended here.</p>
+            {% elif user.account_status == 'Deleted' %}
+            <p class="side-note">This student deleted their account, so there's nothing to suspend.</p>
+            {% else %}
+            {% set suspended = user.account_status == 'Suspended' %}
+            <form method="post" action="{{ url_for('user_status', user_id=user.id) }}" class="moderation-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <label for="reason">Reason for {{ 'reactivating' if suspended else 'suspending' }}</label>
+                <textarea id="reason" name="reason" required minlength="3" maxlength="1000" rows="3"
+                          placeholder="Saved in the account history below."></textarea>
+                <button name="action" value="{{ 'Reactivate' if suspended else 'Suspend' }}"
+                        class="{{ 'moderation-primary' if suspended else 'moderation-danger' }}">
+                    {{ 'Reactivate account' if suspended else 'Suspend account' }}
+                </button>
+            </form>
+            {% endif %}
+        </section>
+
+        {# ---------- Every suspension and reactivation, with its reason ---------- #}
+        <section class="panel">
+            <div class="panel-title">
+                <div>
+                    <h3>Account history</h3>
+                    <p>Every suspension and reactivation, newest first.</p>
+                </div>
+            </div>
+            {% for event in history %}
+            <article class="moderation-history">
+                <strong>{{ 'Suspended' if event.action == 'Suspend' else 'Reactivated' if event.action == 'Reactivate' else event.action }}</strong>
+                <p>{{ event.reason }}</p>
+                <small>{{ event.admin_email }} &middot; {{ event.created_at|when }}</small>
+            </article>
+            {% else %}
+            <p class="side-note">Nothing yet.</p>
+            {% endfor %}
+        </section>
+
+    </aside>
+
+</div>
+{% endblock %}

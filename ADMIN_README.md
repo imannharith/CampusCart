@@ -6,17 +6,24 @@ accounts and authentication, plus the Python backend behind them.
 ## How it fits together
 
 ```
-Browser  →  app.py (routes)  →  admin_functions.py (logic)  →  database.py (data)  →  Turso
+Browser  →  app.py (routes)  →  admin_functions.py / shop_functions.py (logic)  →  database.py  →  Turso
 ```
 
 - **`app.py`** — Flask routes only. Reads form/query data, calls a
-  function in `admin_functions.py` or `database.py`, and renders a
-  template or redirects. It does not write SQL itself.
-- **`admin_functions.py`** — All the admin backend logic: products,
-  categories, stock, discount codes, reviews, orders, and sales
-  figures. Every function opens a connection, runs a query, closes it.
-- **`database.py`** — Table definitions (`init_db()`), the connection
-  layer, user account functions, and sample data.
+  function, and renders a template or redirects. It does not write SQL itself.
+- **`admin_functions.py`** — Everything behind the admin panel, in one
+  section per admin page: 1 Listings, 2 Users, 3 Reports, 4 Dashboard,
+  5 Moderation, 6 Support, 7 Settings. Every function opens a connection,
+  runs a query, closes it.
+- **`shop_functions.py`** — The student side: shopping, orders, reviews,
+  messages, My Shop, notifications, Contact Us and payment.
+- **`accounts.py`** — Signing up, logging in, the admin list, and who may
+  open which page.
+- **`database.py`** — The connection to Turso, nothing else.
+- **`tables.py`** — Creates any missing tables when the app starts.
+
+The admin pages share one layout, `templates/_admin_base.html` (the menu bar
+and the "Changes saved" messages), so each page only holds its own content.
 
 ## The database is shared, not local
 
@@ -56,6 +63,26 @@ like the old sqlite3 connection (`cursor()`, `execute()`, `fetchone()`,
 If the database can't be reached, the app refuses to start and prints
 why, rather than hanging.
 
+## Payment (CampusPay)
+
+After checkout the buyer lands on **CampusPay**, CampusCart's own payment
+page, which works like a Malaysian QR payment:
+
+- **E-wallet / DuitNow QR:** the buyer scans the QR code with Touch 'n Go,
+  GrabPay, Boost, ShopeePay or any DuitNow app. On a phone that can reach the
+  site it opens a "Pay RM ..." page; on the same computer, **I've paid** confirms it.
+
+What happens behind it is the real process (section 7 of `shop_functions.py`):
+checkout makes an order **Awaiting payment** and holds its items for 30
+minutes -> paying marks it **Paid**, gives it a reference number (CCP-...) and
+tells the sellers -> cancelling puts the items back in the cart -> an order
+left unpaid for 30 minutes lets its items go. Sellers only ever see paid orders.
+
+**Refunds:** if a paid item is cancelled, it appears under **Reports > Refunds
+to send** (and on the Dashboard). Press **Mark refunded** once the money's been returned; the buyer is told.
+
+The QR codes are drawn by the `segno` library (`pip install -r requirements.txt`).
+
 ## Database tables
 
 | Table            | Purpose                                          |
@@ -78,10 +105,13 @@ past orders.
 
 | Route | What it does |
 |---|---|
-| `/dashboard` | Marketplace figures, weekly activity, work queue, recent listings |
-| `/listings` | Add/edit/delete products, approve/reject, stock, categories, discount codes, reviews |
-| `/reports` | Sales summary, top selling products, order fulfilment status |
-| `/users` | Registered accounts, searchable |
+| `/dashboard` | This week's sales and orders, and **Needs attention**: listings to review, reported listings, refunds to send, support messages |
+| `/listings` | Every listing, with filters. **Review** opens one listing; after Approve or Reject the next waiting one opens by itself. Edit, stock, and remove from sale (with a reason) |
+| `/users`, `/users/<id>` | Accounts, searchable. One account shows what they **sell and earn** (buyers paid, CampusCart's 5%, what the seller keeps), their listings, purchases, reports, and suspend/reactivate |
+| `/reports` | Sales cards, **refunds to send**, every order (cancel/reinstate), top sellers, sold-out listings, seller activity |
+| `/moderation`, `/moderation/reviews` | Reports from students (Open / Dismissed / Removed / All), and every review, with delete |
+| `/support` | Contact Us messages from students, and replies |
+| `/shop-settings` | Discount tiers (add/delete), the four categories with listing counts, and the fixed rules (5% fee, 30 minutes to pay, ways to pay) |
 | `/admin/login` | Admin sign-in (separate from the student login) |
 
 ## Authentication
@@ -89,14 +119,14 @@ past orders.
 Three parts, and they matter together:
 
 1. **Admins are a fixed allowlist.** Admin accounts are not created
-   through any signup form. `ADMIN_ACCOUNTS` in `app.py` holds three
+   through any signup form. `ADMIN_ACCOUNTS` in `accounts.py` holds three
    email addresses, so nobody can register their way into the panel.
 2. **Passwords are hashed, never stored.** Both student accounts and
    the admin allowlist store a `scrypt` hash. Signing in hashes the
    attempt and compares hashes, so the real password exists nowhere,
    even to someone with full database access.
 3. **Every admin route is gated.** An `@admin_required` decorator sits
-   on all 15 admin routes. It checks the session for an admin role
+   on all 22 admin routes. It checks the session for an admin role
    before the view runs, so a logged-in student is turned away the
    same as a stranger. Before this, typing `/dashboard` into the
    address bar was enough to get in.
@@ -140,12 +170,13 @@ Three pieces now keep it honest:
 
 ## Order statuses are a sequence, not a set
 
-An order moves Pending → Shipped → Delivered, and some moves make no
-sense: delivering something never shipped, cancelling something the
-buyer already has. `ORDER_TRANSITIONS` in `admin_functions.py` lists
-what each status is allowed to become, and `update_order_status()`
-refuses anything else and returns `False`, which the route turns into
-a 400.
+Each item in an order moves Pending → Shipped → Delivered (the seller
+moves their own items), and some moves make no sense: delivering
+something never shipped, cancelling something the buyer already has.
+`ORDER_ITEM_TRANSITIONS` in `shop_functions.py` lists what each status is
+allowed to become, and `update_order_item_status()` refuses anything
+else and returns `False`, which the route turns into a 400. The order's
+own status is worked out from its items.
 
 `Delivered` is deliberately final. Once the goods are with the buyer,
 undoing that is a returns process, not a status change.
@@ -177,7 +208,13 @@ recording another, because `checkout()` and `place_order()` each call
 the pricing function separately and would roll different numbers.
 
 Nothing here is hardcoded — the tiers are rows an admin manages on
-`/listings`, so changing what a discount is worth needs no code change.
+**Settings** (`/shop-settings`), so changing what a discount is worth needs
+no code change.
+
+**Categories** are the four a seller picks from on the Sell form (books,
+electronics, fashion, accessories). The admin's Edit form uses the same
+list, so the shop's category filter never ends up with near-duplicates like
+"Book" and "books". Settings shows how many listings each one has.
 
 Promo codes were removed from the project; the buyer-facing redemption
 was taken out, so the admin panel for managing codes went with it
@@ -225,11 +262,11 @@ name cannot claim these records. Admins can assign unlinked listings explicitly.
   the admin and UTC time. Suspension blocks login and existing sessions and
   hides linked listings from shoppers; admins can still inspect them.
 - **Moderation** groups open reports by listing and filters decision history.
-  Students report from the product catalog; admins can report from listing
-  details. Reports contain the reporter, reason, optional supporting text/links,
+  Students report from the homepage and product catalog. Reports contain the reporter, reason, optional supporting text/links,
   and time. Submission temporarily marks the listing Reported and takes it off
   sale. One decision resolves all open reports for that listing. Dismiss restores
-  its previous status; Remove sets Rejected and preserves the report records.
+  its previous status; Remove takes it off sale (status Removed), tells the
+  seller why, and keeps the report records.
 - New forms use POST, CSRF tokens, server-side validation, and admin authorization.
   Account changes and report decisions use transactional libSQL batches.
 - Startup adds `users.account_status`, `products.seller_id`,
@@ -243,5 +280,7 @@ name cannot claim these records. Admins can assign unlinked listings explicitly.
 - Supporting evidence is text/reference links, not file uploads. Decision history
   stays available after a listing is later deleted.
 
-Run the isolated SQLite-backed regression suite with
-`python3 -m unittest discover -s tests -v`. It does not connect to or modify Turso.
+**Sales figures** are worked out item by item from what buyers actually paid:
+an unpaid checkout never counts, a cancelled item doesn't count even when the
+rest of its order does, and each order's discount is shared across its items.
+CampusCart's 5% is taken from that same total, so every card agrees.

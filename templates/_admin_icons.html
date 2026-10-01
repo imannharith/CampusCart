@@ -1,0 +1,48 @@
+{# Line icons for the admin panel: the menu and the cards at the top of each page.
+   They're drawn with currentColor, so each one takes the colour of whatever it sits in.
+
+   Import with:  {% import "_admin_icons.html" as icons %}
+   Use with:     {{ icons.icon('clock') }} #}
+{% macro icon(name) -%}
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+{%- if name == 'dashboard' -%}
+    <rect x="3" y="3" width="7.5" height="7.5" rx="1.5"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="1.5"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="1.5"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1.5"/>
+{%- elif name == 'box' -%}
+    <path d="M3.5 8.2 12 4l8.5 4.2v7.6L12 20l-8.5-4.2z"/><path d="m3.5 8.2 8.5 4.3 8.5-4.3M12 12.5V20"/>
+{%- elif name == 'users' -%}
+    <circle cx="9.5" cy="8" r="3.3"/><path d="M3.8 19.6a5.7 5.7 0 0 1 11.4 0"/><path d="M16.4 5.4a3.3 3.3 0 0 1 0 5.2M17.6 14.6a5.7 5.7 0 0 1 2.6 5"/>
+{%- elif name == 'chart' -%}
+    <path d="M4 4v16h16"/><path d="M8.4 20v-5.5M12.8 20v-9.5M17.2 20v-3.5"/>
+{%- elif name == 'shield' -%}
+    <path d="M12 3.2 19 6v5.4c0 4.3-2.9 8.1-7 9.4-4.1-1.3-7-5.1-7-9.4V6z"/><path d="m9.2 12 2 2 3.8-4"/>
+{%- elif name == 'chat' -%}
+    <path d="M20 15a2 2 0 0 1-2 2H8l-4 4V5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2z"/>
+{%- elif name == 'sliders' -%}
+    <path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/>
+{%- elif name == 'clock' -%}
+    <circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>
+{%- elif name == 'check' -%}
+    <circle cx="12" cy="12" r="8.5"/><path d="m8.5 12.2 2.4 2.4 4.6-4.9"/>
+{%- elif name == 'flag' -%}
+    <path d="M5.5 20.5v-16"/><path d="M5.5 4.5h11l-2 4 2 4h-11"/>
+{%- elif name == 'receipt' -%}
+    <path d="M6 3.5h12v17l-3-1.8-3 1.8-3-1.8-3 1.8z"/><path d="M9 8.5h6M9 12h6M9 15.5h3.5"/>
+{%- elif name == 'money' -%}
+    <rect x="3" y="6.5" width="18" height="11" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6.5 9.5h.01M17.5 14.5h.01"/>
+{%- elif name == 'tag' -%}
+    <path d="M3.5 12.2V4.5a1 1 0 0 1 1-1h7.7l8.3 8.3a1.5 1.5 0 0 1 0 2.1l-6.2 6.2a1.5 1.5 0 0 1-2.1 0z"/><circle cx="8" cy="8" r="1.4"/>
+{%- elif name == 'calculator' -%}
+    <rect x="5" y="3" width="14" height="18" rx="2.5"/><path d="M8.5 7.5h7M8.5 12h.01M12 12h.01M15.5 12h.01M8.5 15.5h.01M12 15.5h.01M15.5 15.5h.01"/>
+{%- elif name == 'percent' -%}
+    <circle cx="12" cy="12" r="8.5"/><path d="m9 15 6-6"/><path d="M9.3 9.3h.01M14.7 14.7h.01"/>
+{%- elif name == 'store' -%}
+    <path d="M4 9.5 5.5 4.5h13L20 9.5"/><path d="M4 9.5a2.7 2.7 0 0 0 5.3 0 2.7 2.7 0 0 0 5.4 0 2.7 2.7 0 0 0 5.3 0"/><path d="M5.5 11.5v8h13v-8M10 19.5v-4h4v4"/>
+{%- elif name == 'lock' -%}
+    <rect x="5" y="10.5" width="14" height="10" rx="2"/><path d="M8.5 10.5V7.5a3.5 3.5 0 0 1 7 0v3"/>
+{%- elif name == 'user-plus' -%}
+    <circle cx="10" cy="8" r="3.3"/><path d="M4 19.5a6 6 0 0 1 12 0"/><path d="M18.5 8v5M16 10.5h5"/>
+{%- elif name == 'refund' -%}
+    <path d="M9 14 4.5 9.5 9 5"/><path d="M4.5 9.5h9.5a5.5 5.5 0 0 1 0 11H11"/>
+{%- endif -%}
+</svg>
+{%- endmacro %}

@@ -1,0 +1,93 @@
+{% extends "_admin_base.html" %}
+{% import "_admin_icons.html" as icons %}
+
+{% block title %}Users{% endblock %}
+{% block heading %}Users{% endblock %}
+{% block subtitle %}Every student account. Open one to see what they buy, sell and earn.{% endblock %}
+
+{% block content %}
+
+<section class="stats">
+    <div class="card">
+        <span class="icon blue">{{ icons.icon('users') }}</span>
+        <p>Accounts</p>
+        <h2>{{ user_stats.total }}</h2>
+        <small>Registered on CampusCart</small>
+    </div>
+    <div class="card">
+        <span class="icon green">{{ icons.icon('store') }}</span>
+        <p>Selling</p>
+        <h2>{{ user_stats.selling }}</h2>
+        <small>Have listed at least one item</small>
+    </div>
+    <div class="card">
+        <span class="icon red">{{ icons.icon('lock') }}</span>
+        <p>Suspended</p>
+        <h2>{{ user_stats.suspended }}</h2>
+        <small>Blocked from signing in</small>
+    </div>
+    <div class="card">
+        <span class="icon orange">{{ icons.icon('user-plus') }}</span>
+        <p>New this week</p>
+        <h2>{{ user_stats.this_week }}</h2>
+        <small>Signed up in the last 7 days</small>
+    </div>
+</section>
+
+<section class="panel">
+
+    <div class="panel-title">
+        <div>
+            <h3>Accounts</h3>
+            <p>{{ users|length }} account{{ 's' if users|length != 1 }}{% if search %} matching &ldquo;{{ search }}&rdquo;{% endif %}.</p>
+        </div>
+        {% if search %}<a href="{{ url_for('users') }}" class="view-all">Clear search</a>{% endif %}
+    </div>
+
+    <form method="get" action="{{ url_for('users') }}" class="filters table-filters search-only">
+        <input type="search" name="search" placeholder="Search by name or email" value="{{ search }}" aria-label="Search by name or email">
+        <button type="submit">Search</button>
+    </form>
+
+    {% if users %}
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Account</th>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Joined</th>
+                    <th>Status</th>
+                    <th><span class="sr-only">Action</span></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for account in users %}
+                <tr>
+                    <td><code>#{{ account.id }}</code></td>
+                    <td><strong>{{ account.fullname }}</strong></td>
+                    <td>{{ account.email }}</td>
+                    <td class="nowrap">{{ account.created_at|day }}</td>
+                    <td><span class="status {{ {'Active': 'approved', 'Deactivated': 'pending'}.get(account.account_status, 'rejected') }}">{{ account.account_status }}</span></td>
+                    <td class="action-cell"><a class="view-btn" href="{{ url_for('user_detail', user_id=account.id) }}">View account</a></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        {% if search %}
+        <strong>No accounts match that search</strong>
+        <span>Try a different name or email, or clear the search.</span>
+        {% else %}
+        <strong>No accounts yet</strong>
+        <span>Students appear here once they sign up.</span>
+        {% endif %}
+    </div>
+    {% endif %}
+
+</section>
+
+{% endblock %}

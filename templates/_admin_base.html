@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+{# The frame every admin page shares: the menu bar, the page heading and
+   any messages ("Changes saved."). A page only fills in its own parts:
+
+       {% extends "_admin_base.html" %}
+       {% block title %}Listings{% endblock %}
+       {% block heading %}Listings{% endblock %}
+       {% block subtitle %}One line about the page.{% endblock %}
+       {% block content %} ...the page itself... {% endblock %} #}
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}{% endblock %} | CampusCart Admin</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='admin.css') }}">
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='logo.svg') }}">
+</head>
+
+<body class="{% block body_class %}{% endblock %}">
+
+<aside class="sidebar">
+    <h2>Campus<span>Cart</span></h2>
+    <p class="admin-label">ADMIN PANEL</p>
+
+    {% include "_admin_nav.html" %}
+
+    <div class="sidebar-bottom">
+        <div class="admin-user">
+            <div class="avatar" title="{{ session.get('user', '') }}">{{ (session.get('user') or 'A')[0]|upper }}</div>
+            <div class="admin-who">
+                <strong title="{{ session.get('user', '') }}">{{ session.get('user', 'Administrator') }}</strong>
+                <small>Signed in as admin</small>
+            </div>
+        </div>
+        <a href="{{ url_for('logout') }}">Logout</a>
+    </div>
+</aside>
+
+<main class="main {% block main_class %}{% endblock %}">
+
+    {% block header %}
+    <header>
+        <div>
+            {% block back %}{% endblock %}
+            <h1>{% block heading %}{% endblock %}</h1>
+            <p class="subtitle">{% block subtitle %}{% endblock %}</p>
+        </div>
+    </header>
+    {% endblock %}
+
+    {% for kind, message in get_flashed_messages(with_categories=true) %}
+    <div class="flash{% if kind == 'error' %} error{% endif %}" role="{{ 'alert' if kind == 'error' else 'status' }}">{{ message }}</div>
+    {% endfor %}
+
+    {% block content %}{% endblock %}
+
+</main>
+
+{% block scripts %}{% endblock %}
+
+</body>
+</html>

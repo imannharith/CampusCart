@@ -36,6 +36,24 @@
         </div>
     </div>
 
+    {% set step = 1 %}
+    {% include "_checkout_steps.html" %}
+
+    {% for message in get_flashed_messages() %}
+    <p class="note" role="status">{{ message }}</p>
+    {% endfor %}
+
+    {# An order that was started but not paid yet keeps its items for a while #}
+    {% for order in unpaid %}
+    <div class="unpaid-banner">
+        <div>
+            <strong>Order #{{ order.id }} is waiting for payment</strong>
+            <span>RM {{ "%.2f"|format(order.total) }} &middot; your items are held until {{ order.payment_expires_at|when }}.</span>
+        </div>
+        <a class="btn-primary" href="{{ url_for('continue_payment', order_id=order.id) }}">Continue payment</a>
+    </div>
+    {% endfor %}
+
     <div class="panel">
 
     {% if cart %}

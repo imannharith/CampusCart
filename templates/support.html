@@ -1,34 +1,10 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CampusCart | Support</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='admin.css') }}">
-    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='logo.svg') }}">
-</head>
-<body class="support-page">
+{% extends "_admin_base.html" %}
 
-<aside class="sidebar">
-    <h2>Campus<span>Cart</span></h2>
-    <p class="admin-label">ADMIN PANEL</p>
+{% block title %}Support{% endblock %}
+{% block body_class %}support-page{% endblock %}
+{% block main_class %}support-main{% endblock %}
 
-    {% include "_admin_nav.html" %}
-
-    <div class="sidebar-bottom">
-        <div class="admin-user">
-            <div class="avatar" title="{{ session.get('user', '') }}">{{ (session.get('user') or 'A')[0]|upper }}</div>
-            <div class="admin-who">
-                <strong title="{{ session.get('user', '') }}">{{ session.get('user', 'Administrator') }}</strong>
-                <small>Signed in as admin</small>
-            </div>
-        </div>
-        <a href="{{ url_for('logout') }}">Logout</a>
-    </div>
-</aside>
-
-<main class="main support-main">
-
+{% block header %}
     <header class="support-page-heading">
         <div>
             <p class="support-eyebrow">Student conversations</p>
@@ -37,6 +13,9 @@
         </div>
         <span class="support-channel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4.5h14a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H9l-6 3v-14a2 2 0 0 1 2-2Z"/><path d="M7.5 9h9M7.5 13h5"/></svg>Contact Us inbox</span>
     </header>
+{% endblock %}
+
+{% block content %}
 
     {% set waiting = threads|selectattr('last_from_admin', 'equalto', 0)|list|length %}
     {% set unread_total = threads|sum(attribute='unread') %}
@@ -145,12 +124,11 @@
 
     </div>
 
-</main>
+{% endblock %}
 
+{% block scripts %}
 <script>
     var log = document.getElementById('support-log');
     if (log) log.scrollTop = log.scrollHeight;
 </script>
-
-</body>
-</html>
+{% endblock %}

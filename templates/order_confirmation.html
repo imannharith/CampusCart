@@ -1,109 +1,73 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-
     <meta charset="UTF-8">
-
-    <meta name="viewport"
-          content="width=device-width, initial-scale=1.0">
-
-    <title>Order Confirmed - CampusCart</title>
-
-    <link rel="stylesheet"
-          href="{{ url_for('static', filename='shopping.css') }}">
-
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CampusCart | Order #{{ order.id }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='logo.svg') }}">
 </head>
 
 <body>
 
-<div class="container">
+<header class="navbar">
+    <a href="/" class="logo">Campus<span>Cart</span></a>
+    {% include "_nav.html" %}
+</header>
 
-    <div class="confirmation">
+<main class="container confirm-page">
 
-        <div class="success-icon">
-            ✓
+    {% set paid = order.payment_status == 'Paid' %}
+    {% set step = 4 if paid else 3 %}
+    {% include "_checkout_steps.html" %}
+
+    <section class="panel confirm-card">
+        {% if paid %}
+        <span class="confirm-mark ok" aria-hidden="true">&#10003;</span>
+        <h1>Payment received</h1>
+        <p>Thank you, {{ order.buyer_name }}! Order #{{ order.id }} is paid and the sellers have been told to send your items.</p>
+        {% elif order.payment_status == 'Unpaid' %}
+        <span class="confirm-mark wait" aria-hidden="true">&hellip;</span>
+        <h1>Waiting for your payment</h1>
+        <p>This order hasn't been paid yet. Your items are held until {{ order.payment_expires_at|when }}.</p>
+        {% else %}
+        <span class="confirm-mark bad" aria-hidden="true">&times;</span>
+        <h1>This order wasn't paid</h1>
+        <p>Nothing was charged, and the items were put back on sale.</p>
+        {% endif %}
+
+        <dl class="confirm-facts">
+            <div><dt>Order</dt><dd>#{{ order.id }}</dd></div>
+            <div><dt>Total</dt><dd>RM {{ "%.2f"|format(order.total) }}</dd></div>
+            {% if paid %}<div><dt>Paid with</dt><dd>{{ order.payment_channel or 'CampusPay' }}<br><small>{{ order.paid_at|when }}</small></dd></div>
+            <div><dt>Reference</dt><dd>{{ order.payment_ref or '-' }}</dd></div>{% endif %}
+            <div><dt>Send to</dt><dd>{{ order.buyer_name }}, {{ order.phone }}<br>{{ order.address }}</dd></div>
+        </dl>
+
+        <ul class="summary-items">
+            {% for item in items %}
+            <li>
+                <div>
+                    <strong>{{ item.product_name }}</strong>
+                    <span>{{ item.quantity }} &times; RM {{ "%.2f"|format(item.price) }} &middot; {{ item.seller }}</span>
+                </div>
+                <span class="status {{ item.status|lower }}">{{ item.status }}</span>
+            </li>
+            {% endfor %}
+        </ul>
+
+        <div class="confirm-actions">
+            {% if order.payment_status == 'Unpaid' %}
+            <a href="{{ url_for('payment_page', order_id=order.id) }}" class="btn-primary">Pay now</a>
+            <a href="{{ url_for('view_orders') }}" class="btn-message">My orders</a>
+            {% else %}
+            <a href="{{ url_for('view_orders') }}" class="btn-primary">View my orders</a>
+            <a href="/products" class="btn-message">Keep shopping</a>
+            {% endif %}
         </div>
+    </section>
 
-        <h1>
-            Order Placed Successfully!
-        </h1>
-
-        <p>
-            Thank you, {{ name }}!
-        </p>
-
-        <p>
-            Your order has been received.
-        </p>
-
-        <div class="order-details">
-
-            <h2>
-                Order #{{ order_id }}
-            </h2>
-
-            <p>
-                <strong>Customer:</strong>
-                {{ name }}
-            </p>
-
-            <p>
-                <strong>Phone:</strong>
-                {{ phone }}
-            </p>
-
-            <p>
-                <strong>Delivery Address:</strong>
-                {{ address }}
-            </p>
-
-            <hr>
-
-            <p>
-                Subtotal:
-                RM {{ "%.2f"|format(subtotal) }}
-            </p>
-
-            <p>
-                Discount:
-                RM {{ "%.2f"|format(discount) }}
-            </p>
-
-            <h2>
-                Total:
-                RM {{ "%.2f"|format(total) }}
-            </h2>
-
-            <p>
-                <strong>Status:</strong>
-                Pending
-            </p>
-
-        </div>
-
-        <div class="confirmation-buttons">
-
-            <a href="{{ url_for('view_orders') }}"
-               class="checkout-button">
-
-                View My Orders
-
-            </a>
-
-            <a href="/"
-               class="button">
-
-                Continue Shopping
-
-            </a>
-
-        </div>
-
-    </div>
-
-</div>
+</main>
 
 </body>
-
 </html>

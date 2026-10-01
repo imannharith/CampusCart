@@ -281,6 +281,7 @@ def ensure_columns():
     ensure_notifications_schema()
     ensure_reviews_schema()
     ensure_settings_schema()
+    ensure_payment_schema()
     admin.sync_order_status()
     return added
 
@@ -439,6 +440,36 @@ def ensure_settings_schema():
         created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
         read_at TEXT)""")
     cursor.execute('CREATE INDEX IF NOT EXISTS support_for_user ON support_messages(user_id, id)')
+    connection.commit()
+    connection.close()
+
+
+def ensure_payment_schema():
+    """Paying for orders (CampusPay, the demo payment page).
+
+    orders.payment_status   Unpaid -> Paid, or Expired / Cancelled if it was never
+                            paid. Empty for orders placed before payments existed.
+    orders.payment_channel  how it was paid, e.g. "Touch 'n Go eWallet"
+    orders.payment_ref      the payment's reference number, e.g. CCP-3F9A1C07B2
+    orders.payment_expires_at   an unpaid order lets go of its items after this
+    orders.sellers_notified     sellers are told about a sale once, when it's paid
+    order_items.refund_status   Owed / Refunded, when a paid item is cancelled"""
+    connection = database.get_connection()
+    cursor = connection.cursor()
+    for table, column, definition in [
+        ('orders', 'payment_status', 'TEXT'),
+        ('orders', 'payment_ref', 'TEXT'),
+        ('orders', 'paid_at', 'TEXT'),
+        ('orders', 'payment_channel', 'TEXT'),
+        ('orders', 'payment_expires_at', 'TEXT'),
+        # Orders from before online payment already told their sellers.
+        ('orders', 'sellers_notified', 'INTEGER NOT NULL DEFAULT 1'),
+        ('order_items', 'refund_status', 'TEXT'),
+        ('order_items', 'refunded_at', 'TEXT'),
+    ]:
+        cursor.execute(f'PRAGMA table_info({table})')
+        if column not in {row['name'] for row in cursor.fetchall()}:
+            cursor.execute(f'ALTER TABLE {table} ADD COLUMN {column} {definition}')
     connection.commit()
     connection.close()
 
