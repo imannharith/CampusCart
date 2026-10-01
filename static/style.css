@@ -393,6 +393,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
     color: var(--text-3);
     display: -webkit-box;
     -webkit-line-clamp: 2;
+    line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
 }
