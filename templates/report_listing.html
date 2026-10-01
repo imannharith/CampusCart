@@ -1,5 +1,61 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Report listing · CampusCart</title><link rel="stylesheet" href="{{ url_for('static', filename='admin.css') }}"></head><body>
-<main class="report-page"><a href="{{ url_for('listings') if is_admin else url_for('product_catalog') }}">← Back to listings</a><section class="panel moderation-section">
-{% if submitted %}<h1>Report received</h1><p>Report #{{ report_id }} for <strong>{{ product.name }}</strong> is saved. The listing is off sale while an admin reviews it.</p>{% if is_admin %}<a class="view-btn" href="{{ url_for('moderation_queue', product=product.id) }}">Review reports</a>{% endif %}
-{% else %}<h1>Report listing</h1><p>{{ product.name }} · Sold by {{ product.seller }}</p><form method="post" class="moderation-form"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><label for="reason">What is wrong with this listing?</label><textarea id="reason" name="reason" required minlength="3" maxlength="1000" rows="4" placeholder="Describe the issue, such as misleading details or a prohibited item."></textarea><label for="evidence">Supporting details (optional)</label><textarea id="evidence" name="evidence" maxlength="2000" rows="4" placeholder="Add relevant details, dates, or reference links. Please don’t include passwords or payment information."></textarea><p>Your report and account identity are visible to admins. Submitting temporarily takes the listing off sale for review.</p><button class="moderation-primary">Submit report</button></form>{% endif %}
-</section></main></body></html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CampusCart | Report {{ product.name }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='logo.svg') }}">
+</head>
+
+<body>
+
+<header class="navbar">
+    <a href="/" class="logo">Campus<span>Cart</span></a>
+    {% include "_nav.html" %}
+</header>
+
+<main class="container narrow">
+
+    <a class="back-link" href="{{ url_for('product_catalog') }}">&larr; Back to products</a>
+
+    <section class="panel">
+        {% if submitted %}
+        <h2>Thanks, your report was sent</h2>
+        <p>Report #{{ report_id }} about <strong>{{ product.name }}</strong> is with the CampusCart admins.
+           The listing is hidden from the shop while they look into it.</p>
+        <p><a href="{{ url_for('product_catalog') }}" class="btn-primary">Keep shopping</a></p>
+
+        {% else %}
+        <h2>Report {{ product.name }}</h2>
+        <p>Sold by {{ product.seller }}. Tell us what's wrong and an admin will check it.
+           The listing is hidden from the shop while they do.</p>
+
+        <form method="post" class="form-grid">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+            <div class="form-row">
+                <label for="reason">What's wrong with this listing?</label>
+                <textarea id="reason" name="reason" rows="4" required minlength="3" maxlength="1000"
+                          placeholder="For example: the photo doesn't match the item, or it isn't allowed on campus."></textarea>
+            </div>
+
+            <div class="form-row">
+                <label for="evidence">Anything else we should know? <small>(optional)</small></label>
+                <textarea id="evidence" name="evidence" rows="3" maxlength="2000"
+                          placeholder="Dates, details or links. Please don't include passwords or payment details."></textarea>
+            </div>
+
+            <p class="note">The admins can see that this report came from you.</p>
+
+            <div>
+                <button type="submit" class="btn-primary">Send report</button>
+            </div>
+        </form>
+        {% endif %}
+    </section>
+
+</main>
+
+</body>
+</html>

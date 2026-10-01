@@ -1,11 +1,11 @@
 """
 Admin & Management Functions
 -----------------------------
-Every database function behind the admin panel, grouped in the same
-order as the admin menu:
+Every database function behind the admin panel, grouped by the admin
+page it belongs to:
 
-    1. Listings     2. Users     3. Reports
-    4. Dashboard    5. Moderation     6. Support (Contact Us messages)
+    1. Listings     2. Users     3. Reports     4. Dashboard
+    5. Moderation (reports and reviews)     6. Support     7. Settings
 
 The student side of the site (cart, orders, reviews, messages, My Shop,
 notifications) is in shop_functions.py.
@@ -33,13 +33,8 @@ def rows(sql, params=()):
 
 # ====================================================================
 # 1. LISTINGS
-# Admin > Listings page: products, approval status, stock,
-# categories, discount tiers and reviews.
+# Admin > Listings page: products, approving them, stock and removal.
 # ====================================================================
-
-
-# The only statuses the admin links are allowed to set.
-PRODUCT_STATUSES = {"Approved", "Pending", "Rejected", "Reported", "Removed"}
 
 
 def get_all_products(category=None, status=None, search=None, seller_id=None, available_only=False):
@@ -178,21 +173,6 @@ def set_product_status(product_id, status):
     connection.close()
 
 
-def update_stock(product_id, new_stock):
-    """Directly set a product's stock level."""
-
-    connection = get_connection()
-    cursor = connection.cursor()
-
-    cursor.execute(
-        "UPDATE products SET stock = ? WHERE id = ?",
-        (new_stock, product_id)
-    )
-
-    connection.commit()
-    connection.close()
-
-
 def adjust_stock(product_id, amount):
     """Increase (positive amount) or decrease (negative amount) stock,
     never letting it go below zero. Returns the new stock level."""
@@ -219,22 +199,6 @@ def adjust_stock(product_id, amount):
     return new_stock
 
 
-def get_low_stock_products(threshold=3):
-    """Return products at or below a stock threshold, for restock alerts."""
-
-    connection = get_connection()
-    cursor = connection.cursor()
-
-    cursor.execute(
-        "SELECT * FROM products WHERE stock <= ? ORDER BY stock ASC",
-        (threshold,)
-    )
-    products = [dict(row) for row in cursor.fetchall()]
-
-    connection.close()
-    return products
-
-
 def get_all_categories():
     """Return a sorted list of distinct category names in use."""
 
@@ -248,108 +212,14 @@ def get_all_categories():
     return categories
 
 
-def rename_category(old_name, new_name):
-    """Rename a category across every product that uses it.
-    Returns the number of products updated."""
-
-    connection = get_connection()
-    cursor = connection.cursor()
-
-    cursor.execute(
-        "UPDATE products SET category = ? WHERE LOWER(category) = LOWER(?)",
-        (new_name, old_name)
-    )
-
-    connection.commit()
-    updated = cursor.rowcount
-
-    connection.close()
-    return updated
-
-
-def get_all_discount_tiers():
-    """Spend thresholds and what each one earns, biggest threshold
-    first so the first tier a subtotal clears is the one that applies."""
-
-    connection = get_connection()
-    cursor = connection.cursor()
-
-    cursor.execute("SELECT * FROM discount_tiers ORDER BY min_subtotal DESC")
-    tiers = [dict(row) for row in cursor.fetchall()]
-
-    connection.close()
-    return tiers
-
-
-def add_discount_tier(min_subtotal, discount_percent):
-    """Create a spend tier. Returns its new id, or None if a tier
-    already exists at that threshold."""
-
-    connection = get_connection()
-    cursor = connection.cursor()
-
-    try:
-        cursor.execute("""
-            INSERT INTO discount_tiers (min_subtotal, discount_percent)
-            VALUES (?, ?)
-        """, (min_subtotal, discount_percent))
-
-        connection.commit()
-        new_id = cursor.lastrowid
-
-    except Exception:
-        new_id = None
-
-    connection.close()
-    return new_id
-
-
-def delete_discount_tier(tier_id):
-    connection = get_connection()
-    cursor = connection.cursor()
-
-    cursor.execute("DELETE FROM discount_tiers WHERE id = ?", (tier_id,))
-
-    connection.commit()
-    connection.close()
-
-
-def get_all_reviews():
-    """Return every review, joined with the product name it belongs to."""
-
-    connection = get_connection()
-    cursor = connection.cursor()
-
-    cursor.execute("""
-        SELECT reviews.*, COALESCE(products.name, reviews.product_name) AS product_name
-        FROM reviews
-        LEFT JOIN products ON products.id = reviews.product_id
-        ORDER BY reviews.id DESC
-    """)
-    reviews = [dict(row) for row in cursor.fetchall()]
-
-    connection.close()
-    return reviews
-
-
-def delete_review(review_id):
-    connection = get_connection()
-    cursor = connection.cursor()
-
-    cursor.execute("DELETE FROM reviews WHERE id = ?", (review_id,))
-
-    connection.commit()
-    connection.close()
-
-
 def get_listing_stats():
-    """The four cards at the top of the Listings page."""
-    products = get_all_products()
+    """The four cards at the top of the Listings page (also used by the Dashboard)."""
+    counts = {row["status"]: row["n"] for row in rows("SELECT status, COUNT(*) AS n FROM products GROUP BY status")}
     return {
-        "total": len(products),
-        "pending": len([p for p in products if p["status"] == "Pending"]),
-        "approved": len([p for p in products if p["status"] == "Approved"]),
-        "reported": len([p for p in products if p["status"] == "Reported"]),
+        "total": sum(counts.values()),
+        "pending": counts.get("Pending", 0),
+        "approved": counts.get("Approved", 0),
+        "reported": counts.get("Reported", 0),
     }
 
 
@@ -361,27 +231,11 @@ def remove_listing(product_id, reason, actor):
                       [reason, actor, product_id])])
 
 
-def read_discount_tier(form):
-    """The minimum spend and percentage from the Add tier form.
-    Raises ValueError with a message to show if either is wrong."""
-    try:
-        min_subtotal = float(form.get("min_subtotal", ""))
-        percent = float(form.get("discount_percent", ""))
-    except ValueError:
-        min_subtotal = percent = -1
-    if not (0 <= min_subtotal <= 100000 and 0 < percent <= 100):
-        raise ValueError("A discount needs a minimum spend of RM 0 or more and a percentage from 1 to 100.")
-    return min_subtotal, percent
-
-
-def read_category_rename(form):
-    """The old and new category names from the Rename form.
-    Raises ValueError with a message to show if either is missing."""
-    old_name = form.get("old_name", "").strip()
-    new_name = form.get("new_name", "").strip()
-    if not old_name or not 1 <= len(new_name) <= 40:
-        raise ValueError("Pick a category and give it a new name (up to 40 characters).")
-    return old_name, new_name
+def next_listing_to_review():
+    """The oldest listing still waiting for an admin, or None when there are none.
+    After approving or rejecting one, the admin is taken straight to this one."""
+    found = rows("SELECT id FROM products WHERE status = 'Pending' ORDER BY id LIMIT 1")
+    return found[0]["id"] if found else None
 
 
 # ====================================================================
@@ -437,34 +291,13 @@ def get_all_users(search=None):
 
 
 def get_user_stats():
-    """Real counts for the admin user cards."""
-
-    connection = get_connection()
-    cursor = connection.cursor()
-
-    cursor.execute("SELECT COUNT(*) AS c FROM users")
-    total = cursor.fetchone()["c"]
-
-    # Every student can buy and sell, so "selling" means has listed something.
-    cursor.execute("SELECT COUNT(DISTINCT seller_id) AS c FROM products WHERE seller_id IS NOT NULL")
-    selling = cursor.fetchone()["c"]
-
-    cursor.execute("SELECT COUNT(*) AS c FROM users WHERE account_status = 'Suspended'")
-    suspended = cursor.fetchone()["c"]
-
-    cursor.execute(
-        "SELECT COUNT(*) AS c FROM users WHERE created_at >= datetime('now', '-7 days')"
-    )
-    this_week = cursor.fetchone()["c"]
-
-    connection.close()
-
-    return {
-        "total": total,
-        "selling": selling,
-        "suspended": suspended,
-        "this_week": this_week,
-    }
+    """The four cards at the top of the Users page, in one trip to the database.
+    Every student can buy and sell, so "selling" means has listed something."""
+    return rows("""SELECT
+        (SELECT COUNT(*) FROM users) AS total,
+        (SELECT COUNT(DISTINCT seller_id) FROM products WHERE seller_id IS NOT NULL) AS selling,
+        (SELECT COUNT(*) FROM users WHERE account_status = 'Suspended') AS suspended,
+        (SELECT COUNT(*) FROM users WHERE created_at >= datetime('now', '-7 days')) AS this_week""")[0]
 
 
 def user_exists(user_id):
@@ -539,8 +372,9 @@ def get_all_orders(status=None):
     return orders
 
 
-def get_order_items(order_id):
-    """Return the line items for a single order.
+def get_order_items(order_id=None):
+    """Return the line items for a single order (or, with no id, for every
+    order at once -- the Reports page fetches them all in one trip).
 
     product_name is the name captured when the order was placed, the
     same way price already is -- so a line for a since-deleted product
@@ -567,8 +401,9 @@ def get_order_items(order_id):
             COALESCE(order_items.product_name, products.name) AS product_name
         FROM order_items
         LEFT JOIN products ON products.id = order_items.product_id
-        WHERE order_items.order_id = ?
-    """, (order_id,))
+        WHERE ? IS NULL OR order_items.order_id = ?
+        ORDER BY order_items.id
+    """, (order_id, order_id))
     items = [dict(row) for row in cursor.fetchall()]
 
     connection.close()
@@ -692,39 +527,6 @@ def mark_refunded(item_id):
     return owed[0]
 
 
-def get_sales_summary():
-    """Return overall sales figures for the dashboard/reports page."""
-
-    connection = get_connection()
-    cursor = connection.cursor()
-
-    # Only orders that really happened: an unpaid or abandoned checkout isn't a sale.
-    cursor.execute(f"SELECT COUNT(*) AS total_orders FROM orders WHERE {REAL_ORDER}")
-    total_orders = cursor.fetchone()["total_orders"]
-
-    cursor.execute(
-        "SELECT COALESCE(SUM(total), 0) AS total_revenue FROM orders "
-        f"WHERE LOWER(status) != 'cancelled' AND {REAL_ORDER}"
-    )
-    total_revenue = cursor.fetchone()["total_revenue"]
-
-    cursor.execute(
-        f"SELECT COALESCE(SUM(discount), 0) AS total_discount FROM orders WHERE {REAL_ORDER}"
-    )
-    total_discount = cursor.fetchone()["total_discount"]
-
-    avg_order_value = (total_revenue / total_orders) if total_orders else 0
-
-    connection.close()
-
-    return {
-        "total_orders": total_orders,
-        "total_revenue": round(total_revenue, 2),
-        "total_discount_given": round(total_discount, 2),
-        "average_order_value": round(avg_order_value, 2),
-    }
-
-
 def get_top_selling_products(limit=5):
     """Return the best-selling products by total quantity sold.
 
@@ -795,46 +597,6 @@ def actual_revenue(quantity, price, order_subtotal, order_discount):
     return line_total - (share_of_cart * order_discount)
 
 
-def get_platform_revenue():
-    """CampusCart's own commission earnings across the whole
-    marketplace -- the platform's data, not any one seller's.
-
-    Based on what buyers actually paid, with each order's discount
-    shared out across its lines, not the sticker price -- otherwise
-    the commission would be charged on money a discount meant nobody
-    ever collected. Cancelled lines are excluded, since nothing was
-    actually sold."""
-
-    connection = get_connection()
-    cursor = connection.cursor()
-
-    cursor.execute(f"""
-        SELECT
-            order_items.quantity,
-            order_items.price,
-            orders.subtotal AS order_subtotal,
-            orders.discount AS order_discount
-        FROM order_items
-        JOIN orders ON orders.id = order_items.order_id
-        WHERE {SOLD_LINE} AND {REAL_ORDER}
-    """)
-    rows = cursor.fetchall()
-
-    connection.close()
-
-    gross = sum(
-        actual_revenue(row["quantity"], row["price"], row["order_subtotal"], row["order_discount"])
-        for row in rows
-    )
-    commission = round(gross * PLATFORM_COMMISSION_PERCENT / 100, 2)
-
-    return {
-        "gross_sales": round(gross, 2),
-        "commission_percent": PLATFORM_COMMISSION_PERCENT,
-        "commission_earned": commission,
-    }
-
-
 def get_seller_activity():
     """Account-scoped activity; unlinked legacy names are explicitly separate."""
     connection = get_connection()
@@ -860,44 +622,49 @@ def get_seller_activity():
     return sorted(sellers.values(), key=lambda seller: (-seller['reported'], seller['seller'].lower()))
 
 
+def get_sales_summary(days=None):
+    """The money cards on Reports (and "this week" on the Dashboard).
+
+    Worked out item by item, from what buyers actually paid for things that
+    were really sold: a cancelled item or an unpaid checkout never counts,
+    even when the rest of its order does, and each order's discount is shared
+    out across its items. CampusCart's 5% is taken from the same total, so
+    the cards always agree. days=7 limits it to the last week."""
+    since = "AND orders.order_date >= datetime('now', ?)" if days else ""
+    args = (f"-{days} days",) if days else ()
+
+    lines = rows(f"""SELECT order_items.order_id, order_items.quantity, order_items.price,
+            orders.subtotal AS order_subtotal, orders.discount AS order_discount
+        FROM order_items JOIN orders ON orders.id = order_items.order_id
+        WHERE {SOLD_LINE} AND {REAL_ORDER} {since}""", args)
+
+    revenue = sum(actual_revenue(l["quantity"], l["price"], l["order_subtotal"], l["order_discount"]) for l in lines)
+    before_discount = sum(l["quantity"] * l["price"] for l in lines)
+    orders_with_sales = len({l["order_id"] for l in lines})
+    total_orders = rows(f"SELECT COUNT(*) AS n FROM orders WHERE {REAL_ORDER} {since}", args)[0]["n"]
+
+    return {
+        "total_orders": total_orders,
+        "total_revenue": round(revenue, 2),
+        "total_discount_given": round(before_discount - revenue, 2),
+        "average_order_value": round(revenue / orders_with_sales, 2) if orders_with_sales else 0,
+    }
+
+
+def get_platform_revenue(gross_sales):
+    """CampusCart's own earnings on the Reports page: its 5% of all sales
+    (gross_sales is the Sales card's total, from get_sales_summary)."""
+    return {
+        "gross_sales": gross_sales,
+        "commission_percent": PLATFORM_COMMISSION_PERCENT,
+        "commission_earned": round(gross_sales * PLATFORM_COMMISSION_PERCENT / 100, 2),
+    }
+
+
 # ====================================================================
 # 4. DASHBOARD
 # Admin > Dashboard: the headline cards and the listings chart.
 # ====================================================================
-
-
-def get_dashboard_stats():
-    """Return the summary counts shown as cards on the admin dashboard."""
-
-    connection = get_connection()
-    cursor = connection.cursor()
-
-    cursor.execute("SELECT COUNT(*) AS total FROM products")
-    total_products = cursor.fetchone()["total"]
-
-    cursor.execute(
-        "SELECT COUNT(*) AS total FROM products WHERE LOWER(status) = 'pending'"
-    )
-    pending_products = cursor.fetchone()["total"]
-
-    cursor.execute(
-        "SELECT COUNT(*) AS total FROM products WHERE LOWER(status) = 'reported'"
-    )
-    reported_products = cursor.fetchone()["total"]
-
-    cursor.execute(
-        "SELECT COUNT(*) AS total FROM products WHERE LOWER(status) = 'approved'"
-    )
-    approved_products = cursor.fetchone()["total"]
-
-    connection.close()
-
-    return {
-        "total_products": total_products,
-        "pending_products": pending_products,
-        "reported_products": reported_products,
-        "approved_products": approved_products,
-    }
 
 
 def get_listings_per_day(days=7):
@@ -964,7 +731,7 @@ def build_chart_days(rows, days=7, baseline=5):
 
 # ====================================================================
 # 5. MODERATION
-# Admin > Moderation page: students report a listing, an admin
+# Admin > Moderation page: reviews buyers left, and reports. Students report a listing, an admin
 # removes it or dismisses the report. Also decides whether a listing
 # may be shown at all (approved, and its seller is not suspended).
 # ====================================================================
@@ -1026,6 +793,48 @@ def get_listing_reports(status="All", product_id=None):
     return rows(query + " ORDER BY id DESC", args)
 
 
+def report_counts():
+    """{"Open": 2, "Dismissed": 5, "Removed": 1, "All": 8} for the Moderation tabs."""
+    counts = {"Open": 0, "Dismissed": 0, "Removed": 0}
+    for row in rows("SELECT status, COUNT(*) AS n FROM listing_reports GROUP BY status"):
+        counts[row["status"]] = row["n"]
+    counts["All"] = sum(counts.values())
+    return counts
+
+
+def get_all_reviews():
+    """Return every review, joined with the product name it belongs to."""
+
+    connection = get_connection()
+    cursor = connection.cursor()
+
+    cursor.execute("""
+        SELECT reviews.*, COALESCE(products.name, reviews.product_name) AS product_name
+        FROM reviews
+        LEFT JOIN products ON products.id = reviews.product_id
+        ORDER BY reviews.id DESC
+    """)
+    reviews = [dict(row) for row in cursor.fetchall()]
+
+    connection.close()
+    return reviews
+
+
+def delete_review(review_id):
+    connection = get_connection()
+    cursor = connection.cursor()
+
+    cursor.execute("DELETE FROM reviews WHERE id = ?", (review_id,))
+
+    connection.commit()
+    connection.close()
+
+
+def count_reviews():
+    """How many reviews there are, for the Reviews tab on the Moderation page."""
+    return rows("SELECT COUNT(*) AS n FROM reviews")[0]["n"]
+
+
 # ====================================================================
 # 6. SUPPORT
 # Admin > Support: messages students send from Settings > Contact Us, and
@@ -1058,3 +867,83 @@ def mark_support_read_by_admin(user_id):
 def reply_to_student(user_id, admin_email, body):
     database.atomic([("""INSERT INTO support_messages (user_id, from_admin, admin_email, body)
         SELECT id, 1, ?, ? FROM users WHERE id = ?""", [admin_email, body, user_id])])
+
+
+def support_waiting_count():
+    """Conversations whose last message is from the student (for the Dashboard)."""
+    return len([thread for thread in support_inbox() if not thread["last_from_admin"]])
+
+
+# ====================================================================
+# 7. SETTINGS
+# Admin > Settings: how many listings each category has, and the
+# spend-more-save-more discount tiers.
+# ====================================================================
+
+
+def get_all_discount_tiers():
+    """Spend thresholds and what each one earns, biggest threshold
+    first so the first tier a subtotal clears is the one that applies."""
+
+    connection = get_connection()
+    cursor = connection.cursor()
+
+    cursor.execute("SELECT * FROM discount_tiers ORDER BY min_subtotal DESC")
+    tiers = [dict(row) for row in cursor.fetchall()]
+
+    connection.close()
+    return tiers
+
+
+def add_discount_tier(min_subtotal, discount_percent):
+    """Create a spend tier. Returns its new id, or None if a tier
+    already exists at that threshold."""
+
+    connection = get_connection()
+    cursor = connection.cursor()
+
+    try:
+        cursor.execute("""
+            INSERT INTO discount_tiers (min_subtotal, discount_percent)
+            VALUES (?, ?)
+        """, (min_subtotal, discount_percent))
+
+        connection.commit()
+        new_id = cursor.lastrowid
+
+    except Exception:
+        new_id = None
+
+    connection.close()
+    return new_id
+
+
+def delete_discount_tier(tier_id):
+    connection = get_connection()
+    cursor = connection.cursor()
+
+    cursor.execute("DELETE FROM discount_tiers WHERE id = ?", (tier_id,))
+
+    connection.commit()
+    connection.close()
+
+
+def read_discount_tier(form):
+    """The minimum spend and percentage from the Add tier form.
+    Raises ValueError with a message to show if either is wrong."""
+    try:
+        min_subtotal = float(form.get("min_subtotal", ""))
+        percent = float(form.get("discount_percent", ""))
+    except ValueError:
+        min_subtotal = percent = -1
+    if not (0 <= min_subtotal <= 100000 and 1 <= percent <= 100):
+        raise ValueError("A discount needs a minimum spend of RM 0 or more and a percentage from 1 to 100.")
+    return min_subtotal, percent
+
+
+def get_category_counts():
+    """{"books": {"listings": 10, "live": 9}, ...}: every category in use, with
+    how many listings it has and how many of those are on sale."""
+    return {row["category"]: row for row in rows("""SELECT category, COUNT(*) AS listings,
+            SUM(CASE WHEN status = 'Approved' THEN 1 ELSE 0 END) AS live
+        FROM products GROUP BY category""")}

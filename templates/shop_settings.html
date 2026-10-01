@@ -1,0 +1,124 @@
+{% extends "_admin_base.html" %}
+{% import "_forms.html" as forms with context %}
+
+{% block title %}Settings{% endblock %}
+{% block heading %}Settings{% endblock %}
+{% block subtitle %}The categories items are listed in, the discounts buyers get, and the rules every order follows.{% endblock %}
+
+{% block content %}
+<div class="settings-layout">
+
+    {# ---------- Discounts (the only thing here an admin changes) ---------- #}
+    <section class="panel" id="discounts">
+        <div class="panel-title">
+            <div>
+                <h3>Discounts</h3>
+                <p>Spend more, save more: when a cart reaches an amount, that percentage comes off the whole order. Only the biggest discount a cart reaches is used.</p>
+            </div>
+        </div>
+
+        <form method="post" action="{{ url_for('add_tier') }}" class="edit-form tier-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <label>Cart total of at least (RM)
+                <input type="number" name="min_subtotal" step="0.01" min="0" max="100000" required placeholder="e.g. 150">
+            </label>
+            <label>Discount (%)
+                <input type="number" name="discount_percent" step="any" min="1" max="100" required placeholder="e.g. 12">
+            </label>
+            <div class="form-actions">
+                <button type="submit" class="filters-button">Add discount</button>
+            </div>
+        </form>
+
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr><th>Cart total of at least</th><th>Discount</th><th><span class="sr-only">Action</span></th></tr>
+                </thead>
+                <tbody>
+                    {% for tier in discount_tiers %}
+                    <tr>
+                        <td><strong>RM {{ "%.2f"|format(tier.min_subtotal) }}</strong></td>
+                        <td>{{ "%g"|format(tier.discount_percent) }}% off</td>
+                        <td class="action-cell">
+                            {{ forms.post_button(url_for('delete_tier', tier_id=tier.id), 'Delete', 'reject-btn',
+                               confirm='Delete this discount? Carts will stop getting it straight away.') }}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="3">No discounts. Buyers pay full price.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <div class="settings-side">
+
+        {# ---------- Categories ---------- #}
+        <section class="panel">
+            <div class="panel-title">
+                <div>
+                    <h3>Categories</h3>
+                    <p>Sellers pick one of these when they list an item, and the shop's filter uses the same list.</p>
+                </div>
+            </div>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr><th>Category</th><th>Listings</th><th>On sale</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for category in categories %}
+                        {% set count = category_counts.get(category, {}) %}
+                        <tr>
+                            <td><a href="{{ url_for('listings', category=category, _anchor='all-listings') }}"><strong>{{ category|capitalize }}</strong></a></td>
+                            <td>{{ count.listings or 0 }}</td>
+                            <td>{{ count.live or 0 }}</td>
+                        </tr>
+                        {% endfor %}
+                        {# Any older listing filed under something else #}
+                        {% for category, count in category_counts|dictsort if category not in categories %}
+                        <tr>
+                            <td><a href="{{ url_for('listings', category=category, _anchor='all-listings') }}">{{ category }}</a> <small class="pay-channel">Not a current category</small></td>
+                            <td>{{ count.listings }}</td>
+                            <td>{{ count.live }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        {# ---------- Fixed rules, for reference ---------- #}
+        <section class="panel">
+            <div class="panel-title">
+                <div>
+                    <h3>How orders work</h3>
+                    <p>These are the same for every order.</p>
+                </div>
+            </div>
+            <dl class="rules">
+                <div>
+                    <dt>CampusCart fee</dt>
+                    <dd>{{ commission_percent }}% of every sale. The seller keeps the rest.</dd>
+                </div>
+                <div>
+                    <dt>Time to pay</dt>
+                    <dd>{{ payment_minutes }} minutes. Items are held for the buyer, then go back on sale if it isn't paid.</dd>
+                </div>
+                <div>
+                    <dt>Ways to pay</dt>
+                    <dd>Scan a QR code with {{ wallets|join(', ') }}.</dd>
+                </div>
+                <div>
+                    <dt>Refunds</dt>
+                    <dd>If a paid item is cancelled, it appears under Reports &rsaquo; Refunds to send.</dd>
+                </div>
+            </dl>
+        </section>
+
+    </div>
+
+</div>
+{% endblock %}

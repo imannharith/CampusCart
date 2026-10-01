@@ -1,10 +1,21 @@
-{# The admin panel's menu, shared by every admin page so a link is only added once.
-   request.endpoint is the page being shown, used to highlight it. #}
-<nav>
-    <a href="{{ url_for('dashboard') }}"{% if request.endpoint == 'dashboard' %} class="active"{% endif %}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7.5" height="7.5" rx="1.5"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="1.5"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="1.5"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1.5"/></svg>Dashboard</a>
-    <a href="{{ url_for('listings') }}"{% if request.endpoint == 'listings' %} class="active"{% endif %}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 8.2 12 4l8.5 4.2v7.6L12 20l-8.5-4.2z"/><path d="m3.5 8.2 8.5 4.3 8.5-4.3M12 12.5V20"/></svg>Listings</a>
-    <a href="{{ url_for('users') }}"{% if request.endpoint in ('users', 'user_detail') %} class="active"{% endif %}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9.5" cy="8" r="3.3"/><path d="M3.8 19.6a5.7 5.7 0 0 1 11.4 0"/><path d="M16.4 5.4a3.3 3.3 0 0 1 0 5.2M17.6 14.6a5.7 5.7 0 0 1 2.6 5"/></svg>Users</a>
-    <a href="{{ url_for('reports') }}"{% if request.endpoint == 'reports' %} class="active"{% endif %}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4v16h16"/><path d="M8.4 20v-5.5M12.8 20v-9.5M17.2 20v-3.5"/></svg>Reports</a>
-    <a href="{{ url_for('moderation_queue') }}"{% if request.endpoint == 'moderation_queue' %} class="active"{% endif %}><span class="moderation-nav-icon" aria-hidden="true">!</span>Moderation</a>
-    <a href="{{ url_for('support_inbox') }}"{% if request.endpoint in ('support_inbox', 'support_thread') %} class="active"{% endif %}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 15a2 2 0 0 1-2 2H8l-4 4V5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2z"/></svg>Support{% if support_unread %} <span class="nav-count" title="Unanswered messages">{{ support_unread }}</span>{% endif %}</a>
+{# The admin menu, shown on every admin page by _admin_base.html.
+   Each entry: (page, label, icon, the pages that highlight it).
+   request.endpoint is the page being shown. #}
+{% import "_admin_icons.html" as icons %}
+{% set menu = [
+    ('dashboard', 'Dashboard', 'dashboard', ['dashboard']),
+    ('listings', 'Listings', 'box', ['listings']),
+    ('users', 'Users', 'users', ['users', 'user_detail']),
+    ('reports', 'Reports', 'chart', ['reports']),
+    ('moderation_queue', 'Moderation', 'shield', ['moderation_queue', 'moderation_reviews']),
+    ('support_inbox', 'Support', 'chat', ['support_inbox', 'support_thread']),
+    ('shop_settings', 'Settings', 'sliders', ['shop_settings']),
+] %}
+<nav aria-label="Admin menu">
+    {% for endpoint, label, icon, highlight_on in menu %}
+    <a href="{{ url_for(endpoint) }}"{% if request.endpoint in highlight_on %} class="active" aria-current="page"{% endif %}>
+        {{- icons.icon(icon) }}{{ label -}}
+        {% if endpoint == 'support_inbox' and support_unread %} <span class="nav-count" title="Unanswered messages">{{ support_unread }}</span>{% endif -%}
+    </a>
+    {% endfor %}
 </nav>

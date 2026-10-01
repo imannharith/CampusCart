@@ -1,351 +1,283 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CampusCart | Orders &amp; Reports</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='admin.css') }}">
-    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='logo.svg') }}">
-</head>
-
-<body>
+{% extends "_admin_base.html" %}
 {% import "_forms.html" as forms with context %}
+{% import "_admin_icons.html" as icons %}
 
+{% block title %}Reports{% endblock %}
+{% block heading %}Orders &amp; Sales Reports{% endblock %}
+{% block subtitle %}Every order, the money coming in, and how each seller is doing.{% endblock %}
 
-<aside class="sidebar">
+{% block content %}
 
-    <h2>Campus<span>Cart</span></h2>
-    <p class="admin-label">ADMIN PANEL</p>
+{# ---------- The money (all time) ---------- #}
+<section class="stats">
+    <div class="card">
+        <span class="icon blue">{{ icons.icon('receipt') }}</span>
+        <p>Orders</p>
+        <h2>{{ sales.total_orders }}</h2>
+        <small>Paid orders, all time</small>
+    </div>
+    <div class="card">
+        <span class="icon green">{{ icons.icon('money') }}</span>
+        <p>Sales</p>
+        <h2>RM {{ "%.2f"|format(sales.total_revenue) }}</h2>
+        <small>What buyers paid, not counting cancelled items</small>
+    </div>
+    <div class="card">
+        <span class="icon orange">{{ icons.icon('tag') }}</span>
+        <p>Discounts given</p>
+        <h2>RM {{ "%.2f"|format(sales.total_discount_given) }}</h2>
+        <small>Saved by buyers who spent more</small>
+    </div>
+    <div class="card">
+        <span class="icon blue">{{ icons.icon('calculator') }}</span>
+        <p>Average order</p>
+        <h2>RM {{ "%.2f"|format(sales.average_order_value) }}</h2>
+        <small>Sales divided by orders</small>
+    </div>
+    <div class="card">
+        <span class="icon purple">{{ icons.icon('percent') }}</span>
+        <p>CampusCart revenue</p>
+        <h2>RM {{ "%.2f"|format(platform.commission_earned) }}</h2>
+        <small>{{ platform.commission_percent }}% of every sale</small>
+    </div>
+</section>
 
-    {% include "_admin_nav.html" %}
-
-    <div class="sidebar-bottom">
-
-        <div class="admin-user">
-            <div class="avatar" title="{{ session.get('user', '') }}">{{ (session.get('user') or 'A')[0]|upper }}</div>
-            <div class="admin-who">
-                <strong title="{{ session.get('user', '') }}">{{ session.get('user', 'Administrator') }}</strong>
-                <small>Signed in as admin</small>
-            </div>
+{# ---------- Money to send back ---------- #}
+<section class="panel{% if refunds %} panel-attention{% endif %}" id="refunds">
+    <div class="panel-title">
+        <div>
+            <h3>Refunds to send</h3>
+            <p>Items that were paid for and then cancelled. Send the buyer their money, then mark it here so they're told.</p>
         </div>
-        <a href="{{ url_for('logout') }}">Logout</a>
+    </div>
+    {% if refunds %}
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr><th>Order</th><th>Buyer</th><th>Item</th><th>Refund</th><th>Paid with</th><th>Cancelled</th><th><span class="sr-only">Action</span></th></tr>
+            </thead>
+            <tbody>
+                {% for line in refunds %}
+                <tr>
+                    <td><strong>#{{ line.order_id }}</strong></td>
+                    <td>{{ line.buyer_name or 'Unknown' }}</td>
+                    <td>{{ line.product_name }} &times;{{ line.quantity }}</td>
+                    <td class="nowrap"><strong>RM {{ "%.2f"|format(line.refund_amount) }}</strong></td>
+                    <td>{{ line.payment_channel or 'CampusPay' }}{% if line.payment_ref %}<small class="pay-channel">Ref {{ line.payment_ref }}</small>{% endif %}</td>
+                    <td class="nowrap">{{ line.cancelled_at|when }}</td>
+                    <td class="action-cell">
+                        {{ forms.post_button(url_for('mark_refunded', item_id=line.id), 'Mark refunded', 'approve-btn',
+                           confirm='Have you sent this money back to the buyer?') }}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p class="side-note">No refunds to send. When a paid item is cancelled, it shows up here.</p>
+    {% endif %}
+</section>
+
+{# ---------- Every order ---------- #}
+<section class="panel" id="orders">
+
+    <div class="panel-title">
+        <div>
+            <h3>Orders</h3>
+            <p>Sellers send their own items. Only cancel an order here if something is wrong, like a report.</p>
+        </div>
     </div>
 
-</aside>
+    <div class="tabs tabs-small" aria-label="Show orders">
+        {% for state in ['all'] + order_filters %}
+        <a href="{{ url_for('reports', status=state, _anchor='orders') }}"{% if selected_status == state %} class="active" aria-current="page"{% endif %}>{{ 'All' if state == 'all' else state }}</a>
+        {% endfor %}
+    </div>
 
-<main class="main">
-
-    <header>
-
-        <div>
-            <h1>Orders &amp; Sales Reports</h1>
-            <p class="subtitle">
-                Track orders and monitor overall sales performance.
-            </p>
-        </div>
-
-</header>
-
-    <section class="stats">
-
-        <div class="card">
-            <span class="icon blue">O</span>
-            <div>
-                <p>Total Orders</p>
-                <h2>{{ sales.total_orders }}</h2>
-                <small>All time</small>
-            </div>
-        </div>
-
-        <div class="card">
-            <span class="icon purple">$</span>
-            <div>
-                <p>Total Revenue</p>
-                <h2>RM {{ "%.2f"|format(sales.total_revenue) }}</h2>
-                <small>Excludes cancelled orders</small>
-            </div>
-        </div>
-
-        <div class="card">
-            <span class="icon orange">%</span>
-            <div>
-                <p>Discounts Given</p>
-                <h2>RM {{ "%.2f"|format(sales.total_discount_given) }}</h2>
-                <small>Total across all orders</small>
-            </div>
-        </div>
-
-        <div class="card">
-            <span class="icon red">A</span>
-            <div>
-                <p>Avg. Order Value</p>
-                <h2>RM {{ "%.2f"|format(sales.average_order_value) }}</h2>
-                <small>Per order</small>
-            </div>
-        </div>
-
-        <div class="card">
-            <span class="icon purple">%</span>
-            <div>
-                <p>CampusCart Revenue</p>
-                <h2>RM {{ "%.2f"|format(platform.commission_earned) }}</h2>
-                <small>{{ platform.commission_percent }}% of every sale</small>
-            </div>
-        </div>
-
-    </section>
-
-    <section class="board">
-
-        <div class="panel panel-highlight">
-
-            <div class="panel-title">
-                <div>
-                    <h3>Top Selling Products</h3>
-                    <p>Ranked by units sold.</p>
-                </div>
-            </div>
-
-            <div class="table-container">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Product</th>
-                            <th>Units Sold</th>
-                            <th>Revenue</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for p in top_products %}
-                        <tr>
-                            <td><strong>{{ p.name }}</strong></td>
-                            <td>{{ p.units_sold }}</td>
-                            <td>RM {{ "%.2f"|format(p.revenue) }}</td>
-                        </tr>
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Order</th>
+                    <th>Buyer</th>
+                    <th>Items</th>
+                    <th>Subtotal</th>
+                    <th>Discount</th>
+                    <th>Total</th>
+                    <th>Payment</th>
+                    <th>Date</th>
+                    <th><span class="sr-only">Action</span></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for order in orders %}
+                {% set states = order.line_items|map(attribute='status')|list %}
+                {# Cancelled items can come back if the order was really paid, unless the money was already returned #}
+                {% set can_reinstate = order.payment_status in [None, 'Paid'] and
+                       order.line_items|selectattr('status', 'equalto', 'Cancelled')|rejectattr('refund_status', 'equalto', 'Refunded')|list %}
+                <tr>
+                    <td><strong>#{{ order.id }}</strong></td>
+                    <td>{{ order.buyer_name or 'Unknown' }}</td>
+                    <td>
+                        {% for item in order.line_items %}
+                        <div class="order-line">
+                            {{ item.product_name or 'Item removed' }} &times;{{ item.quantity }}
+                            <span class="status {{ item.status|lower }}">{{ item.status }}</span>
+                            {% if item.refund_status %}<small class="pay-channel">Refund {{ 'sent' if item.refund_status == 'Refunded' else 'to send' }}</small>{% endif %}
+                        </div>
                         {% else %}
-                        <tr><td colspan="3">No sales yet.</td></tr>
+                        No items
                         {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-
-        </div>
-
-        <aside class="panel">
-
-            <div class="panel-title">
-                <div>
-                    <h3>Sold out</h3>
-                    <p>Approved, but nothing left in stock</p>
-                </div>
-            </div>
-
-            {% for product in dead_listings %}
-            <a class="action" href="{{ url_for('listings', edit=product.id) }}">
-                <div>
-                    <strong>{{ product.name }}</strong>
-                    <small>{{ product.seller }} &middot; {{ product.category }}</small>
-                </div>
-                <span>&rarr;</span>
-            </a>
-            {% else %}
-            <div class="empty-state">
-                <strong>Nothing sold out</strong>
-                <span>Every approved listing still has stock.</span>
-            </div>
-            {% endfor %}
-
-        </aside>
-
-    </section>
-
-
-
-    <section class="panel">
-
-        <div class="panel-title">
-            <div>
-                <h3>Seller Activity</h3>
-                <p>What each seller has listed, and where their sold items are.</p>
-            </div>
-        </div>
-
-        <div class="table-container">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Seller</th>
-                        <th>Listings</th>
-                        <th>Pending</th>
-                        <th>Approved</th>
-                        <th>Awaiting</th>
-                        <th>Shipped</th>
-                        <th>Delivered</th>
-                        <th>Reported</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for s in sellers %}
-                    <tr>
-                        <td><strong>{{ s.seller }}</strong><small>{{ 'Account #' ~ s.seller_id if s.seller_id else 'Unlinked legacy seller' }}</small></td>
-                        <td>{{ s.listings }}</td>
-                        <td>{{ s.pending }}</td>
-                        <td>{{ s.approved }}</td>
-                        <td>{{ s.awaiting }}</td>
-                        <td>{{ s.shipped }}</td>
-                        <td>{{ s.delivered }}</td>
-                        <td>
-                            {% if s.reported %}
-                                <span class="reported-count">{{ s.reported }}</span>
-                                {% if s.last_reported %}
-                                <small class="reported-when">{{ s.last_reported }}</small>
-                                {% endif %}
-                            {% else %}
-                                0
-                            {% endif %}
-                        </td>
-                    </tr>
-                    {% else %}
-                    <tr><td colspan="8">No sellers yet.</td></tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-
-    </section>
-
-    <section class="panel" id="refunds">
-        <div class="panel-title">
-            <div>
-                <h3>Refunds to make</h3>
-                <p>Paid items that were cancelled. Send the buyer their money back, then mark it done here so they're told.</p>
-            </div>
-        </div>
-        <div class="table-container">
-            <table>
-                <thead>
-                    <tr><th>Order #</th><th>Buyer</th><th>Item</th><th>Refund</th><th>Paid with</th><th>Cancelled</th><th>Action</th></tr>
-                </thead>
-                <tbody>
-                    {% for line in refunds %}
-                    <tr>
-                        <td><strong>#{{ line.order_id }}</strong></td>
-                        <td>{{ line.buyer_name or 'Unknown' }}</td>
-                        <td>{{ line.product_name }} &times;{{ line.quantity }}</td>
-                        <td><strong>RM {{ "%.2f"|format(line.refund_amount) }}</strong></td>
-                        <td>{{ line.payment_channel or 'CampusPay' }}{% if line.payment_ref %}<small class="pay-channel">Ref {{ line.payment_ref }}</small>{% endif %}</td>
-                        <td>{{ line.cancelled_at|when }}</td>
-                        <td class="action-cell">
-                            {{ forms.post_button(url_for('mark_refunded', item_id=line.id), 'Mark refunded', 'view-btn',
-                               confirm='Have you sent this money back to the buyer?') }}
-                        </td>
-                    </tr>
-                    {% else %}
-                    <tr><td colspan="7">No refunds owed. When a paid item is cancelled, it shows up here.</td></tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </section>
-
-    <section class="panel">
-
-        <div class="panel-title">
-            <div>
-                <h3>Filter Orders</h3>
-                <p>Filter by fulfillment status.</p>
-            </div>
-        </div>
-
-        <form method="GET" action="{{ url_for('reports') }}" class="filters" style="grid-template-columns: 1fr auto;">
-            <select name="status">
-                <option value="all" {% if selected_status == 'all' %}selected{% endif %}>All Orders</option>
-                {% for state in ['Awaiting payment', 'Pending', 'Shipped', 'Delivered', 'Cancelled'] %}
-                <option value="{{ state }}" {% if selected_status == state %}selected{% endif %}>{{ state }}</option>
+                    </td>
+                    <td class="nowrap">RM {{ "%.2f"|format(order.subtotal) }}</td>
+                    <td class="nowrap">RM {{ "%.2f"|format(order.discount) }}</td>
+                    <td class="nowrap"><strong>RM {{ "%.2f"|format(order.total) }}</strong></td>
+                    <td>
+                        {% if order.payment_status == 'Paid' %}
+                        <span class="status approved">Paid</span>{% if order.payment_channel %}<small class="pay-channel">{{ order.payment_channel }}</small>{% endif %}
+                        {% elif order.payment_status == 'Unpaid' %}
+                        <span class="status pending">Unpaid</span>
+                        {% elif order.payment_status %}
+                        <span class="status rejected">{{ order.payment_status }}</span>
+                        {% else %}
+                        &mdash;
+                        {% endif %}
+                    </td>
+                    <td class="nowrap">{{ order.order_date|when }}</td>
+                    <td class="action-cell">
+                        {% if 'Pending' in states or 'Shipped' in states %}
+                        {{ forms.post_button(url_for('admin_cancel_order', order_id=order.id), 'Cancel', 'reject-btn',
+                           confirm="Cancel this order? Only do this if something is wrong, like a report. If it was paid, it will appear under Refunds to send.") }}
+                        {% endif %}
+                        {% if can_reinstate %}
+                        {{ forms.post_button(url_for('admin_reinstate_order', order_id=order.id), 'Reinstate', 'view-btn',
+                           confirm='Bring the cancelled items in this order back? Their sellers will be asked to send them.') }}
+                        {% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="9">No orders here.</td></tr>
                 {% endfor %}
-            </select>
-            <button type="submit">Filter</button>
-        </form>
+            </tbody>
+        </table>
+    </div>
 
-    </section>
+</section>
 
-    <section class="panel">
+{# ---------- What sells, and what has run out ---------- #}
+<section class="board">
 
+    <div class="panel panel-highlight">
         <div class="panel-title">
             <div>
-                <h3>Orders</h3>
-                <p>Sellers ship and deliver their own items. Use Cancel here only if there's a problem with an order, like a report from a student.</p>
+                <h3>Top selling products</h3>
+                <p>Ranked by how many have sold.</p>
             </div>
         </div>
-
         <div class="table-container">
             <table>
                 <thead>
-                    <tr>
-                        <th>Order #</th>
-                        <th>Buyer</th>
-                        <th>Items</th>
-                        <th>Subtotal</th>
-                        <th>Discount</th>
-                        <th>Total</th>
-                        <th>Payment</th>
-                        <th>Date</th>
-                        <th>Action</th>
-                    </tr>
+                    <tr><th>Product</th><th>Sold</th><th>Sales</th></tr>
                 </thead>
                 <tbody>
-                    {% for order in orders %}
+                    {% for product in top_products %}
                     <tr>
-                        <td><strong>#{{ order.id }}</strong></td>
-                        <td>{{ order.buyer_name or 'Unknown' }}</td>
-                        <td>
-                            {% for item in order.line_items %}
-                                <div>
-                                    {{ item.product_name or 'Item removed' }} &times;{{ item.quantity }}
-                                    <span class="status {{ item.status|lower }}">{{ item.status }}</span>
-                                </div>
-                            {% else %}
-                                No items
-                            {% endfor %}
-                        </td>
-                        <td>RM {{ "%.2f"|format(order.subtotal) }}</td>
-                        <td>RM {{ "%.2f"|format(order.discount) }}</td>
-                        <td>RM {{ "%.2f"|format(order.total) }}</td>
-                        <td>
-                            {% if order.payment_status == 'Paid' %}
-                            <span class="status approved">Paid</span>{% if order.payment_channel %}<small class="pay-channel">{{ order.payment_channel }}</small>{% endif %}
-                            {% elif order.payment_status == 'Unpaid' %}
-                            <span class="status pending">Unpaid</span>
-                            {% elif order.payment_status %}
-                            <span class="status rejected">{{ order.payment_status }}</span>
-                            {% else %}
-                            <span class="pay-channel">Before online payment</span>
-                            {% endif %}
-                        </td>
-                        <td>{{ order.order_date|when }}</td>
-                        <td class="action-cell">
-                            {# Cancel is offered while anything is still on its way; Reinstate
-                               while anything is cancelled. A part-delivered order can show both. #}
-                            {% set states = order.line_items|map(attribute='status')|list %}
-                            {% if 'Pending' in states or 'Shipped' in states %}
-                                {{ forms.post_button(url_for('admin_cancel_order', order_id=order.id), 'Cancel Order', 'reject-btn',
-                                   confirm="Cancel this order? Only do this if there's a problem, like a report. If it was paid online, it will appear under Refunds to make.") }}
-                            {% endif %}
-                            {% if 'Cancelled' in states and order.payment_status in [None, 'Paid'] %}
-                                {{ forms.post_button(url_for('admin_reinstate_order', order_id=order.id), 'Reinstate', 'view-btn') }}
-                            {% endif %}
-                        </td>
+                        <td><strong>{{ product.name }}</strong></td>
+                        <td>{{ product.units_sold }}</td>
+                        <td class="nowrap">RM {{ "%.2f"|format(product.revenue) }}</td>
                     </tr>
                     {% else %}
-                    <tr><td colspan="9">No orders match this filter.</td></tr>
+                    <tr><td colspan="3">No sales yet.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
+    </div>
 
-    </section>
+    <aside class="panel">
+        <div class="panel-title">
+            <div>
+                <h3>Sold out</h3>
+                <p>Approved, but none left in stock</p>
+            </div>
+        </div>
+        {% for product in dead_listings %}
+        <a class="action" href="{{ url_for('listings', view=product.id) }}">
+            <div>
+                <strong>{{ product.name }}</strong>
+                <small>{{ product.seller }} &middot; {{ product.category|capitalize }}</small>
+            </div>
+            <span aria-hidden="true">&rarr;</span>
+        </a>
+        {% else %}
+        <div class="empty-state">
+            <strong>Nothing sold out</strong>
+            <span>Every approved listing still has stock.</span>
+        </div>
+        {% endfor %}
+    </aside>
 
-</main>
+</section>
 
-</body>
-</html>
+{# ---------- Each seller ---------- #}
+<section class="panel">
+
+    <div class="panel-title">
+        <div>
+            <h3>Seller activity</h3>
+            <p>What each seller has listed, and where the items they've sold are now.</p>
+        </div>
+    </div>
+
+    <div class="table-container">
+        <table class="grouped-table">
+            <thead>
+                <tr class="th-group">
+                    <th rowspan="2">Seller</th>
+                    <th colspan="4">Listings</th>
+                    <th colspan="3">Sold items</th>
+                </tr>
+                <tr>
+                    <th>Total</th>
+                    <th>In review</th>
+                    <th>Approved</th>
+                    <th>Reported</th>
+                    <th class="group-start">Not shipped yet</th>
+                    <th>Shipped</th>
+                    <th>Delivered</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for seller in sellers %}
+                <tr>
+                    <td>
+                        {% if seller.seller_id %}
+                        <a href="{{ url_for('user_detail', user_id=seller.seller_id) }}"><strong>{{ seller.seller }}</strong></a>
+                        {% else %}
+                        <strong>{{ seller.seller }}</strong><small class="pay-channel">No account linked</small>
+                        {% endif %}
+                    </td>
+                    <td>{{ seller.listings }}</td>
+                    <td>{{ seller.pending }}</td>
+                    <td>{{ seller.approved }}</td>
+                    <td>
+                        {% if seller.reported %}
+                        <span class="reported-count">{{ seller.reported }}</span>
+                        {% if seller.last_reported %}<small class="reported-when">{{ seller.last_reported|when }}</small>{% endif %}
+                        {% else %}0{% endif %}
+                    </td>
+                    <td class="group-start">{{ seller.awaiting }}</td>
+                    <td>{{ seller.shipped }}</td>
+                    <td>{{ seller.delivered }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="8">No sellers yet.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+</section>
+
+{% endblock %}

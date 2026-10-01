@@ -1583,6 +1583,11 @@ tbody td { padding-block: 17px; }
 :root[data-theme="dark"] .thumb,
 :root[data-theme="dark"] .review-product img { filter: brightness(.88); }
 :root[data-theme="dark"] .star-picker label { color: #3a4150; }
+/* ...but the stars you hover over or pick still light up gold (this rule has to
+   be just as specific as the grey one above, or the grey wins) */
+:root[data-theme="dark"] .star-picker label:hover,
+:root[data-theme="dark"] .star-picker label:hover ~ label,
+:root[data-theme="dark"] .star-picker input:checked ~ label { color: #fbbf24; }
 .page-head-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
 .page-head-actions .btn-message { margin: 0; }
 .danger-zone button { padding: 10px 18px; border-radius: var(--r-control); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }

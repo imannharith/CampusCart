@@ -170,18 +170,17 @@ def product_catalog():
 @app.route("/dashboard")
 @accounts.admin_required
 def dashboard():
-
-    stats = admin.get_dashboard_stats()
-    recent_products = admin.get_all_products()[:5]
+    """The admin's home: this week's numbers, and everything waiting on an admin."""
 
     return render_template(
         "dashboard.html",
-        total_products=stats["total_products"],
-        pending_products=stats["pending_products"],
-        reported_products=stats["reported_products"],
-        approved_products=stats["approved_products"],
+        listing_stats=admin.get_listing_stats(),
+        week=admin.get_sales_summary(days=7),
         total_users=admin.get_user_stats()["total"],
-        recent_products=recent_products,
+        next_review=admin.next_listing_to_review(),
+        refunds_owed=len(admin.get_refunds_owed()),
+        support_waiting=admin.support_waiting_count(),
+        recent_products=admin.get_all_products()[:5],
         chart=admin.build_chart_days(admin.get_listings_per_day()),
         latest_reviews=shop.latest_reviews(),
     )
@@ -192,7 +191,11 @@ def listings():
 
     category = request.args.get("category", "all")
     status = request.args.get("status", "all")
-    search = request.args.get("search", "")
+    search = request.args.get("search", "").strip()
+    # The filters in use, carried on every link so the list stays the same
+    # while a listing is opened, edited or restocked.
+    filters = {name: value for name, value in [("category", category), ("status", status), ("search", search)]
+               if value not in ("", "all")}
     edit_id = request.args.get("edit", type=int)
     review_product = None
     if "view" in request.args:
@@ -212,22 +215,27 @@ def listings():
         "listings.html",
         products=admin.get_all_products(category, status, search),
         categories=admin.get_all_categories(),
-        discount_tiers=admin.get_all_discount_tiers(),
-        reviews=admin.get_all_reviews(),
         selected_category=category,
         selected_status=status,
         search=search,
+        filters=filters,
         edit_product=admin.get_product(edit_id) if edit_id else None,
         listing_stats=admin.get_listing_stats(),
+        next_review=admin.next_listing_to_review(),
         review_product=review_product,
         review_image=review_image,
         review_rating=shop.review_summary(review_product["id"]) if review_product else None,
         seller_accounts=admin.get_all_users() if edit_id else [],
+        sell_categories=sorted(shop.SELL_CATEGORIES),
     )
 
 @app.route("/listings/edit/<int:product_id>", methods=["POST"])
 @accounts.admin_required
 def edit_product(product_id):
+
+    product = admin.get_product(product_id)
+    if product is None:
+        abort(404)
 
     seller_value = request.form.get('seller_id', '').strip()
     try:
@@ -239,6 +247,9 @@ def edit_product(product_id):
 
     try:
         details = shop.read_listing(request.form, "name")
+        # The same categories sellers choose from, so the shop's filter stays tidy.
+        if details["category"] not in shop.SELL_CATEGORIES and details["category"] != product["category"]:
+            raise ValueError("Choose a category from the list.")
     except ValueError as problem:
         flash(str(problem), "error")
         return redirect(url_for("listings", edit=product_id))
@@ -252,31 +263,38 @@ def edit_product(product_id):
         stock=details["stock"],
     )
 
-    return redirect(url_for("listings"))
+    flash(f"Changes to {details['name']} saved.")
+    return redirect(url_for("listings", view=product_id))
 
 @app.route("/listings/status/<int:product_id>/<status>", methods=["POST"])
 @accounts.admin_required
 def change_product_status(product_id, status):
+    """Approve or reject a listing waiting for review, then go straight to
+    the next one, so a queue of new listings can be worked through in order."""
 
-    if status not in admin.PRODUCT_STATUSES:
+    if status not in {"Approved", "Rejected"}:
         abort(400)
 
-    if status == "Reported":
-        return redirect(url_for("report_listing", product_id=product_id))
+    product = admin.get_product(product_id)
+    if product is None:
+        abort(404)
     if admin.has_open_reports(product_id):
         return redirect(url_for("moderation_queue", product=product_id))
+    if product["status"] != "Pending":
+        # e.g. the button was pressed twice: it was already decided
+        flash(f"{product['name']} was already {product['status'].lower()}.", "error")
+        return redirect(url_for("listings", view=product_id))
+
     admin.set_product_status(product_id, status)
     shop.notify_listing_decided(product_id, status)
 
+    next_id = admin.next_listing_to_review()
+    done = f"{product['name']} {status.lower()}."
+    if next_id:
+        flash(f"{done} Here's the next listing waiting for review.")
+        return redirect(url_for("listings", view=next_id))
+    flash(f"{done} That was the last listing waiting for review.")
     return redirect(url_for("listings"))
-
-@app.route("/listings/delete/<int:product_id>")
-@accounts.admin_required
-def delete_product(product_id):
-
-    if admin.has_open_reports(product_id):
-        return redirect(url_for("moderation_queue", product=product_id))
-    return redirect(url_for("listings", view=product_id))
 
 
 @app.route("/listings/remove/<int:product_id>", methods=["POST"])
@@ -301,21 +319,24 @@ def adjust_product_stock(product_id, action):
     amount = 1 if action == "increase" else -1
     admin.adjust_stock(product_id, amount)
 
-    return redirect(url_for("listings"))
+    # Back to the same filtered list, at the same row.
+    filters = {name: request.args[name] for name in ("category", "status", "search") if request.args.get(name)}
+    return redirect(url_for("listings", **filters, _anchor=f"product-{product_id}"))
 
-@app.route("/categories/rename", methods=["POST"])
+@app.route("/shop-settings")
 @accounts.admin_required
-def rename_category():
-
-    try:
-        old_name, new_name = admin.read_category_rename(request.form)
-    except ValueError as problem:
-        flash(str(problem), "error")
-        return redirect(url_for("listings"))
-
-    admin.rename_category(old_name, new_name)
-
-    return redirect(url_for("listings"))
+def shop_settings():
+    """Admin > Settings: the categories, the discount tiers, and the rules
+    every order follows."""
+    return render_template(
+        "shop_settings.html",
+        categories=sorted(shop.SELL_CATEGORIES),
+        category_counts=admin.get_category_counts(),
+        discount_tiers=admin.get_all_discount_tiers(),
+        commission_percent=admin.PLATFORM_COMMISSION_PERCENT,
+        payment_minutes=shop.PAYMENT_MINUTES,
+        wallets=shop.WALLETS.values(),
+    )
 
 @app.route("/tiers/add", methods=["POST"])
 @accounts.admin_required
@@ -325,19 +346,23 @@ def add_tier():
         min_subtotal, percent = admin.read_discount_tier(request.form)
     except ValueError as problem:
         flash(str(problem), "error")
-        return redirect(url_for("listings"))
+        return redirect(url_for("shop_settings", _anchor="discounts"))
 
-    admin.add_discount_tier(min_subtotal=min_subtotal, discount_percent=percent)
+    if admin.add_discount_tier(min_subtotal=min_subtotal, discount_percent=percent) is None:
+        flash(f"There's already a discount for spending RM {min_subtotal:.2f}. Delete it first to change it.", "error")
+    else:
+        flash(f"Discount added: spend RM {min_subtotal:.2f} or more, get {percent:g}% off.")
 
-    return redirect(url_for("listings"))
+    return redirect(url_for("shop_settings", _anchor="discounts"))
 
 @app.route("/tiers/delete/<int:tier_id>", methods=["POST"])
 @accounts.admin_required
 def delete_tier(tier_id):
 
     admin.delete_discount_tier(tier_id)
+    flash("Discount deleted.")
 
-    return redirect(url_for("listings"))
+    return redirect(url_for("shop_settings", _anchor="discounts"))
 
 @app.route("/reviews/delete/<int:review_id>", methods=["POST"])
 @accounts.admin_required
@@ -346,26 +371,33 @@ def delete_review(review_id):
     admin.delete_review(review_id)
     flash("Review deleted.")
 
-    return redirect(url_for("listings", _anchor="product-reviews"))
+    return redirect(url_for("moderation_reviews"))
+
+ORDER_FILTERS = ["Awaiting payment", "Pending", "Shipped", "Delivered", "Cancelled"]
 
 @app.route("/reports")
 @accounts.admin_required
 def reports():
 
     status = request.args.get("status", "all")
+    if status not in ORDER_FILTERS:
+        status = "all"
 
     orders = admin.get_all_orders(status)
+    items = admin.get_order_items()          # every order's items, in one go
     for order in orders:
-        order["line_items"] = admin.get_order_items(order["id"])
+        order["line_items"] = [item for item in items if item["order_id"] == order["id"]]
+    sales = admin.get_sales_summary()
 
     return render_template(
         "reports.html",
         orders=orders,
+        order_filters=ORDER_FILTERS,
         selected_status=status,
-        sales=admin.get_sales_summary(),
+        sales=sales,
         top_products=admin.get_top_selling_products(),
         sellers=admin.get_seller_activity(),
-        platform=admin.get_platform_revenue(),
+        platform=admin.get_platform_revenue(sales["total_revenue"]),
         dead_listings=admin.get_dead_listings(),
         refunds=admin.get_refunds_owed(),
     )
@@ -378,6 +410,7 @@ def mark_refunded(item_id):
     refunded = admin.mark_refunded(item_id)
     if refunded:
         shop.notify(refunded["user_id"], f"Your refund for {refunded['product_name']} has been sent.", "/orders")
+        flash(f"Refund for {refunded['product_name']} marked as sent. The buyer has been told.")
     return redirect(url_for("reports", _anchor="refunds"))
 
 @app.route("/reports/cancel/<int:order_id>", methods=["POST"])
@@ -389,11 +422,13 @@ def admin_cancel_order(order_id):
 
     if admin.admin_cancel_order(order_id):
         shop.notify_order_cancelled(order_id)
+        paid = admin.order_is_paid(order_id)
+        flash(f"Order #{order_id} cancelled." + (" It was paid online, so it's now under Refunds to send." if paid else ""))
 
     # Land back on the Cancelled filter, not the unfiltered list --
     # otherwise the page looks like nothing happened even though it
-    # did, since the dropdown resets to "All Orders" either way.
-    return redirect(url_for("reports", status="Cancelled"))
+    # did, since the filter resets to "All" either way.
+    return redirect(url_for("reports", status="Cancelled", _anchor="orders"))
 
 @app.route("/reports/reinstate/<int:order_id>", methods=["POST"])
 @accounts.admin_required
@@ -401,17 +436,18 @@ def admin_reinstate_order(order_id):
 
     if admin.admin_reinstate_order(order_id):
         shop.notify_order_reinstated(order_id)
+        flash(f"Order #{order_id} reinstated. Its sellers can send it again.")
 
-    return redirect(url_for("reports"))
+    return redirect(url_for("reports", _anchor="orders"))
 
 @app.route("/users")
 @accounts.admin_required
 def users():
 
-    search = request.args.get("search", "")
+    search = request.args.get("search", "").strip()
 
     return render_template(
-        "user.html",
+        "users.html",
         users=admin.get_all_users(search),
         user_stats=admin.get_user_stats(),
         search=search,
@@ -801,7 +837,6 @@ def render_my_shop(user, sell_error=None, sell_form=None):
         listings=admin.get_all_products(seller_id=user["id"]),
         sales=shop.get_seller_orders(user["id"]),
         summary=shop.get_seller_summary(user["id"]),
-        categories=admin.get_all_categories(),
         ratings=shop.product_ratings(),
         seller_rating=shop.seller_rating(user["id"]),
         sell_error=sell_error,
@@ -972,10 +1007,14 @@ def admin_login():
 @app.route('/users/<int:user_id>')
 @accounts.admin_required
 def user_detail(user_id):
+    """One account: what they sell and earn, what they buy, and any reports."""
     details = admin.user_details(user_id)
     if details is None:
         abort(404)
-    return render_template('user.html', detail_view=True, **details, protected=accounts.is_admin_email(details['user']['email']))
+    return render_template('user_detail.html', **details,
+                           sales=shop.get_seller_orders(user_id),
+                           earnings=shop.get_seller_summary(user_id),
+                           protected=accounts.is_admin_email(details['user']['email']))
 
 
 @app.route('/users/<int:user_id>/status', methods=['POST'])
@@ -1000,12 +1039,23 @@ def user_status(user_id):
 @app.route('/moderation')
 @accounts.admin_required
 def moderation_queue():
-    state = request.args.get('status', 'All')
+    """Reports from students, grouped by listing. Opens on the ones still waiting."""
+    state = request.args.get('status', 'Open')
     if state not in {'Open', 'Dismissed', 'Removed', 'All'}:
         abort(400)
     product_id = request.args.get('product', type=int)
     reports = admin.get_listing_reports(state, product_id)
-    return render_template('moderation.html', reports=reports, selected_status=state, product_id=product_id)
+    return render_template('moderation.html', reports=reports, selected_status=state, product_id=product_id,
+                           counts=admin.report_counts(), review_count=admin.count_reviews())
+
+
+@app.route('/moderation/reviews')
+@accounts.admin_required
+def moderation_reviews():
+    """Every review buyers have left, so anything rude or fake can be deleted."""
+    reviews = admin.get_all_reviews()
+    return render_template('moderation.html', reviews=reviews, selected_status='Reviews', product_id=None,
+                           counts=admin.report_counts(), review_count=len(reviews))
 
 
 @app.route('/moderation/<int:product_id>/resolve', methods=['POST'])
@@ -1023,27 +1073,23 @@ def resolve_listing_reports(product_id):
 
 
 @app.route('/products/<int:product_id>/report', methods=['GET', 'POST'])
+@accounts.shopper_required
 def report_listing(product_id):
+    """A student reports a listing. It goes off sale until an admin decides."""
     user = accounts.current_user()
-    is_admin = accounts.is_admin()
-    if user is None and not is_admin:
-        return redirect(url_for('login'))
     product = admin.get_product(product_id)
-    if product is None or product['status'] not in {'Approved', 'Reported', 'Pending'}:
-        abort(404)
-    if product['status'] == 'Pending' and not is_admin:
+    if product is None or product['status'] not in {'Approved', 'Reported'}:
         abort(404)
     if request.method == 'POST':
         reason = validate_moderation_form()
         evidence = request.form.get('evidence', '').strip()
         if len(evidence) > 2000:
             abort(400, 'Evidence must be at most 2,000 characters.')
-        report_id = admin.submit_report(product_id, user['id'] if user else None,
-                                             session['user'], reason, evidence)
+        report_id = admin.submit_report(product_id, user['id'], session['user'], reason, evidence)
         if report_id is None:
             abort(409, 'The listing changed before your report was saved. Reload and try again.')
-        return render_template('report_listing.html', product=product, submitted=True, is_admin=is_admin, report_id=report_id)
-    return render_template('report_listing.html', product=product, submitted=False, is_admin=is_admin)
+        return render_template('report_listing.html', product=product, submitted=True, report_id=report_id)
+    return render_template('report_listing.html', product=product, submitted=False)
 
 
 # ======================================================================

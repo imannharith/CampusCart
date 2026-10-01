@@ -1,238 +1,182 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CampusCart Admin Dashboard</title>
-
-    <link rel="stylesheet" href="{{ url_for('static', filename='admin.css') }}">
-    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='logo.svg') }}">
-</head>
-
-<body>
+{% extends "_admin_base.html" %}
 {% import "_stars.html" as rate %}
 
-    <aside class="sidebar">
+{% block title %}Dashboard{% endblock %}
+{% block heading %}Dashboard{% endblock %}
+{% block subtitle %}How CampusCart is doing this week, and everything waiting for an admin.{% endblock %}
 
-        <h2>Campus<span>Cart</span></h2>
-        <p class="admin-label">ADMIN PANEL</p>
+{# One row of "Needs attention". A zero is shown quietly, so what's left stands out. #}
+{% macro queue(count, title, note, link, urgent=false) %}
+<a class="queue{% if not count %} is-clear{% endif %}" href="{{ link }}">
+    <span class="queue-count{% if urgent and count %} queue-alert{% endif %}">{{ count }}</span>
+    <span class="queue-label">
+        <strong>{{ title }}</strong>
+        <small>{{ note }}</small>
+    </span>
+    <span class="queue-go" aria-hidden="true">&rarr;</span>
+</a>
+{% endmacro %}
 
-        {% include "_admin_nav.html" %}
+{% block content %}
 
-        <div class="sidebar-bottom">
+<section class="board">
 
-        <div class="admin-user">
-            <div class="avatar" title="{{ session.get('user', '') }}">{{ (session.get('user') or 'A')[0]|upper }}</div>
-            <div class="admin-who">
-                <strong title="{{ session.get('user', '') }}">{{ session.get('user', 'Administrator') }}</strong>
-                <small>Signed in as admin</small>
+    {# Left: the week at a glance #}
+    <div class="panel board-main">
+
+        <div class="panel-title">
+            <div>
+                <h3>Marketplace activity</h3>
+                <p>{% if chart.total %}{{ chart.total }} new listing{{ 's' if chart.total != 1 }} &middot; busiest day {{ chart.peak_day }}{% else %}No new listings in the last 7 days{% endif %}</p>
+            </div>
+            <span class="period">Last 7 days</span>
+        </div>
+
+        <div class="metric-strip">
+            <div class="metric">
+                <p>Sales this week</p>
+                <h2>RM {{ "%.2f"|format(week.total_revenue) }}</h2>
+            </div>
+            <div class="metric">
+                <p>Orders this week</p>
+                <h2>{{ week.total_orders }}</h2>
+            </div>
+            <div class="metric">
+                <p>Listings on sale</p>
+                <h2>{{ listing_stats.approved }}</h2>
+            </div>
+            <div class="metric">
+                <p>Registered users</p>
+                <h2>{{ total_users }}</h2>
             </div>
         </div>
-            <a href="{{ url_for('logout') }}">Logout</a>
+
+        <p class="chart-label">New listings per day</p>
+        <div class="chart">
+            <div class="chart-axis">
+                <span>{{ chart.scale }}</span>
+                <span>0</span>
+            </div>
+
+            {% if not chart.total %}
+            <div class="chart-empty">No new listings this week</div>
+            {% endif %}
+
+            {% for day in chart.days %}
+            <div class="bar" style="height:{{ day.height }}%" title="{{ day.count }} listing(s) on {{ day.label }}"><span>{{ day.label }}</span></div>
+            {% endfor %}
         </div>
 
+    </div>
+
+    {# Right: everything waiting on an admin, each linking straight to it #}
+    <aside class="board-side">
+        <div class="panel">
+
+            {% set waiting = listing_stats.pending + listing_stats.reported + refunds_owed + support_waiting %}
+            <div class="panel-title">
+                <div>
+                    <h3>Needs attention</h3>
+                    <p>{% if waiting %}Waiting on an admin{% else %}All caught up. Nothing is waiting.{% endif %}</p>
+                </div>
+            </div>
+
+            {{ queue(listing_stats.pending, 'Listings to review', 'New listings to approve or reject',
+                     url_for('listings', view=next_review) if next_review else url_for('listings', status='Pending')) }}
+            {{ queue(listing_stats.reported, 'Reported listings', 'Students flagged these, so they are off sale',
+                     url_for('moderation_queue'), urgent=true) }}
+            {{ queue(refunds_owed, 'Refunds to send', 'Paid items that were cancelled',
+                     url_for('reports', _anchor='refunds'), urgent=true) }}
+            {{ queue(support_waiting, 'Support messages', 'Students waiting for a reply',
+                     url_for('support_inbox')) }}
+
+        </div>
     </aside>
 
-    <main class="main">
+</section>
 
-        <header>
+<section class="panel">
 
-            <div>
-                <h1>Dashboard</h1>
+    <div class="panel-title">
+        <div>
+            <h3>Recent listings</h3>
+            <p>The newest items students have listed</p>
+        </div>
+        <a href="{{ url_for('listings') }}" class="view-all">All listings &rarr;</a>
+    </div>
 
-                <p class="subtitle">
-                    Monitor and manage the CampusCart marketplace.
-                </p>
-            </div>
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Product</th>
+                    <th>Seller</th>
+                    <th>Category</th>
+                    <th>Price</th>
+                    <th>Status</th>
+                    <th><span class="sr-only">Action</span></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for product in recent_products %}
+                <tr>
+                    <td><strong>{{ product.name }}</strong></td>
+                    <td>{{ product.seller }}</td>
+                    <td>{{ product.category|capitalize }}</td>
+                    <td class="nowrap">RM {{ "%.2f"|format(product.price) }}</td>
+                    <td><span class="status {{ product.status|lower }}">{{ product.status }}</span></td>
+                    <td class="action-cell">
+                        <a href="{{ url_for('listings', view=product.id) }}" class="{{ 'approve-btn' if product.status == 'Pending' else 'view-btn' }}">
+                            {{ 'Review' if product.status == 'Pending' else 'View' }}
+                        </a>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="6">No listings yet.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 
-</header>
+</section>
 
-        <section class="board">
+<section class="panel">
 
-            <div class="panel board-main">
+    <div class="panel-title">
+        <div>
+            <h3>Latest reviews</h3>
+            <p>What buyers said after their item was delivered</p>
+        </div>
+        <a href="{{ url_for('moderation_reviews') }}" class="view-all">All reviews &rarr;</a>
+    </div>
 
-                <div class="panel-title">
-                    <div>
-                        <h3>Marketplace activity</h3>
-                        {% if chart.total %}
-                        <p>{{ chart.total }} listing(s) submitted &middot; busiest day {{ chart.peak_day }}</p>
-                        {% else %}
-                        <p>No listings submitted in the last 7 days</p>
-                        {% endif %}
-                    </div>
-                    <span class="period">7 days</span>
-                </div>
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Product</th>
+                    <th>Reviewer</th>
+                    <th>Rating</th>
+                    <th>Comment</th>
+                    <th>Date</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for review in latest_reviews %}
+                <tr>
+                    <td><strong>{{ review.product_name or 'Deleted product' }}</strong></td>
+                    <td>{{ review.reviewer }}</td>
+                    <td class="nowrap">{{ rate.stars(review.rating) }}</td>
+                    <td>{{ review.comment or '—' }}</td>
+                    <td class="nowrap">{{ review.review_date|day }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="5">No reviews yet.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 
-                <div class="metric-strip">
+</section>
 
-                    <div class="metric">
-                        <p>Registered users</p>
-                        <h2>{{ total_users }}</h2>
-                    </div>
-
-                    <div class="metric">
-                        <p>Total products</p>
-                        <h2>{{ total_products }}</h2>
-                    </div>
-
-                    <div class="metric">
-                        <p>Approved</p>
-                        <h2>{{ approved_products }}</h2>
-                    </div>
-
-                </div>
-
-                <div class="chart">
-
-                    <div class="chart-axis">
-                        <span>{{ chart.scale }}</span>
-                        <span>0</span>
-                    </div>
-
-                    {% if not chart.total %}
-                    <div class="chart-empty">No new listings this week</div>
-                    {% endif %}
-
-                    {% for day in chart.days %}
-                    <div class="bar" style="height:{{ day.height }}%" title="{{ day.count }} listing(s) on {{ day.label }}"><span>{{ day.label }}</span></div>
-                    {% endfor %}
-                </div>
-
-            </div>
-
-            <aside class="board-side">
-
-                <div class="panel">
-
-                    <div class="panel-title">
-                        <div>
-                            <h3>Needs attention</h3>
-                            <p>Waiting on an admin decision</p>
-                        </div>
-                    </div>
-
-                    <a class="queue" href="{{ url_for('listings', status='Pending') }}">
-                        <span class="queue-count">{{ pending_products }}</span>
-                        <span class="queue-label">
-                            <strong>Pending review</strong>
-                            <small>Not yet approved or rejected</small>
-                        </span>
-                        <span class="queue-go">&rarr;</span>
-                    </a>
-
-                    <a class="queue" href="{{ url_for('moderation_queue') }}">
-                        <span class="queue-count queue-alert">{{ reported_products }}</span>
-                        <span class="queue-label">
-                            <strong>Reported listings</strong>
-                            <small>Flagged by students</small>
-                        </span>
-                        <span class="queue-go">&rarr;</span>
-                    </a>
-
-                </div>
-
-            </aside>
-
-        </section>
-
-        <section class="panel">
-
-            <div class="panel-title">
-
-                <div>
-                    <h3>Recent Listings</h3>
-                    <p>Latest marketplace products</p>
-                </div>
-
-                <a href="{{ url_for('listings') }}" class="view-all">
-                    View All →
-                </a>
-
-            </div>
-
-            <table>
-
-                <thead>
-
-                    <tr>
-                        <th>Product</th>
-                        <th>Seller</th>
-                        <th>Category</th>
-                        <th>Price</th>
-                        <th>Status</th>
-                    </tr>
-
-                </thead>
-
-                <tbody>
-
-                    {% for product in recent_products %}
-                    <tr>
-                        <td>
-                            <strong>{{ product.name }}</strong>
-                        </td>
-
-                        <td>{{ product.seller }}</td>
-                        <td>{{ product.category }}</td>
-                        <td>RM {{ "%.2f"|format(product.price) }}</td>
-
-                        <td>
-                            <span class="status {{ product.status|lower }}">
-                                {{ product.status }}
-                            </span>
-                        </td>
-                    </tr>
-                    {% else %}
-                    <tr>
-                        <td colspan="5">No products yet.</td>
-                    </tr>
-                    {% endfor %}
-
-                </tbody>
-
-            </table>
-
-        </section>
-
-        <section class="panel">
-            <div class="panel-title">
-                <div>
-                    <h3>Latest Reviews</h3>
-                    <p>What buyers are saying about delivered items</p>
-                </div>
-                <a href="{{ url_for('listings', _anchor='product-reviews') }}" class="view-all">
-                    Manage reviews →
-                </a>
-            </div>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Product</th>
-                        <th>Reviewer</th>
-                        <th>Rating</th>
-                        <th>Comment</th>
-                        <th>Date</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for review in latest_reviews %}
-                    <tr>
-                        <td><strong>{{ review.product_name or 'Deleted product' }}</strong></td>
-                        <td>{{ review.reviewer }}</td>
-                        <td class="nowrap">{{ rate.stars(review.rating) }}</td>
-                        <td>{{ review.comment or '—' }}</td>
-                        <td class="nowrap">{{ review.review_date|day }}</td>
-                    </tr>
-                    {% else %}
-                    <tr>
-                        <td colspan="5">No reviews yet.</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </section>
-
-    </main>
-
-</body>
-</html>
+{% endblock %}
