@@ -2,7 +2,7 @@
 
 {% block title %}{{ user.fullname }}{% endblock %}
 
-{% set status_class = {'Active': 'approved', 'Deactivated': 'pending'}.get(user.account_status, 'rejected') %}
+{% set status_class = 'approved' if user.account_status == 'Active' else 'rejected' %}
 
 {% block header %}
 <header>

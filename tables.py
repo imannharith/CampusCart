@@ -15,7 +15,7 @@ import admin_functions as admin
 
 EXPECTED_TABLES = {
     "cart", "orders", "order_items",
-    "discount_tiers", "products", "reviews", "users",
+    "discount_tiers", "products", "users",
 }
 
 
@@ -134,17 +134,6 @@ def init_db():
         image_url TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         reported_at TIMESTAMP
-    )
-    """)
-
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS reviews (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        product_id INTEGER NOT NULL,
-        reviewer TEXT NOT NULL,
-        rating INTEGER NOT NULL,
-        comment TEXT,
-        review_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
     """)
 
@@ -279,9 +268,9 @@ def ensure_columns():
     ensure_marketplace_schema()
     ensure_messaging_schema()
     ensure_notifications_schema()
-    ensure_reviews_schema()
     ensure_settings_schema()
     ensure_payment_schema()
+    ensure_photos_schema()
     admin.sync_order_status()
     return added
 
@@ -406,31 +395,12 @@ def ensure_notifications_schema():
     connection.close()
 
 
-def ensure_reviews_schema():
-    """Reviews are tied to one purchase (order_item_id), so only a buyer can
-    leave one and only once. product_name is kept so a review still reads
-    correctly after the listing is deleted."""
-    connection = database.get_connection()
-    cursor = connection.cursor()
-    cursor.execute('PRAGMA table_info(reviews)')
-    have = {row['name'] for row in cursor.fetchall()}
-    for column, definition in [('reviewer_id', 'INTEGER'), ('order_item_id', 'INTEGER'), ('product_name', 'TEXT')]:
-        if column not in have:
-            cursor.execute(f'ALTER TABLE reviews ADD COLUMN {column} {definition}')
-    cursor.execute('CREATE UNIQUE INDEX IF NOT EXISTS one_review_per_purchase ON reviews(order_item_id)')
-    connection.commit()
-    connection.close()
-
-
 def ensure_settings_schema():
-    """Settings: each student's light/dark choice, and Contact Us -- a chat
+    """Settings: Contact Us -- a chat
     between one student and the admins. from_admin says which side wrote each
     message; admin_email says which admin replied."""
     connection = database.get_connection()
     cursor = connection.cursor()
-    cursor.execute('PRAGMA table_info(users)')
-    if 'theme' not in {row['name'] for row in cursor.fetchall()}:
-        cursor.execute("ALTER TABLE users ADD COLUMN theme TEXT NOT NULL DEFAULT 'light'")
     cursor.execute("""CREATE TABLE IF NOT EXISTS support_messages (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER NOT NULL,
@@ -445,7 +415,7 @@ def ensure_settings_schema():
 
 
 def ensure_payment_schema():
-    """Paying for orders (CampusPay, the demo payment page).
+    """Paying for orders (CampusPay, our own QR payment page).
 
     orders.payment_status   Unpaid -> Paid, or Expired / Cancelled if it was never
                             paid. Empty for orders placed before payments existed.
@@ -474,6 +444,20 @@ def ensure_payment_schema():
     connection.close()
 
 
+def ensure_photos_schema():
+    """Product photos sellers upload, kept in the database itself so every
+    copy of the site (each laptop, and the online one) can show them."""
+    connection = database.get_connection()
+    cursor = connection.cursor()
+    cursor.execute("""CREATE TABLE IF NOT EXISTS photos (
+        id TEXT PRIMARY KEY,
+        content_type TEXT NOT NULL,
+        data BLOB NOT NULL,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)""")
+    connection.commit()
+    connection.close()
+
+
 def seed_sample_data():
 
     connection = database.get_connection()
@@ -485,25 +469,17 @@ def seed_sample_data():
         return
 
     sample_products = [
-        ("Scientific Calculator FX-570EX", "Ahmad", "Electronics", 65.00, 5, "Approved"),
-        ("Engineering Textbook", "Daniel", "Books", 40.00, 3, "Pending"),
-        ("Desk Lamp", "Sarah", "Furniture", 20.00, 10, "Reported"),
-        ("Gaming Mouse", "Amir", "Electronics", 60.00, 8, "Pending"),
-        ("Campus Hoodie (Size L)", "Nadia", "Fashion", 45.00, 4, "Approved"),
+        ("Scientific Calculator FX-570EX", "Ahmad", "electronics", 65.00, 5, "Approved"),
+        ("Engineering Textbook", "Daniel", "books", 40.00, 3, "Pending"),
+        ("Desk Lamp", "Sarah", "accessories", 20.00, 10, "Reported"),
+        ("Gaming Mouse", "Amir", "electronics", 60.00, 8, "Pending"),
+        ("Campus Hoodie (Size L)", "Nadia", "fashion", 45.00, 4, "Approved"),
     ]
 
     cursor.executemany("""
         INSERT INTO products (name, seller, category, price, stock, status)
         VALUES (?, ?, ?, ?, ?, ?)
     """, sample_products)
-
-    cursor.execute("""
-        INSERT INTO reviews (product_id, reviewer, rating, comment)
-        VALUES
-            (1, 'Daniel', 5, 'Works perfectly, great condition.'),
-            (1, 'Sarah', 4, 'Good price, minor scratches.'),
-            (2, 'Amir', 3, 'Some pages are highlighted.')
-    """)
 
     cursor.execute("""
         INSERT INTO orders (user_id, subtotal, discount, total, status)

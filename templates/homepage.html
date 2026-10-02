@@ -8,7 +8,6 @@
 </head>
 <body>
 {% import "_forms.html" as forms with context %}
-{% import "_stars.html" as rate with context %}
 
 
     <header class="navbar">
@@ -59,7 +58,6 @@
                         <span class="category-tag">{{ product.category | capitalize }}</span>
                         <h3>{{ product.name }}</h3>
                         <p class="price">RM {{ "%.2f"|format(product.price) }}</p>
-                        {{ rate.card(product.id, ratings.get(product.id)) }}
                         <p class="stock">Stock: {{ product.stock }} units</p>
                         <p class="seller">Sold by {{ product.seller }}</p>
                         <a href="{{ url_for('report_listing', product_id=product.id) }}">Report listing</a>

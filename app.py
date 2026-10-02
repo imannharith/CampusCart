@@ -6,8 +6,8 @@ browser sent, calls a function to do the work, and shows a page or
 redirects. The work itself is in:
 
     accounts.py          signing up, logging in, and who may open which page
-    shop_functions.py    everything students do (shopping, orders, reviews,
-                         messages, My Shop, notifications)
+    shop_functions.py    everything students do (shopping, orders, messages,
+                         My Shop, notifications)
     admin_functions.py   the admin panel
     database.py          the connection to Turso
     tables.py            creating the tables when the app starts
@@ -59,8 +59,6 @@ def moderation_context():
             'notifications': shop.latest_notifications(account['id']) if account else [],
             'unread_notifications': shop.unread_notification_count(account['id']) if account else 0,
             'orders_to_ship': shop.orders_to_ship(account['id']) if account else 0,
-            # Light or dark mode (Settings > Theme), applied by _nav.html.
-            'theme': (account['theme'] if account and 'theme' in account.keys() else None) or 'light',
             # The red number on Support in the admin menu.
             'support_unread': admin.support_unread_count() if accounts.is_admin() else 0}
 
@@ -138,7 +136,6 @@ def home():
     return render_template(
         "homepage.html",
         products=products,
-        ratings=shop.product_ratings(),
     )
 
 # PRODUCT CATALOG PAGE (Dulu products.py)
@@ -163,7 +160,6 @@ def product_catalog():
         selected_category=category_query,
         search=search_query,
         sort=sort_query,
-        ratings=shop.product_ratings(),
     )
 
 
@@ -182,7 +178,6 @@ def dashboard():
         support_waiting=admin.support_waiting_count(),
         recent_products=admin.get_all_products()[:5],
         chart=admin.build_chart_days(admin.get_listings_per_day()),
-        latest_reviews=shop.latest_reviews(),
     )
 
 @app.route("/listings")
@@ -208,7 +203,7 @@ def listings():
 
     # Only image URLs are presented; never render arbitrary URL schemes.
     review_image = (review_product or {}).get("image_url") or ""
-    if not review_image.startswith(("/static/", "https://", "http://")):
+    if not review_image.startswith(("/static/", "/photos/", "https://", "http://")):
         review_image = ""
 
     return render_template(
@@ -224,7 +219,6 @@ def listings():
         next_review=admin.next_listing_to_review(),
         review_product=review_product,
         review_image=review_image,
-        review_rating=shop.review_summary(review_product["id"]) if review_product else None,
         seller_accounts=admin.get_all_users() if edit_id else [],
         sell_categories=sorted(shop.SELL_CATEGORIES),
     )
@@ -363,15 +357,6 @@ def delete_tier(tier_id):
     flash("Discount deleted.")
 
     return redirect(url_for("shop_settings", _anchor="discounts"))
-
-@app.route("/reviews/delete/<int:review_id>", methods=["POST"])
-@accounts.admin_required
-def delete_review(review_id):
-
-    admin.delete_review(review_id)
-    flash("Review deleted.")
-
-    return redirect(url_for("moderation_reviews"))
 
 ORDER_FILTERS = ["Awaiting payment", "Pending", "Shipped", "Delivered", "Cancelled"]
 
@@ -536,7 +521,8 @@ def place_order():
 
 
 # ======================================================================
-# PAYMENT -- CampusPay, the demo payment page (no real money moves).
+# PAYMENT -- CampusPay, our own QR payment page (no bank is connected,
+# so no real money moves).
 # See section 7 of shop_functions.py for how it works.
 # ======================================================================
 
@@ -558,7 +544,7 @@ def payment_page(order_id):
     scan_url = url_for('scan_to_pay', token=order["checkout_token"], _external=True)
     return render_template("payment.html", order=order, items=admin.get_order_items(order_id),
                            wallets=shop.WALLETS, seconds_left=shop.seconds_left(order),
-                           qr=shop.payment_qr(scan_url), scan_url=scan_url)
+                           qr=shop.payment_qr(scan_url))
 
 
 @app.route("/pay/<int:order_id>/approve", methods=["POST"])
@@ -592,7 +578,7 @@ def scan_to_pay(token):
             abort(400)
         shop.confirm_paid(order, request.form.get("method"))
         order = shop.get_order(order["id"])
-    return render_template("scan_pay.html", order=order, wallets=shop.WALLETS, token=token)
+    return render_template("scan_pay.html", order=order, wallets=shop.WALLETS)
 
 
 @app.route("/orders/<int:order_id>/pay")
@@ -631,8 +617,7 @@ def view_orders():
     user = accounts.current_user()
     if user is None:
         return redirect(url_for("login"))
-    return render_template("orders.html", orders=shop.buyer_orders(user["id"]),
-                           my_reviews=shop.my_reviews(user["id"]))
+    return render_template("orders.html", orders=shop.buyer_orders(user["id"]))
 
 @app.route("/profile")
 def profile():
@@ -667,61 +652,6 @@ def read_all_notifications():
     # Only ever back to a page on this site.
     back = request.form.get("next", "")
     return redirect(back if back.startswith("/") and not back.startswith("//") else url_for("home"))
-
-@app.route("/products/<int:product_id>/reviews")
-def product_reviews(product_id):
-    """Everything buyers have said about one listing."""
-
-    product = admin.get_product(product_id)
-
-    # Shown while the listing is on sale, and always to its own seller.
-    user = accounts.current_user()
-    if product is None or (not admin.available(product) and not (user and product["seller_id"] == user["id"])):
-        abort(404)
-
-    return render_template(
-        "product_reviews.html",
-        product=product,
-        reviews=shop.reviews_for_product(product_id),
-        summary=shop.review_summary(product_id),
-        seller_rating=shop.seller_rating(product["seller_id"]) if product["seller_id"] else None,
-    )
-
-@app.route("/orders/items/<int:item_id>/review", methods=["GET", "POST"])
-def write_review(item_id):
-    """Rate something you bought, once it has been delivered."""
-
-    user = accounts.current_user()
-    if user is None:
-        return redirect(url_for("login"))
-
-    bought = shop.purchase_to_review(item_id, user["id"])
-    if bought is None:
-        abort(404)
-
-    # Afterwards, show the review on the listing -- or My Orders if the
-    # listing has since been taken down.
-    if admin.available(admin.get_product(bought["product_id"])):
-        done = url_for("product_reviews", product_id=bought["product_id"], _anchor="reviews")
-    else:
-        done = url_for("view_orders")
-
-    if bought["review_id"]:
-        return redirect(done)
-    if bought["status"] != "Delivered":
-        abort(400, "You can review this once it has been delivered.")
-
-    if request.method == "POST":
-        try:
-            rating, comment = shop.clean_review(request.form.get("rating"), request.form.get("comment"))
-        except ValueError as problem:
-            return render_template("write_review.html", item=bought, error=str(problem),
-                                   form=request.form), 400
-        shop.add_review(bought, user, rating, comment)
-        shop.notify_review_left(item_id)
-        return redirect(done)
-
-    return render_template("write_review.html", item=bought, form={})
 
 @app.route("/messages")
 def messages_inbox():
@@ -833,12 +763,9 @@ def render_my_shop(user, sell_error=None, sell_form=None):
 
     return render_template(
         "sellerpage.html",
-        user=dict(user),
         listings=admin.get_all_products(seller_id=user["id"]),
         sales=shop.get_seller_orders(user["id"]),
         summary=shop.get_seller_summary(user["id"]),
-        ratings=shop.product_ratings(),
-        seller_rating=shop.seller_rating(user["id"]),
         sell_error=sell_error,
         sell_form=sell_form or {},
     ), 400 if sell_error else 200
@@ -958,8 +885,6 @@ def login():
             return render_template("login.html", error=error), 403 if "suspended" in error else 200
 
         accounts.log_in(user, remember=bool(remember))
-        if user["reactivated"]:
-            shop.notify(user["id"], "Welcome back! Your account is active again and your listings are back in the shop.", "/my-shop")
 
         return redirect(url_for("home"))
 
@@ -1046,16 +971,7 @@ def moderation_queue():
     product_id = request.args.get('product', type=int)
     reports = admin.get_listing_reports(state, product_id)
     return render_template('moderation.html', reports=reports, selected_status=state, product_id=product_id,
-                           counts=admin.report_counts(), review_count=admin.count_reviews())
-
-
-@app.route('/moderation/reviews')
-@accounts.admin_required
-def moderation_reviews():
-    """Every review buyers have left, so anything rude or fake can be deleted."""
-    reviews = admin.get_all_reviews()
-    return render_template('moderation.html', reviews=reviews, selected_status='Reviews', product_id=None,
-                           counts=admin.report_counts(), review_count=len(reviews))
+                           counts=admin.report_counts())
 
 
 @app.route('/moderation/<int:product_id>/resolve', methods=['POST'])
@@ -1136,14 +1052,6 @@ def settings_security():
     return render_template("settings_security.html")
 
 
-@app.route("/settings/theme", methods=["POST"])
-@accounts.shopper_required
-def settings_theme():
-    """Theme Mode: light or dark, saved on your account."""
-    accounts.set_theme(accounts.current_user(), request.form.get("theme"))
-    return redirect(url_for("settings"))
-
-
 @app.route("/settings/help")
 @accounts.shopper_required
 def help_center():
@@ -1157,8 +1065,7 @@ def help_topic(topic):
     """The 10 questions and answers for buying or for selling."""
     if topic not in shop.HELP_TOPICS:
         abort(404)
-    return render_template("help_topic.html", topic=shop.HELP_TOPICS[topic], key=topic,
-                           other=[(key, value["title"]) for key, value in shop.HELP_TOPICS.items() if key != topic])
+    return render_template("help_topic.html", topic=shop.HELP_TOPICS[topic], key=topic)
 
 
 @app.route("/settings/contact", methods=["GET", "POST"])
@@ -1175,28 +1082,6 @@ def contact_us():
         return redirect(url_for("contact_us", _anchor="latest"))
     shop.mark_support_read(user["id"])
     return render_template("contact_us.html", messages=shop.support_thread(user["id"]))
-
-
-@app.route("/settings/privacy", methods=["GET", "POST"])
-@accounts.shopper_required
-def data_privacy():
-    """Data & Privacy: deactivate (undo by logging in) or delete for good."""
-    user = accounts.current_user()
-    if request.method == "POST":
-        action = request.form.get("action")
-        if action not in {"deactivate", "delete"}:
-            abort(400)
-        error = accounts.check_account_closing(user, request.form.get("password", ""),
-                                               request.form.get("confirm", ""), deleting=action == "delete")
-        if error:
-            return render_template("data_privacy.html", error=error, failed=action,
-                                   open_orders=accounts.open_orders(user["id"])), 400
-        if action == "deactivate":
-            accounts.deactivate_account(user)
-            return render_template("login.html", error="Your account is deactivated. Log in again any time to switch it back on.")
-        accounts.delete_account(user)
-        return render_template("login.html", error="Your account has been deleted. Thank you for using CampusCart.")
-    return render_template("data_privacy.html", open_orders=accounts.open_orders(user["id"]))
 
 
 # ======================================================================
@@ -1227,12 +1112,59 @@ def support_thread(user_id):
 
 
 
+# ======================================================================
+# PRODUCT PHOTOS (kept in the database -- see shop.save_product_image)
+# ======================================================================
+
+@app.route("/photos/<photo_id>")
+def product_photo(photo_id):
+    photo = shop.get_photo(photo_id)
+    if photo is None:
+        abort(404)
+    response = app.response_class(photo["data"], mimetype=photo["content_type"])
+    # A photo never changes once uploaded, so browsers may keep it for a year.
+    response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+    return response
+
+
 @app.errorhandler(500)
 def server_error(error):
     """Shown if something still breaks (e.g. Turso is really down) -- a
     friendly page with a Try again button, instead of plain grey text.
     The full error is still printed in the terminal running app.py."""
     return render_template("error.html"), 500
+
+
+# The other errors (a missing page, a form that expired, something that
+# changed meanwhile) get the same friendly page, with a plain explanation:
+# the message given to abort() when there is one, otherwise these.
+ERROR_PAGES = {
+    400: ("That didn't work", "Something in that request wasn't right. Go back and try again."),
+    403: ("You can't do that", "You don't have permission to do that."),
+    404: ("Page not found", "We couldn't find that page. It may have been moved or taken down."),
+    405: ("That didn't work", "That page can't be opened this way. Go back and use the button on the page."),
+    409: ("Something changed", "Something changed while you were on that page. Reload it and try again."),
+}
+
+
+@app.errorhandler(400)
+@app.errorhandler(403)
+@app.errorhandler(404)
+@app.errorhandler(405)
+@app.errorhandler(409)
+def friendly_error(error):
+    title, message = ERROR_PAGES[error.code]
+    if error.description != type(error).description:      # abort(code, "our own message")
+        message = error.description
+    return render_template("error.html", title=title, message=message), error.code
+
+
+# Online (Render), the app sits behind Render's own web server, which
+# receives the https:// request and passes it on. ProxyFix makes Flask
+# trust the original address it reports, so links the app builds itself
+# -- like the payment QR code -- start with https:// and the real site name.
+from werkzeug.middleware.proxy_fix import ProxyFix
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 
 if __name__ == "__main__":
     # Debug mode shows an in-browser console that can run code, so it is

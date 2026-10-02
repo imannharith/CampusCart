@@ -10,7 +10,6 @@
 
 <body>
 {% import "_forms.html" as forms with context %}
-{% import "_stars.html" as rate with context %}
 
 
 <header class="navbar">
@@ -25,10 +24,6 @@
         <div>
             <h1>My Shop</h1>
             <p>Everything you're selling, and everything you've sold.</p>
-            {% if seller_rating %}
-            <p class="shop-rating">{{ rate.stars(seller_rating.average) }} <strong>{{ seller_rating.average }}</strong>
-                from {{ seller_rating.count }} buyer review{{ 's' if seller_rating.count != 1 }}</p>
-            {% endif %}
         </div>
         <a href="#sell" class="btn-primary">List an item</a>
     </div>
@@ -94,8 +89,7 @@
                             {% endif %}
                         </td>
                         <td>
-                            <strong>{{ item.name }}</strong><br>
-                            {{ rate.card(item.id, ratings.get(item.id)) }}
+                            <strong>{{ item.name }}</strong>
                         </td>
                         <td>{{ item.category }}</td>
                         <td>RM {{ "%.2f"|format(item.price) }}</td>

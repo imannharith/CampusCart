@@ -10,7 +10,6 @@
 
 <body>
 {% import "_forms.html" as forms with context %}
-{% import "_stars.html" as rate %}
 
 <header class="navbar">
     <a href="/" class="logo">Campus<span>Cart</span></a>
@@ -86,18 +85,6 @@
                             {% elif item.refund_status == 'Refunded' %}<small class="refund-note done">Refunded</small>{% endif %}
                         </td>
                         <td class="order-actions">
-                            {# Once it has arrived you can rate it -- once. #}
-                            {% set my_review = my_reviews.get(item.id) %}
-                            {% if my_review and item.product_status == 'Approved' %}
-                            <a class="you-rated" href="{{ url_for('product_reviews', product_id=item.product_id, _anchor='review-%d' % my_review.id) }}"
-                               >You rated {{ rate.stars(my_review.rating) }}</a>
-                            {% elif my_review %}
-                            <span class="you-rated">You rated {{ rate.stars(my_review.rating) }}</span>
-                            {% elif item.status == 'Delivered' %}
-                            <a class="btn-primary btn-small" href="{{ url_for('write_review', item_id=item.id) }}">Rate this item</a>
-                            {% elif item.status in ['Pending', 'Shipped'] %}
-                            <span class="rate-later" title="The seller marks it Delivered once you have it">You can rate this once it's delivered</span>
-                            {% endif %}
                             {% if item.product_status == 'Approved' and item.seller_id and item.seller_id != current_account.id %}
                             <a class="btn-message" href="{{ url_for('message_seller', product_id=item.product_id) }}">Message seller</a>
                             {% endif %}

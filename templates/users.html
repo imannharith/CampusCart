@@ -69,7 +69,7 @@
                     <td><strong>{{ account.fullname }}</strong></td>
                     <td>{{ account.email }}</td>
                     <td class="nowrap">{{ account.created_at|day }}</td>
-                    <td><span class="status {{ {'Active': 'approved', 'Deactivated': 'pending'}.get(account.account_status, 'rejected') }}">{{ account.account_status }}</span></td>
+                    <td><span class="status {{ 'approved' if account.account_status == 'Active' else 'rejected' }}">{{ account.account_status }}</span></td>
                     <td class="action-cell"><a class="view-btn" href="{{ url_for('user_detail', user_id=account.id) }}">View account</a></td>
                 </tr>
                 {% endfor %}

@@ -3,19 +3,28 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CampusCart | Something went wrong</title>
+    <title>CampusCart | {{ title or 'Something went wrong' }}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='logo.svg') }}">
 </head>
 <body>
 <main class="container error-page">
     <a href="/" class="logo">Campus<span>Cart</span></a>
+    {% if title %}
+    <h1>{{ title }}</h1>
+    <p>{{ message }}</p>
+    <div class="error-actions">
+        <a href="javascript:history.back()" class="btn-primary">Go back</a>
+        <a href="/" class="btn-message">Go to the homepage</a>
+    </div>
+    {% else %}
     <h1>Something went wrong on our side</h1>
     <p>This is usually a short hiccup reaching the database. Wait a moment and try again. Nothing you did caused it.</p>
     <div class="error-actions">
         <a href="javascript:location.reload()" class="btn-primary">Try again</a>
         <a href="/" class="btn-message">Go to the homepage</a>
     </div>
+    {% endif %}
 </main>
 </body>
 </html>

@@ -1,6 +1,5 @@
 {% extends "_admin_base.html" %}
 {% import "_forms.html" as forms with context %}
-{% import "_stars.html" as rate %}
 {% import "_admin_icons.html" as icons %}
 
 {% block title %}Listings{% endblock %}
@@ -61,10 +60,6 @@
                 <div><dt>Category</dt><dd>{{ (review_product.category or 'Not given')|capitalize }}</dd></div>
                 <div><dt>Stock</dt><dd>{{ review_product.stock }} left</dd></div>
                 <div><dt>Listed</dt><dd>{{ review_product.created_at|when }}</dd></div>
-                <div class="wide">
-                    <dt>Rating</dt>
-                    <dd>{% if review_rating.count %}{{ rate.stars(review_rating.average) }} {{ review_rating.average }} from {{ review_rating.count }} review{{ 's' if review_rating.count != 1 }}{% else %}No reviews yet{% endif %}</dd>
-                </div>
             </dl>
 
             <h3 class="listing-review-description-title">Description</h3>
@@ -260,7 +255,7 @@
                         <div class="listing-product-summary">
                             <div class="listing-thumbnail">
                                 {% set thumbnail = product.image_url or '' %}
-                                {% if thumbnail.startswith(('/static/', 'https://', 'http://')) %}
+                                {% if thumbnail.startswith(('/static/', '/photos/', 'https://', 'http://')) %}
                                 <img src="{{ thumbnail }}" alt="" width="52" height="52" loading="lazy" decoding="async" referrerpolicy="no-referrer"
                                      onerror="this.hidden = true; this.nextElementSibling.hidden = false;">
                                 <span class="listing-thumbnail-placeholder" hidden>No photo</span>

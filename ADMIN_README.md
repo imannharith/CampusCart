@@ -15,7 +15,7 @@ Browser  →  app.py (routes)  →  admin_functions.py / shop_functions.py (logi
   section per admin page: 1 Listings, 2 Users, 3 Reports, 4 Dashboard,
   5 Moderation, 6 Support, 7 Settings. Every function opens a connection,
   runs a query, closes it.
-- **`shop_functions.py`** — The student side: shopping, orders, reviews,
+- **`shop_functions.py`** — The student side: shopping, orders,
   messages, My Shop, notifications, Contact Us and payment.
 - **`accounts.py`** — Signing up, logging in, the admin list, and who may
   open which page.
@@ -92,7 +92,6 @@ The QR codes are drawn by the `segno` library (`pip install -r requirements.txt`
 | `orders`         | id, user_id, subtotal, discount, total, status, order_date |
 | `order_items`    | line items belonging to an order                  |
 | `discount_codes` | code, discount_percent, active                    |
-| `reviews`        | product_id, reviewer, rating, comment, review_date |
 | `cart`           | user_id, product_id, quantity; unique per account/product |
 
 `order_items` is the bridge between orders and products: one order
@@ -109,7 +108,7 @@ past orders.
 | `/listings` | Every listing, with filters. **Review** opens one listing; after Approve or Reject the next waiting one opens by itself. Edit, stock, and remove from sale (with a reason) |
 | `/users`, `/users/<id>` | Accounts, searchable. One account shows what they **sell and earn** (buyers paid, CampusCart's 5%, what the seller keeps), their listings, purchases, reports, and suspend/reactivate |
 | `/reports` | Sales cards, **refunds to send**, every order (cancel/reinstate), top sellers, sold-out listings, seller activity |
-| `/moderation`, `/moderation/reviews` | Reports from students (Open / Dismissed / Removed / All), and every review, with delete |
+| `/moderation` | Reports from students (Open / Dismissed / Removed / All): dismiss or remove, with a reason |
 | `/support` | Contact Us messages from students, and replies |
 | `/shop-settings` | Discount tiers (add/delete), the four categories with listing counts, and the fixed rules (5% fee, 30 minutes to pay, ways to pay) |
 | `/admin/login` | Admin sign-in (separate from the student login) |
@@ -229,6 +228,16 @@ and the missing table was never created — leaving an error that
 restarting could not fix. It now compares the full list of tables
 against `EXPECTED_TABLES` and fills in whatever is absent. Still one
 query on a normal start.
+
+## Product photos live in the database
+
+When a seller uploads a photo it's checked (a real JPG or PNG, up to 5 MB) and
+saved in the `photos` table in Turso, not as a file on whichever laptop ran
+the upload. The listing stores its address, `/photos/<random id>`, and the
+`/photos/<id>` route sends the picture back. So every teammate's laptop, and
+the site once it's online, shows the same photo, and nothing is lost when a
+server restarts. Deleting a listing deletes its photo too. The sample product
+pictures that came with the project stay in `static/uploads/`.
 
 ## Marketplace account integration
 

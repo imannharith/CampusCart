@@ -4,10 +4,10 @@ Shop Functions
 Every database function behind the student side of CampusCart -- the
 pages a student sees -- grouped in the same order as the top menu:
 
-    1. Shopping (Home, Products, Cart, Checkout)     2. My Orders & Reviews
+    1. Shopping (Home, Products, Cart, Checkout)     2. My Orders
     3. Messages     4. My Shop     5. Notifications
     6. Help Center & Contact Us (from the Settings page)
-    7. Payments (CampusPay, the demo payment page)
+    7. Payments (CampusPay, our own QR payment page)
 
 The admin panel's functions are in admin_functions.py; signing up and
 logging in are in accounts.py.
@@ -15,7 +15,6 @@ logging in are in accounts.py.
 Every function opens its own short-lived connection through
 database.get_connection() and closes it before returning.
 """
-import os
 import re
 from datetime import datetime, timedelta
 from uuid import uuid4
@@ -242,9 +241,8 @@ def check_delivery_details(name, phone, address):
 
 
 # ====================================================================
-# 2. MY ORDERS & REVIEWS
-# A buyer rates an item (1 to 5 stars, optional comment) once it has been
-# delivered. Only the buyer, only after delivery, only once per purchase.
+# 2. MY ORDERS
+# Everything a student has bought, and where each item is now.
 # ====================================================================
 
 
@@ -252,8 +250,9 @@ def buyer_orders(user_id):
     """Everything this student has bought, newest first, each order with its
     items -- every item has its own status, because each seller ships their own."""
     orders = rows("SELECT * FROM orders WHERE user_id = ? AND account_linked = 1 ORDER BY id DESC", (user_id,))
+    items = get_order_items()          # every order's items in one trip, not one per order
     for order in orders:
-        order["items"] = get_order_items(order["id"])
+        order["items"] = [item for item in items if item["order_id"] == order["id"]]
     return orders
 
 
@@ -261,92 +260,6 @@ def recent_orders(user_id, limit=5):
     """The last few orders, with how many items each had (for the Profile page)."""
     return rows("""SELECT orders.*, (SELECT SUM(quantity) FROM order_items WHERE order_id = orders.id) AS item_count
         FROM orders WHERE user_id = ? AND account_linked = 1 ORDER BY id DESC LIMIT ?""", (user_id, limit))
-
-
-MAX_REVIEW_LENGTH = 500
-
-
-def clean_review(rating, comment):
-    """The rating as a whole number from 1 to 5 and the tidied comment.
-    Raises ValueError with a message to show if either is wrong."""
-    try:
-        rating = int(rating)
-    except (TypeError, ValueError):
-        raise ValueError("Pick from 1 to 5 stars.")
-    if not 1 <= rating <= 5:
-        raise ValueError("Pick from 1 to 5 stars.")
-    comment = (comment or "").strip()
-    if len(comment) > MAX_REVIEW_LENGTH:
-        raise ValueError(f"Keep your review under {MAX_REVIEW_LENGTH} characters.")
-    return rating, comment
-
-
-def purchase_to_review(order_item_id, user_id):
-    """One line of this student's own order, with its review if they left one.
-    None if it isn't theirs -- someone else's purchase looks like no purchase."""
-    found = rows('''SELECT i.id, i.product_id, i.product_name, i.quantity, i.status, i.seller, i.seller_id,
-            o.id AS order_id, r.id AS review_id
-        FROM order_items i
-        JOIN orders o ON o.id = i.order_id
-        LEFT JOIN reviews r ON r.order_item_id = i.id
-        WHERE i.id = ? AND o.user_id = ? AND o.account_linked = 1''', (order_item_id, user_id))
-    return found[0] if found else None
-
-
-def add_review(purchase, user, rating, comment):
-    """Save the review. The INSERT itself re-checks that the item was
-    delivered and not already reviewed, so two quick clicks can't make two."""
-    database.atomic([('''INSERT INTO reviews
-            (product_id, product_name, reviewer, reviewer_id, order_item_id, rating, comment)
-        SELECT i.product_id, i.product_name, ?, ?, i.id, ?, ?
-        FROM order_items i
-        WHERE i.id = ? AND i.status = 'Delivered'
-          AND NOT EXISTS (SELECT 1 FROM reviews WHERE order_item_id = i.id)''',
-        [user['fullname'], user['id'], rating, comment, purchase['id']])])
-
-
-def reviews_for_product(product_id):
-    return rows('SELECT * FROM reviews WHERE product_id = ? ORDER BY id DESC', (product_id,))
-
-
-def review_summary(product_id):
-    """Average, how many, and how many of each star (for the bar chart)."""
-    counts = {row['rating']: row['n'] for row in rows(
-        'SELECT rating, COUNT(*) AS n FROM reviews WHERE product_id = ? GROUP BY rating', (product_id,))}
-    total = sum(counts.values())
-    average = sum(stars * n for stars, n in counts.items()) / total if total else None
-    return {
-        'count': total,
-        'average': round(average, 1) if average else None,
-        'bars': [{'stars': stars, 'n': counts.get(stars, 0),
-                  'percent': round(counts.get(stars, 0) / total * 100) if total else 0}
-                 for stars in range(5, 0, -1)],
-    }
-
-
-def product_ratings():
-    """{product_id: {'average': 4.5, 'count': 2}} for every reviewed product,
-    in one query, so a page of product cards doesn't ask once per card."""
-    return {row['product_id']: {'average': round(row['average'], 1), 'count': row['n']}
-            for row in rows('''SELECT product_id, AVG(rating) AS average, COUNT(*) AS n
-                               FROM reviews GROUP BY product_id''')}
-
-
-def seller_rating(seller_id):
-    """The average over every review of everything this seller has sold."""
-    found = rows('''SELECT AVG(r.rating) AS average, COUNT(*) AS n FROM reviews r
-        JOIN order_items i ON i.id = r.order_item_id WHERE i.seller_id = ?''', (seller_id,))[0]
-    return {'average': round(found['average'], 1), 'count': found['n']} if found['n'] else None
-
-
-def my_reviews(user_id):
-    """{order_item_id: review} for this student's own reviews (for My Orders)."""
-    return {row['order_item_id']: row for row in rows(
-        'SELECT * FROM reviews WHERE reviewer_id = ? AND order_item_id IS NOT NULL', (user_id,))}
-
-
-def latest_reviews(limit=5):
-    return rows('SELECT * FROM reviews ORDER BY id DESC LIMIT ?', (limit,))
 
 
 # ====================================================================
@@ -492,15 +405,12 @@ def read_listing(form, name_field, min_stock=0):
             "stock": stock, "description": description}
 
 
-UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static", "uploads")
-
-
 # JPG and PNG are what phones and laptops save photos as. Each one is
 # recognised by the first bytes of the file itself, so renaming some
 # other file to "photo.jpg" does not get it through.
 PHOTO_TYPES = {
-    b"\xff\xd8\xff": "jpg",
-    b"\x89PNG\r\n\x1a\n": "png",
+    b"\xff\xd8\xff": "image/jpeg",
+    b"\x89PNG\r\n\x1a\n": "image/png",
 }
 
 
@@ -508,14 +418,15 @@ MAX_PHOTO_BYTES = 5 * 1024 * 1024  # 5 MB
 
 
 def save_product_image(upload):
-    """Store an uploaded product photo and return the path to show it at.
+    """Store an uploaded product photo and return the address to show it at.
 
     Raises ValueError with a message for the seller if the file is
     missing, too big, or not really a JPG or PNG.
 
-    The file is saved under a random name. A name chosen by whoever
-    uploaded it must never reach the filesystem, and two students both
-    uploading 'photo.jpg' must not overwrite each other."""
+    The photo is kept in the database (the photos table), not as a file on
+    whichever computer ran the upload -- so every teammate's laptop, and the
+    site once it's online, shows the same photo. It gets a random id, so two
+    students both uploading 'photo.jpg' never overwrite each other."""
 
     if upload is None or not upload.filename:
         raise ValueError("Please add a photo of the item.")
@@ -524,16 +435,20 @@ def save_product_image(upload):
     if len(data) > MAX_PHOTO_BYTES:
         raise ValueError("That photo is over 5 MB. Please pick a smaller one.")
 
-    extension = next((ext for start, ext in PHOTO_TYPES.items() if data.startswith(start)), None)
-    if extension is None:
+    content_type = next((kind for start, kind in PHOTO_TYPES.items() if data.startswith(start)), None)
+    if content_type is None:
         raise ValueError("Photos must be JPG or PNG.")
 
-    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-    stored_name = f"{uuid4().hex}.{extension}"
-    with open(os.path.join(UPLOAD_FOLDER, stored_name), "wb") as photo:
-        photo.write(data)
+    photo_id = uuid4().hex
+    database.atomic([("INSERT INTO photos (id, content_type, data) VALUES (?, ?, ?)",
+                      [photo_id, content_type, data])])
+    return f"/photos/{photo_id}"
 
-    return f"/static/uploads/{stored_name}"
+
+def get_photo(photo_id):
+    """A stored product photo: {'content_type': ..., 'data': ...}, or None."""
+    found = rows("SELECT content_type, data FROM photos WHERE id = ?", (photo_id,))
+    return found[0] if found else None
 
 
 # Which statuses an order is allowed to move to from where it is now.
@@ -853,17 +768,6 @@ def notify_order_reinstated(order_id):
         notify(found[0]['user_id'], f"Order #{order_id} is back on. The seller will send it soon.", '/orders')
 
 
-def notify_review_left(order_item_id):
-    """Tell the seller someone rated what they sold."""
-    found = rows('''SELECT r.rating, r.reviewer, r.product_id, i.product_name, i.seller_id
-        FROM reviews r JOIN order_items i ON i.id = r.order_item_id WHERE r.order_item_id = ?''', (order_item_id,))
-    if found:
-        review = found[0]
-        notify(review['seller_id'],
-             f"{review['reviewer']} gave {review['product_name']} {review['rating']} out of 5 stars.",
-             f"/products/{review['product_id']}/reviews")
-
-
 # ====================================================================
 # 6. HELP CENTER & CONTACT US
 # Settings > Help Center: answers to the questions buyers and sellers ask
@@ -876,7 +780,7 @@ def notify_review_left(order_item_id):
 HELP_TOPICS = {
     "buying": {
         "title": "Buying on CampusCart",
-        "intro": "Finding things, paying, orders and reviews.",
+        "intro": "Finding things, paying and orders.",
         "faqs": [
             ("How do I buy something?",
              "Press Add to Cart on any item, open your Cart, then Proceed to Checkout. Enter your name, "
@@ -902,9 +806,9 @@ HELP_TOPICS = {
             ("Who sees my phone number and address?",
              "Only the seller of the items you bought, and only while they still need to send them. "
              "Other students never see them."),
-            ("How do I leave a review?",
-             "Once an item is marked Delivered, a Rate this item button appears next to it in My Orders. "
-             "You can rate each purchase once, from 1 to 5 stars, with an optional comment."),
+            ("What if I don't pay in time?",
+             "Your items are held for 30 minutes. If the payment doesn't come through by then, the order is "
+             "cancelled, the items go back on sale and nothing is charged. Cancel order puts them back in your cart."),
             ("A listing looks fake or wrong. What do I do?",
              "Press Report listing under the item and say what's wrong. An admin checks it and can take "
              "it down. You can also tell us through Contact Us."),
@@ -912,7 +816,7 @@ HELP_TOPICS = {
     },
     "selling": {
         "title": "Selling on CampusCart",
-        "intro": "Listing items, sales, fees and ratings.",
+        "intro": "Listing items, sales and fees.",
         "faqs": [
             ("How do I sell something?",
              "Go to My Shop and fill in Sell an Item: name, category, price, how many you have, a "
@@ -930,7 +834,7 @@ HELP_TOPICS = {
              "shows the buyer's name, phone number and address."),
             ("How do I mark an item as sent?",
              "In My Sales press Mark Shipped when it's on its way, then Mark Delivered once the buyer has it. "
-             "The buyer is told each time, and can review it after it's delivered."),
+             "The buyer is told each time."),
             ("Can I cancel a sale?",
              "Yes, while it's Pending or Shipped press Cancel. The item goes back into your stock and the "
              "buyer is told. Press Reinstate if you cancelled by mistake."),
@@ -940,9 +844,9 @@ HELP_TOPICS = {
             ("My listing was rejected or removed. Why?",
              "The notification you got includes the admin's reason. If you think it's a mistake, send us a "
              "message through Contact Us."),
-            ("How do ratings work?",
-             "Buyers can rate an item after it's delivered. Each item shows its average, and your seller "
-             "rating (the average of all your items) is at the top of My Shop."),
+            ("Can I talk to a buyer?",
+             "Yes. When a buyer messages you about an item, the chat appears under Messages with a red "
+             "number, and you can reply there."),
         ],
     },
 }
@@ -965,11 +869,11 @@ def mark_support_read(user_id):
 
 
 # ====================================================================
-# 7. PAYMENTS (CAMPUSPAY DEMO)
-# Paying for an order. This is a university project, so no real money
-# moves: CampusPay is CampusCart's own pretend payment page. It works
-# like a real one -- scan a QR code with an e-wallet or DuitNow -- and the
-# order goes through the same steps a real one would:
+# 7. PAYMENTS (CAMPUSPAY)
+# Paying for an order. CampusPay is CampusCart's own payment page: no bank
+# is connected, so no real money moves, but it works like a real one --
+# scan a QR code with an e-wallet or DuitNow -- and the order goes through
+# the same steps a real one would:
 #
 #   1. Checkout makes an order that is "Awaiting payment" (its items are held).
 #   2. The buyer scans the QR code on the CampusPay page and pays.

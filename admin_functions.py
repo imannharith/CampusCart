@@ -5,9 +5,9 @@ Every database function behind the admin panel, grouped by the admin
 page it belongs to:
 
     1. Listings     2. Users     3. Reports     4. Dashboard
-    5. Moderation (reports and reviews)     6. Support     7. Settings
+    5. Moderation     6. Support     7. Settings
 
-The student side of the site (cart, orders, reviews, messages, My Shop,
+The student side of the site (cart, orders, messages, My Shop,
 notifications) is in shop_functions.py.
 
 Every function opens its own short-lived connection via
@@ -130,18 +130,15 @@ def update_product(product_id, name, seller_id, category, price, stock):
 
 
 def delete_product(product_id):
-    """Delete a product and its reviews.
+    """Delete a product, and its photo if it was uploaded to CampusCart.
 
     Order history is left alone even for a deleted product -- a sale
-    really happened, and a past order shouldn't quietly change. A
-    review has no such reason to survive: once the product it's about
-    is gone, it's just a 'Deleted product' row with nothing left to
-    say, so it goes with the product rather than sitting there."""
+    really happened, and a past order shouldn't quietly change."""
 
     connection = get_connection()
     cursor = connection.cursor()
 
-    cursor.execute("DELETE FROM reviews WHERE product_id = ?", (product_id,))
+    cursor.execute("DELETE FROM photos WHERE '/photos/' || id = (SELECT image_url FROM products WHERE id = ?)", (product_id,))
     cursor.execute("DELETE FROM products WHERE id = ?", (product_id,))
 
     connection.commit()
@@ -731,7 +728,7 @@ def build_chart_days(rows, days=7, baseline=5):
 
 # ====================================================================
 # 5. MODERATION
-# Admin > Moderation page: reviews buyers left, and reports. Students report a listing, an admin
+# Admin > Moderation page: students report a listing, an admin
 # removes it or dismisses the report. Also decides whether a listing
 # may be shown at all (approved, and its seller is not suspended).
 # ====================================================================
@@ -800,39 +797,6 @@ def report_counts():
         counts[row["status"]] = row["n"]
     counts["All"] = sum(counts.values())
     return counts
-
-
-def get_all_reviews():
-    """Return every review, joined with the product name it belongs to."""
-
-    connection = get_connection()
-    cursor = connection.cursor()
-
-    cursor.execute("""
-        SELECT reviews.*, COALESCE(products.name, reviews.product_name) AS product_name
-        FROM reviews
-        LEFT JOIN products ON products.id = reviews.product_id
-        ORDER BY reviews.id DESC
-    """)
-    reviews = [dict(row) for row in cursor.fetchall()]
-
-    connection.close()
-    return reviews
-
-
-def delete_review(review_id):
-    connection = get_connection()
-    cursor = connection.cursor()
-
-    cursor.execute("DELETE FROM reviews WHERE id = ?", (review_id,))
-
-    connection.commit()
-    connection.close()
-
-
-def count_reviews():
-    """How many reviews there are, for the Reviews tab on the Moderation page."""
-    return rows("SELECT COUNT(*) AS n FROM reviews")[0]["n"]
 
 
 # ====================================================================

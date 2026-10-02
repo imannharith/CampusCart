@@ -1,69 +1,20 @@
 {% extends "_admin_base.html" %}
 {% import "_forms.html" as forms with context %}
-{% import "_stars.html" as rate %}
 
 {% block title %}Moderation{% endblock %}
 {% block heading %}Moderation{% endblock %}
-{% block subtitle %}Listings students have reported, and reviews buyers have left. Every decision is saved with its reason.{% endblock %}
+{% block subtitle %}Listings students have reported. Every decision is saved with its reason.{% endblock %}
 
 {% block content %}
 
-{# Tabs: the reports by what happened to them, then the reviews #}
+{# Tabs: the reports by what happened to them #}
 <div class="tabs" aria-label="Show">
     {% for state in ['Open', 'Dismissed', 'Removed', 'All'] %}
     <a href="{{ url_for('moderation_queue', status=state) }}"{% if selected_status == state %} class="active" aria-current="page"{% endif %}>
         {{ 'All reports' if state == 'All' else state }} <span class="tab-count">{{ counts[state] }}</span>
     </a>
     {% endfor %}
-    <span class="tabs-gap" aria-hidden="true"></span>
-    <a href="{{ url_for('moderation_reviews') }}"{% if selected_status == 'Reviews' %} class="active" aria-current="page"{% endif %}>
-        Reviews <span class="tab-count">{{ review_count }}</span>
-    </a>
 </div>
-
-{% if selected_status == 'Reviews' %}
-
-{# ---------- Reviews ---------- #}
-<section class="panel">
-    <div class="panel-title">
-        <div>
-            <h3>Reviews</h3>
-            <p>What buyers said after their item was delivered. Delete anything rude, fake or off-topic.</p>
-        </div>
-    </div>
-
-    <div class="table-container">
-        <table>
-            <thead>
-                <tr><th>Product</th><th>Reviewer</th><th>Rating</th><th>Comment</th><th>Date</th><th><span class="sr-only">Action</span></th></tr>
-            </thead>
-            <tbody>
-                {% for review in reviews %}
-                <tr>
-                    <td><strong>{{ review.product_name or 'Deleted product' }}</strong></td>
-                    <td>
-                        {% if review.reviewer_id %}
-                        <a href="{{ url_for('user_detail', user_id=review.reviewer_id) }}">{{ review.reviewer }}</a>
-                        {% else %}
-                        {{ review.reviewer }}
-                        {% endif %}
-                    </td>
-                    <td class="nowrap">{{ rate.stars(review.rating) }} {{ review.rating }}/5</td>
-                    <td>{{ review.comment or '—' }}</td>
-                    <td class="nowrap">{{ review.review_date|day }}</td>
-                    <td class="action-cell">
-                        {{ forms.post_button(url_for('delete_review', review_id=review.id), 'Delete', 'reject-btn', confirm='Delete this review?') }}
-                    </td>
-                </tr>
-                {% else %}
-                <tr><td colspan="6">No reviews yet. Buyers can rate an item once it has been delivered.</td></tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-</section>
-
-{% else %}
 
 {# ---------- Reports, one box per listing ---------- #}
 {% if product_id %}
@@ -138,7 +89,5 @@
     {% endif %}
 </section>
 {% endfor %}
-
-{% endif %}
 
 {% endblock %}

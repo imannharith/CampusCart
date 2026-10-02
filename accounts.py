@@ -7,8 +7,7 @@ Everything about who someone is and what they may open:
     2. Admins     the admin accounts and their sign-in
     3. Every page who's logged in, and the checks that keep students out
                   of the admin panel and visitors out of student pages
-    4. Settings   editing your profile, changing your password, light or
-                  dark mode, and deactivating or deleting your account
+    4. Settings   editing your profile and changing your password
 
 Passwords are never stored or compared as plain text: werkzeug turns
 each one into a salted hash (generate_password_hash) and checks a typed
@@ -19,10 +18,9 @@ What the login cookie holds (Flask's signed session):
     session['admin']                  the admin signed in, kept separately
 """
 import re
-import secrets
 from functools import wraps
 
-from flask import session, redirect, url_for
+from flask import g, session, redirect, url_for
 from werkzeug.security import generate_password_hash, check_password_hash
 
 import database
@@ -79,19 +77,14 @@ def sign_up(fullname, email, password):
 def check_student_login(email, password):
     """(account, None) if the email and password match, or (None, the message
     to show) if not. The message never says which of email or password was
-    wrong, so it can't be used to find out which emails have accounts.
-
-    A student who deactivated their own account turns it back on just by
-    logging in again (account["reactivated"] is then True)."""
+    wrong, so it can't be used to find out which emails have accounts."""
     user = get_user_by_email(email)
     if user is None or not check_password_hash(user["password_hash"], password):
         return None, "Incorrect email or password."
     if user["account_status"] == "Suspended":
         return None, "Your account is suspended. Please contact CampusCart support."
-    user = dict(user)
-    user["reactivated"] = user["account_status"] == "Deactivated"
-    if user["reactivated"]:
-        database.atomic([("UPDATE users SET account_status = 'Active' WHERE id = ?", [user["id"]])])
+    if user["account_status"] != "Active":
+        return None, "Incorrect email or password."
     return user, None
 
 
@@ -148,20 +141,26 @@ def is_admin():
 
 
 def current_user():
-    """The logged-in student's account, or None (visitors and admins)."""
-    if "user" not in session:
+    """The logged-in student's account, or None (visitors and admins).
+    Looked up once per page, then remembered (g) for the rest of that page."""
+    email = session.get("user")
+    if email is None:
         return None
-    return get_user_by_email(session["user"])
+    if g.get("account_email") != email:
+        g.account, g.account_email = get_user_by_email(email), email
+    return g.account
 
 
 def account_blocked():
     """True if someone is logged in as a student whose account is no longer
-    active (suspended, deactivated or deleted) -- they're logged out on their
-    very next click."""
+    active (e.g. suspended) -- they're logged out on their very next click."""
     if not session.get("user"):
         return False
-    user = get_user_by_email(session["user"])
-    return user is None or user["account_status"] != "Active"
+    user = current_user()
+    if user is None:          # an old sign-in for an account that no longer exists
+        log_out()
+        return False
+    return user["account_status"] != "Active"
 
 
 def log_out(admin=False):
@@ -242,65 +241,3 @@ def check_password_change(user, current, new, confirm):
 def change_password(user, new):
     database.atomic([("UPDATE users SET password_hash = ? WHERE id = ?",
                       [generate_password_hash(new), user["id"]])])
-
-
-THEMES = {"light", "dark"}
-
-
-def set_theme(user, theme):
-    """Light or dark mode, saved on the account so it follows you to any device."""
-    if theme in THEMES:
-        database.atomic([("UPDATE users SET theme = ? WHERE id = ?", [theme, user["id"]])])
-
-
-def open_orders(user_id):
-    """How many orders are still on their way -- sales this student hasn't
-    finished, or purchases that haven't arrived."""
-    connection = database.get_connection()
-    cursor = connection.cursor()
-    cursor.execute("""SELECT
-        (SELECT COUNT(*) FROM order_items WHERE seller_id = ? AND status IN ('Pending', 'Shipped')) +
-        (SELECT COUNT(*) FROM order_items i JOIN orders o ON o.id = i.order_id
-            WHERE o.user_id = ? AND o.account_linked = 1 AND i.status IN ('Awaiting payment', 'Pending', 'Shipped')) AS n""",
-        (user_id, user_id))
-    waiting = cursor.fetchone()["n"]
-    connection.close()
-    return waiting
-
-
-def check_account_closing(user, password, typed="", deleting=False):
-    """What stops this student deactivating/deleting their account, or None."""
-    if not check_password_hash(user["password_hash"], password):
-        return "Your password is wrong."
-    if deleting and typed.strip() != "DELETE":
-        return 'Type DELETE in capitals to confirm.'
-    waiting = open_orders(user["id"])
-    if waiting:
-        return (f"You have {waiting} order item(s) still on the way. Finish or cancel them "
-                "first, so nobody is left waiting for something that won't come.")
-    return None
-
-
-def deactivate_account(user):
-    """Switch the account off: listings disappear from the shop and you're
-    logged out. Logging in again switches it back on -- nothing is lost."""
-    database.atomic([("UPDATE users SET account_status = 'Deactivated' WHERE id = ?", [user["id"]])])
-    log_out()
-
-
-def delete_account(user):
-    """Delete for good. Personal details are wiped and the account can never be
-    logged into again. Orders stay (the other person in each sale still needs
-    their record), but under "Deleted user" instead of your name."""
-    database.atomic([
-        ("""UPDATE products SET status = 'Removed', removal_reason = 'The seller deleted their account',
-            removed_by = 'account deleted', removed_at = CURRENT_TIMESTAMP
-            WHERE seller_id = ? AND status != 'Removed'""", [user["id"]]),
-        ("DELETE FROM cart WHERE user_id = ?", [user["id"]]),
-        ("DELETE FROM notifications WHERE user_id = ?", [user["id"]]),
-        ("DELETE FROM support_messages WHERE user_id = ?", [user["id"]]),
-        ("""UPDATE users SET fullname = 'Deleted user', email = ?, password_hash = ?,
-            account_status = 'Deleted' WHERE id = ?""",
-         [f"deleted-{user['id']}@deleted.campuscart", generate_password_hash(secrets.token_urlsafe(32)), user["id"]]),
-    ])
-    log_out()
