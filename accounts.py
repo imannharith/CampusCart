@@ -7,7 +7,8 @@ Everything about who someone is and what they may open:
     2. Admins     the admin accounts and their sign-in
     3. Every page who's logged in, and the checks that keep students out
                   of the admin panel and visitors out of student pages
-    4. Settings   editing your profile and changing your password
+    4. Settings   editing your profile, changing your password, and
+                  light or dark mode
 
 Passwords are never stored or compared as plain text: werkzeug turns
 each one into a salted hash (generate_password_hash) and checks a typed
@@ -241,3 +242,12 @@ def check_password_change(user, current, new, confirm):
 def change_password(user, new):
     database.atomic([("UPDATE users SET password_hash = ? WHERE id = ?",
                       [generate_password_hash(new), user["id"]])])
+
+
+THEMES = {"light", "dark"}
+
+
+def set_theme(user, theme):
+    """Light or dark mode, saved on the account so it follows you to any device."""
+    if theme in THEMES:
+        database.atomic([("UPDATE users SET theme = ? WHERE id = ?", [theme, user["id"]])])

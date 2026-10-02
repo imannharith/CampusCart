@@ -59,6 +59,8 @@ def moderation_context():
             'notifications': shop.latest_notifications(account['id']) if account else [],
             'unread_notifications': shop.unread_notification_count(account['id']) if account else 0,
             'orders_to_ship': shop.orders_to_ship(account['id']) if account else 0,
+            # Light or dark mode (Settings > Theme), applied by _nav.html.
+            'theme': (account['theme'] if account and 'theme' in account.keys() else None) or 'light',
             # The red number on Support in the admin menu.
             'support_unread': admin.support_unread_count() if accounts.is_admin() else 0}
 
@@ -1050,6 +1052,14 @@ def settings_security():
         flash("Your password has been changed.")
         return redirect(url_for("settings_security"))
     return render_template("settings_security.html")
+
+
+@app.route("/settings/theme", methods=["POST"])
+@accounts.shopper_required
+def settings_theme():
+    """Theme Mode: light or dark, saved on your account."""
+    accounts.set_theme(accounts.current_user(), request.form.get("theme"))
+    return redirect(url_for("settings"))
 
 
 @app.route("/settings/help")

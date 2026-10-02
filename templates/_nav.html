@@ -1,6 +1,10 @@
 {# The shopper's top menu, shared by every page so a link is only ever added once.
    request.endpoint is the name of the page being shown, used to highlight it. #}
 {% set here = request.endpoint %}
+{# Light or dark mode (Settings > Theme Mode): style.css switches every colour
+   when <html data-theme="dark">. Set here, at the top of every page, before
+   the page is drawn. #}
+<script>document.documentElement.dataset.theme = "{{ theme or 'light' }}";</script>
 <nav class="nav-links">
     <a href="/"{% if here == 'home' %} class="active"{% endif %}>Home</a>
     <a href="/products"{% if here == 'product_catalog' %} class="active"{% endif %}>Products</a>

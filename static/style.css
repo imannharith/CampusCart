@@ -1342,8 +1342,8 @@ tbody td { padding-block: 17px; }
 
 /* =====================================================================
    Settings (templates/settings.html and the pages it links to).
-   The card list and arrows are the Settings design; the colours
-   come from the site's variables.
+   The card list, arrows and toggle switch are the Settings design;
+   the colours come from the site's variables so dark mode works too.
    ===================================================================== */
 .settings-container { max-width: 780px; padding-top: 42px; }
 .settings-container.settings-home { max-width: 1100px; }
@@ -1401,6 +1401,16 @@ tbody td { padding-block: 17px; }
 .settings-btn .arrow svg { width: 17px; height: 17px; }
 .settings-btn:hover .arrow { transform: translateX(3px); color: var(--brand); }
 .settings-btn:focus-visible { outline: 2px solid var(--brand); outline-offset: 4px; border-radius: 6px; }
+.settings-toggle { cursor: pointer; }
+
+/* The light/dark switch */
+.switch { position: relative; display: inline-block; flex-shrink: 0; width: 46px; height: 24px; }
+.switch input { position: absolute; opacity: 0; width: 0; height: 0; }
+.slider { position: absolute; inset: 0; cursor: pointer; background: var(--border-2); border-radius: 24px; transition: background var(--fast) var(--ease); }
+.slider::before { content: ""; position: absolute; left: 3px; bottom: 3px; width: 18px; height: 18px; background: #fff; border-radius: 50%; transition: .3s; }
+.switch input:checked + .slider { background: var(--brand); }
+.switch input:checked + .slider::before { transform: translateX(22px); }
+.switch input:focus-visible + .slider { outline: 2px solid var(--brand); outline-offset: 2px; }
 
 .settings-form { max-width: none; gap: 22px; }
 .settings-container > .panel:not(.chat) { padding: 32px; }
@@ -1454,6 +1464,37 @@ tbody td { padding-block: 17px; }
     .settings-container .bubble { max-width: 90%; }
 }
 
+/* =====================================================================
+   Dark mode (Settings > Theme Mode). The whole site is drawn with these
+   colour variables, so switching them here switches every page.
+   ===================================================================== */
+:root[data-theme="dark"] {
+    color-scheme: dark;
+    --bg:         #0f1218;
+    --surface:    #171b23;
+    --surface-2:  #1c212b;
+    --surface-3:  #242a36;
+    --border:     #2a303c;
+    --border-2:   #363d4b;
+    --text:       #e7eaf0;
+    --text-2:     #b2b9c6;
+    --text-3:     #858e9e;
+    --brand:      #4f86f7;
+    --brand-hi:   #6d9bf9;
+    --brand-wash: rgba(79, 134, 247, 0.16);
+    --ok:         #34c38f;
+    --ok-wash:    rgba(52, 195, 143, 0.14);
+    --warn:       #f0a53a;
+    --warn-wash:  rgba(240, 165, 58, 0.14);
+    --bad:        #f06277;
+    --bad-wash:   rgba(240, 98, 119, 0.14);
+    --shadow-sm:  0 1px 2px rgba(0, 0, 0, 0.4);
+    --shadow:     0 1px 2px rgba(0, 0, 0, 0.3), 0 10px 26px -12px rgba(0, 0, 0, 0.6);
+}
+:root[data-theme="dark"] body { background-image: radial-gradient(circle at 85% -10%, rgba(79, 134, 247, .14), transparent 34rem); }
+:root[data-theme="dark"] .hero-note { background: rgba(23, 27, 35, .85); border-color: var(--border); }
+:root[data-theme="dark"] .product-card > img,
+:root[data-theme="dark"] .thumb { filter: brightness(.88); }
 .page-head-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
 .page-head-actions .btn-message { margin: 0; }
 
@@ -1468,6 +1509,12 @@ tbody td { padding-block: 17px; }
 .tone-teal   { --tone: #0d9488; --tone-wash: rgba(13, 148, 136, .10); --tone-line: rgba(13, 148, 136, .22); }
 .tone-green  { --tone: #16a34a; --tone-wash: rgba(22, 163, 74, .10);  --tone-line: rgba(22, 163, 74, .22); }
 .tone-rose   { --tone: #e11d48; --tone-wash: rgba(225, 29, 72, .09);  --tone-line: rgba(225, 29, 72, .22); }
+:root[data-theme="dark"] .tone-blue   { --tone: #6d9bf9; --tone-wash: rgba(109, 155, 249, .15); --tone-line: rgba(109, 155, 249, .30); }
+:root[data-theme="dark"] .tone-violet { --tone: #a78bfa; --tone-wash: rgba(167, 139, 250, .15); --tone-line: rgba(167, 139, 250, .30); }
+:root[data-theme="dark"] .tone-amber  { --tone: #fbbf24; --tone-wash: rgba(251, 191, 36, .13);  --tone-line: rgba(251, 191, 36, .28); }
+:root[data-theme="dark"] .tone-teal   { --tone: #2dd4bf; --tone-wash: rgba(45, 212, 191, .13);  --tone-line: rgba(45, 212, 191, .28); }
+:root[data-theme="dark"] .tone-green  { --tone: #4ade80; --tone-wash: rgba(74, 222, 128, .13);  --tone-line: rgba(74, 222, 128, .28); }
+:root[data-theme="dark"] .tone-rose   { --tone: #fb7185; --tone-wash: rgba(251, 113, 133, .14); --tone-line: rgba(251, 113, 133, .30); }
 
 .icon-tile {
     display: grid; place-items: center; flex: none;
@@ -1525,6 +1572,18 @@ tbody td { padding-block: 17px; }
 .settings-btn .arrow { width: 30px; height: 30px; border-radius: 50%; background: var(--surface-2); }
 .settings-btn:hover .arrow { background: var(--brand-wash); }
 .settings-card { padding-bottom: 12px; }
+
+/* --- The theme switch: sun on the left, moon on the right --- */
+.theme-switch { width: 58px; height: 30px; }
+.theme-switch .slider { border-radius: 30px; background: #e8edf5; box-shadow: inset 0 0 0 1px var(--border-2); }
+.theme-switch .slider::before { width: 24px; height: 24px; left: 3px; bottom: 3px; box-shadow: 0 1px 3px rgba(15, 23, 42, .25); z-index: 1; }
+.theme-switch input:checked + .slider { background: #1e2433; box-shadow: inset 0 0 0 1px #363d4b; }
+.theme-switch input:checked + .slider::before { transform: translateX(28px); background: #e7eaf0; }
+.switch-sun, .switch-moon { position: absolute; top: 50%; display: grid; transform: translateY(-50%); }
+.switch-sun { left: 8px; color: #d97706; }
+.switch-moon { right: 8px; color: #94a3b8; }
+.switch-sun svg, .switch-moon svg { width: 14px; height: 14px; }
+.theme-switch input:checked + .slider .switch-moon { color: #fbbf24; }
 
 /* --- Every Settings page starts with its coloured header --- */
 .settings-page-head { display: flex; align-items: center; gap: 18px; margin: 4px 0 26px; }
@@ -1602,6 +1661,11 @@ tbody td { padding-block: 17px; }
     .settings-page-head h1 { font-size: 26px; }
     .faq p { padding-left: 18px; }
 }
+/* The knob carries the icon: a sun in light mode, a moon in dark mode. */
+.switch-sun, .switch-moon { z-index: 2; transition: opacity var(--fast) var(--ease); }
+.theme-switch .slider .switch-moon { opacity: .55; }
+.theme-switch input:checked + .slider .switch-sun { opacity: .45; color: #94a3b8; }
+.theme-switch input:checked + .slider .switch-moon { opacity: 1; color: #1e2433; }
 
 /* The page shown instead of the plain "Internal Server Error" text */
 .error-page { max-width: 560px; padding-top: 96px; text-align: center; }

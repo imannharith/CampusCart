@@ -396,11 +396,14 @@ def ensure_notifications_schema():
 
 
 def ensure_settings_schema():
-    """Settings: Contact Us -- a chat
+    """Settings: each student's light/dark choice, and Contact Us -- a chat
     between one student and the admins. from_admin says which side wrote each
     message; admin_email says which admin replied."""
     connection = database.get_connection()
     cursor = connection.cursor()
+    cursor.execute('PRAGMA table_info(users)')
+    if 'theme' not in {row['name'] for row in cursor.fetchall()}:
+        cursor.execute("ALTER TABLE users ADD COLUMN theme TEXT NOT NULL DEFAULT 'light'")
     cursor.execute("""CREATE TABLE IF NOT EXISTS support_messages (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER NOT NULL,

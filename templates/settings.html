@@ -5,7 +5,7 @@
 <header class="settings-heading">
     <p class="eyebrow">Your CampusCart</p>
     <h1 class="settings-title">Settings</h1>
-    <p>Manage your account and get support.</p>
+    <p>Manage your account, preferences and support.</p>
 </header>
 
 {# Who you're signed in as, at a glance #}
@@ -22,7 +22,7 @@
 <div class="settings-overview">
 <section class="settings-card" aria-labelledby="account-settings-title">
     <div class="settings-group-heading">
-        <h2 id="account-settings-title">Account</h2>
+        <h2 id="account-settings-title">Account &amp; preferences</h2>
         <p>The details that make this account yours.</p>
     </div>
     <div class="settings-list">
@@ -41,6 +41,26 @@
                 <small>Change your password</small></span>
             <span class="arrow">{{ icon('arrow') }}</span>
         </a>
+
+        <!-- 3. Theme Mode: the switch saves your choice on your account -->
+        <form method="post" action="{{ url_for('settings_theme') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <input type="hidden" name="theme" value="{{ 'light' if theme == 'dark' else 'dark' }}">
+            {# The whole row is the switch's label, so clicking anywhere on it flips the theme. #}
+            <label class="settings-btn settings-toggle">
+                {{ tile('theme') }}
+                <span class="settings-label">Theme Mode
+                    <small>Now using {{ theme }} mode</small></span>
+                <span class="switch theme-switch">
+                    <input type="checkbox" id="theme-toggle" aria-label="Dark mode" {% if theme == 'dark' %}checked{% endif %}
+                           onchange="document.documentElement.dataset.theme = this.checked ? 'dark' : 'light'; this.form.submit();">
+                    <span class="slider">
+                        <span class="switch-sun">{{ icon('sun') }}</span>
+                        <span class="switch-moon">{{ icon('moon') }}</span>
+                    </span>
+                </span>
+            </label>
+        </form>
     </div>
 </section>
 
