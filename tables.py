@@ -37,13 +37,13 @@ def missing_tables():
     return EXPECTED_TABLES - present
 
 
-def ensure_ready(timeout=20):
+def ensure_ready(timeout=60):
     """One query on a database that's already set up.
 
-    Runs on a daemon thread with a deadline: the libsql client blocks
-    indefinitely if the server accepts the connection but never
-    answers, and a web app that hangs on boot with no output is worse
-    than one that refuses to start with a reason."""
+    Runs on a daemon thread with an overall deadline: a server far from
+    Turso needs a few seconds for all the checks, but a web app that hangs
+    on boot with no output is worse than one that refuses to start with
+    a reason."""
 
     database.check_reachable()
 
