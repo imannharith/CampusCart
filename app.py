@@ -45,7 +45,7 @@ app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 def enforce_account_status():
     """A student suspended while logged in is logged out on their next click."""
     if request.endpoint != 'static' and accounts.account_blocked():
-        session.clear()
+        accounts.log_out()
         return render_template('login.html', error='Your account is suspended. Please contact CampusCart support.'), 403
 
 
@@ -305,7 +305,7 @@ def remove_product(product_id):
         abort(404)
     if admin.has_open_reports(product_id):
         return resolve_listing_reports(product_id)
-    admin.remove_listing(product_id, reason, session['user'])
+    admin.remove_listing(product_id, reason, session['admin'])
     shop.notify_listing_decided(product_id, 'Removed', reason)
     flash('Listing removed from sale. Its details and history are preserved.')
     return redirect(url_for('listings', view=product_id))
@@ -985,7 +985,7 @@ def register():
 
 @app.route("/logout")
 def logout():
-    if accounts.log_out():
+    if accounts.log_out(admin=request.args.get("admin") == "1"):
         return redirect(url_for("admin_login"))
     return redirect(url_for("login"))
 
@@ -1031,7 +1031,7 @@ def user_status(user_id):
     action = request.form.get('action')
     if action not in {'Suspend', 'Reactivate'}:
         abort(400)
-    admin.change_account(user_id, action, reason, session['user'])
+    admin.change_account(user_id, action, reason, session['admin'])
     flash('Account suspended.' if action == 'Suspend' else 'Account reactivated.')
     return redirect(url_for('user_detail', user_id=user_id))
 
@@ -1065,7 +1065,7 @@ def resolve_listing_reports(product_id):
     decision = request.form.get('decision')
     if decision not in {'Dismissed', 'Removed'}:
         abort(400)
-    admin.resolve_reports(product_id, decision, reason, session['user'])
+    admin.resolve_reports(product_id, decision, reason, session['admin'])
     if decision == 'Removed':
         shop.notify_listing_decided(product_id, 'Removed', reason)
     flash('Reports resolved. The decision has been saved in history.')
@@ -1218,7 +1218,7 @@ def support_thread(user_id):
     if request.method == "POST":
         body = shop.clean_message(request.form.get("body"))
         if body is not None:
-            admin.reply_to_student(user_id, session["user"], body)
+            admin.reply_to_student(user_id, session["admin"], body)
             shop.notify(user_id, "CampusCart support replied to your message.", "/settings/contact")
         return redirect(url_for("support_thread", user_id=user_id, _anchor="latest"))
     admin.mark_support_read_by_admin(user_id)

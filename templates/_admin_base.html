@@ -26,13 +26,13 @@
 
     <div class="sidebar-bottom">
         <div class="admin-user">
-            <div class="avatar" title="{{ session.get('user', '') }}">{{ (session.get('user') or 'A')[0]|upper }}</div>
+            <div class="avatar" title="{{ session.get('admin', '') }}">{{ (session.get('admin') or 'A')[0]|upper }}</div>
             <div class="admin-who">
-                <strong title="{{ session.get('user', '') }}">{{ session.get('user', 'Administrator') }}</strong>
+                <strong title="{{ session.get('admin', '') }}">{{ session.get('admin', 'Administrator') }}</strong>
                 <small>Signed in as admin</small>
             </div>
         </div>
-        <a href="{{ url_for('logout') }}">Logout</a>
+        <a href="{{ url_for('logout', admin=1) }}">Logout</a>
     </div>
 </aside>
 

@@ -15,8 +15,8 @@ each one into a salted hash (generate_password_hash) and checks a typed
 password against that hash (check_password_hash).
 
 What the login cookie holds (Flask's signed session):
-    session['user']  the account's email
-    session['role']  'student' or 'admin'
+    session['user'], session['role']  the student signed in (email, role)
+    session['admin']                  the admin signed in, kept separately
 """
 import re
 import secrets
@@ -96,10 +96,10 @@ def check_student_login(email, password):
 
 
 def log_in(user, remember=False):
-    """Start a fresh session for this student. Clearing first means nothing
-    from before signing in carries over."""
-    session.clear()
-    session.permanent = remember          # "Remember me" keeps it for 30 days
+    """Sign this student in. An admin signed in on the same browser stays
+    signed in: the admin's sign-in is kept separately (log_in_admin)."""
+    # "Remember me" keeps it for 30 days (always, if an admin is signed in too)
+    session.permanent = remember or "admin" in session
     session["user"] = user["email"]
     session["role"] = user["role"]
 
@@ -125,9 +125,9 @@ def check_admin_login(email, password):
 
 
 def log_in_admin(email):
-    session.clear()
-    session["user"] = email
-    session["role"] = "admin"
+    """Kept apart from any student sign-in in this browser, for 30 days."""
+    session["admin"] = email
+    session.permanent = True
 
 
 def is_admin_email(email):
@@ -142,9 +142,9 @@ def is_admin_email(email):
 
 
 def is_admin():
-    """Logged in as an admin. Both must hold: the session says admin AND the
-    email is really on the admin list."""
-    return session.get("role") == "admin" and session.get("user") in ADMIN_ACCOUNTS
+    """Logged in as an admin: the session names an email that is really on
+    the admin list."""
+    return session.get("admin") in ADMIN_ACCOUNTS
 
 
 def current_user():
@@ -158,19 +158,19 @@ def account_blocked():
     """True if someone is logged in as a student whose account is no longer
     active (suspended, deactivated or deleted) -- they're logged out on their
     very next click."""
-    if not session.get("user") or is_admin():
+    if not session.get("user"):
         return False
     user = get_user_by_email(session["user"])
     return user is None or user["account_status"] != "Active"
 
 
-def log_out():
-    """End the session. Returns True if it was an admin's, so they can be
-    sent back to the admin sign-in page."""
-    was_admin = session.get("role") == "admin"
-    session.pop("user", None)
-    session.pop("role", None)
-    return was_admin
+def log_out(admin=False):
+    """End the admin's sign-in (admin=True) or the student's, leaving the
+    other one signed in. Returns True if it was the admin's."""
+    keys = ("admin",) if admin else ("user", "role")
+    for key in keys:
+        session.pop(key, None)
+    return admin
 
 
 def admin_required(view):
@@ -303,4 +303,4 @@ def delete_account(user):
             account_status = 'Deleted' WHERE id = ?""",
          [f"deleted-{user['id']}@deleted.campuscart", generate_password_hash(secrets.token_urlsafe(32)), user["id"]]),
     ])
-    session.clear()
+    log_out()
